@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,6 +43,7 @@ import type { NotificationTemplate, NotificationSchedule, NotificationLog, User 
 export default function TemplateDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [template, setTemplate] = useState<NotificationTemplate | null>(null);
   const [schedules, setSchedules] = useState<NotificationSchedule[]>([]);
   const [logs, setLogs] = useState<NotificationLog[]>([]);
@@ -87,6 +88,9 @@ export default function TemplateDetailPage() {
         setEditContentText(t.content?.text || "");
         setEditContentHtml(t.content?.html || "");
         setEditIsActive(t.isActive ?? true);
+        if (searchParams.get("edit") === "true") {
+          setEditing(true);
+        }
       }
       if (schedulesData.success) setSchedules(schedulesData.data.filter((s: NotificationSchedule) => s.templateId === id));
       if (logsData.success) setLogs(logsData.data.items.filter((l: NotificationLog) => l.templateId === id));

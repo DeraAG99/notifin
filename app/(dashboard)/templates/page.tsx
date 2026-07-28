@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -15,16 +16,15 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { Plus, Search, Pencil, Trash2, Eye, MessageSquare, Mail, Layers } from "lucide-react";
-import { TemplateForm } from "@/components/templates/template-form";
 import { TemplatePreview } from "@/components/templates/template-preview";
 import { EmptyState } from "@/components/shared/empty-state";
 import type { NotificationTemplate } from "@/types";
 
 export default function TemplatesPage() {
+  const router = useRouter();
   const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  const [formOpen, setFormOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<NotificationTemplate | null>(null);
@@ -93,7 +93,7 @@ export default function TemplatesPage() {
           <h1 className="text-2xl font-bold">Templates</h1>
           <p className="text-muted-foreground">Create and manage notification templates</p>
         </div>
-        <Button onClick={() => { setSelectedTemplate(null); setFormOpen(true); }}>
+        <Button onClick={() => window.open("/templates/new", "_blank")}>
           <Plus className="h-4 w-4 mr-2" /> New Template
         </Button>
       </div>
@@ -172,7 +172,7 @@ export default function TemplatesPage() {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8"
-                      onClick={() => { setSelectedTemplate(template); setFormOpen(true); }}
+                      onClick={() => window.open(`/templates/${template.id}?edit=true`, "_blank")}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -191,21 +191,6 @@ export default function TemplatesPage() {
           ))}
         </div>
       )}
-
-      {/* Create/Edit Dialog */}
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedTemplate ? "Edit Template" : "Create New Template"}
-            </DialogTitle>
-          </DialogHeader>
-          <TemplateForm
-            template={selectedTemplate}
-            onSuccess={() => { setFormOpen(false); fetchTemplates(); }}
-          />
-        </DialogContent>
-      </Dialog>
 
       {/* Preview Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
