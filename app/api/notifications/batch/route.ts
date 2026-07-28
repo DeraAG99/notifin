@@ -37,22 +37,27 @@ export async function POST(request: Request) {
       );
     }
 
+    const channels: ("wa" | "email")[] =
+      validated.channel === "both" ? ["wa", "email"] : [validated.channel];
+
     const logEntries = await db
       .insert(notificationLogs)
       .values(
-        userList.map((user) => ({
-          templateId: template.id,
-          userId: user.id,
-          channel: validated.channel,
-          priority: validated.priority,
-          content: {
-            text: templateEngine.render(
-              template.content.text,
-              validated.variables || { name: user.name, email: user.email, phone: user.phone }
-            ),
-          },
-          status: "pending" as const,
-        }))
+        userList.flatMap((user) =>
+          channels.map((ch) => ({
+            templateId: template.id,
+            userId: user.id,
+            channel: ch,
+            priority: validated.priority,
+            content: {
+              text: templateEngine.render(
+                template.content.text,
+                validated.variables || { name: user.name, email: user.email, phone: user.phone }
+              ),
+            },
+            status: "pending" as const,
+          }))
+        )
       )
       .returning();
 
@@ -62,11 +67,11 @@ export async function POST(request: Request) {
       if (!user) continue;
 
       await addNotificationJob({
-        type: validated.channel === "wa" ? "send-wa" : "send-email",
+        type: log.channel === "wa" ? "send-wa" : "send-email",
         logId: log.id,
         templateId: template.id,
         userId: user.id,
-        channel: validated.channel,
+        channel: log.channel as "wa" | "email",
         priority: validated.priority,
         content: log.content || { text: "" },
         subject: template.subject || undefined,
@@ -80,7 +85,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: true,
-        data: { totalJobs: queuedCount, totalUsers: userList.length },
+        data: { totalJobs: queuedCount, totalUsers: userList.length, totalChannels: channels.length },
         message: `${queuedCount} notifications queued`,
       },
       { status: 201 }

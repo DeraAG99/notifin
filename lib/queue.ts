@@ -15,7 +15,7 @@ export type NotificationJobData = {
   logId: string;
   templateId: string;
   userId: string;
-  channel: "wa" | "email";
+  channel: "wa" | "email" | "both";
   priority: "urgent" | "normal" | "low";
   content: { text: string; html?: string };
   subject?: string;
@@ -88,7 +88,21 @@ function getPriorityValue(priority: "urgent" | "normal" | "low"): number {
 
 export async function addNotificationJob(
   data: NotificationJobData
-): Promise<Job<NotificationJobData>> {
+): Promise<Job<NotificationJobData> | Job<NotificationJobData>[]> {
+  if (data.channel === "both") {
+    const waJob = await whatsappQueue.add(
+      `send-wa-${data.logId || Date.now()}` as string,
+      { ...data, channel: "wa", type: "send-wa" },
+      { priority: getPriorityValue(data.priority) }
+    );
+    const emailJob = await emailQueue.add(
+      `send-email-${data.logId || Date.now()}` as string,
+      { ...data, channel: "email", type: "send-email" },
+      { priority: getPriorityValue(data.priority) }
+    );
+    return [waJob as Job<NotificationJobData>, emailJob as Job<NotificationJobData>];
+  }
+
   const queue = data.channel === "wa" ? whatsappQueue : emailQueue;
   const job = await queue.add(
     `${data.type}-${data.logId || Date.now()}` as string,
@@ -102,7 +116,7 @@ export async function addNotificationJob(
 
 export async function addBatchJobs(
   jobs: NotificationJobData[]
-): Promise<Job<NotificationJobData>[]> {
+): Promise<(Job<NotificationJobData> | Job<NotificationJobData>[])[]> {
   const results = await Promise.all(
     jobs.map((data) => addNotificationJob(data))
   );

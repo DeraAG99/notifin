@@ -43,34 +43,47 @@ export async function POST(request: Request) {
       validated.variables || { name: user.name, email: user.email, phone: user.phone }
     );
 
-    const [log] = await db
-      .insert(notificationLogs)
-      .values({
+    const channels: ("wa" | "email")[] =
+      validated.channel === "both" ? ["wa", "email"] : [validated.channel];
+
+    const logIds: string[] = [];
+
+    for (const ch of channels) {
+      const [log] = await db
+        .insert(notificationLogs)
+        .values({
+          templateId: template.id,
+          userId: user.id,
+          channel: ch,
+          priority: validated.priority,
+          content: { text: renderedText },
+          status: "pending",
+        })
+        .returning();
+
+      logIds.push(log.id);
+
+      await addNotificationJob({
+        type: ch === "wa" ? "send-wa" : "send-email",
+        logId: log.id,
         templateId: template.id,
         userId: user.id,
-        channel: validated.channel,
+        channel: ch,
         priority: validated.priority,
         content: { text: renderedText },
-        status: "pending",
-      })
-      .returning();
-
-    await addNotificationJob({
-      type: validated.channel === "wa" ? "send-wa" : "send-email",
-      logId: log.id,
-      templateId: template.id,
-      userId: user.id,
-      channel: validated.channel,
-      priority: validated.priority,
-      content: { text: renderedText },
-      subject: template.subject || undefined,
-      recipientPhone: user.phone || undefined,
-      recipientEmail: user.email || undefined,
-      recipientName: user.name,
-    });
+        subject: template.subject || undefined,
+        recipientPhone: user.phone || undefined,
+        recipientEmail: user.email || undefined,
+        recipientName: user.name,
+      });
+    }
 
     return NextResponse.json(
-      { success: true, data: { logId: log.id }, message: "Notification queued" },
+      {
+        success: true,
+        data: { logIds },
+        message: `${logIds.length} notification(s) queued`,
+      },
       { status: 201 }
     );
   } catch (error) {

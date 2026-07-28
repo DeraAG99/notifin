@@ -1,4 +1,4 @@
-export type Channel = "wa" | "email";
+export type Channel = "wa" | "email" | "both";
 export type NotificationStatus =
   | "pending"
   | "sent"

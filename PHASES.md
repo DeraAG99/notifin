@@ -52,7 +52,7 @@ components/ui/ (21 shadcn components)
 | `notification_logs` | Delivery logs (status, error, metadata, timestamps) |
 
 ### Enums
-- `channel`: `wa`, `email`
+- `channel`: `wa`, `email`, `both`
 - `status`: `pending`, `sent`, `failed`, `delivered`, `read`
 - `priority`: `urgent`, `normal`, `low`
 

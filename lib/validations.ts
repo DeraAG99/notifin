@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const channelSchema = z.enum(["wa", "email"]);
+export const channelSchema = z.enum(["wa", "email", "both"]);
 export const statusSchema = z.enum([
   "pending",
   "sent",

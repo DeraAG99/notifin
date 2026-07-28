@@ -22,7 +22,7 @@ interface TemplateFormProps {
 
 export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
   const [name, setName] = useState(template?.name || "");
-  const [channel, setChannel] = useState<"wa" | "email">(template?.channel || "wa");
+  const [channel, setChannel] = useState<"wa" | "email" | "both">(template?.channel || "wa");
   const [subject, setSubject] = useState(template?.subject || "");
   const [contentText, setContentText] = useState(template?.content?.text || "");
   const [contentHtml, setContentHtml] = useState(template?.content?.html || "");
@@ -38,7 +38,7 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
     const body = {
       name,
       channel,
-      subject: channel === "email" ? subject : null,
+      subject: channel !== "wa" ? subject : null,
       content: { text: contentText, html: contentHtml || undefined },
       variables: [...new Set(variables)],
       isActive,
@@ -75,19 +75,20 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
         </div>
         <div className="space-y-2">
           <Label>Channel</Label>
-          <Select value={channel} onValueChange={(v) => setChannel(v as "wa" | "email")}>
+          <Select value={channel} onValueChange={(v) => setChannel(v as "wa" | "email" | "both")}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="wa">WhatsApp</SelectItem>
               <SelectItem value="email">Email</SelectItem>
+              <SelectItem value="both">Both (WA + Email)</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      {channel === "email" && (
+      {channel !== "wa" && (
         <div className="space-y-2">
           <Label htmlFor="subject">Subject</Label>
           <Input
@@ -114,7 +115,7 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
         </p>
       </div>
 
-      {channel === "email" && (
+      {channel !== "wa" && (
         <div className="space-y-2">
           <Label htmlFor="html">HTML (optional)</Label>
           <Textarea

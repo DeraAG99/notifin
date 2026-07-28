@@ -63,8 +63,8 @@ export default function TemplateDetailPage() {
         <div className="flex-1">
           <h1 className="text-2xl font-bold">{template.name}</h1>
           <div className="flex items-center gap-2 mt-1">
-            <Badge variant={template.channel === "wa" ? "default" : "secondary"}>
-              {template.channel === "wa" ? "WhatsApp" : "Email"}
+            <Badge variant={template.channel === "both" ? "outline" : template.channel === "wa" ? "default" : "secondary"}>
+              {template.channel === "wa" ? "WhatsApp" : template.channel === "email" ? "Email" : "Both"}
             </Badge>
             <Badge variant={template.isActive ? "default" : "secondary"}>
               {template.isActive ? "Active" : "Inactive"}

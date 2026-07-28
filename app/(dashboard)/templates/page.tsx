@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -45,9 +45,9 @@ export default function TemplatesPage() {
     }
   };
 
-  useState(() => {
+  useEffect(() => {
     fetchTemplates();
-  });
+  }, []);
 
   const filtered = templates.filter(
     (t) =>
@@ -113,8 +113,8 @@ export default function TemplatesPage() {
                 <TableRow key={template.id}>
                   <TableCell className="font-medium">{template.name}</TableCell>
                   <TableCell>
-                    <Badge variant={template.channel === "wa" ? "default" : "secondary"}>
-                      {template.channel === "wa" ? "WhatsApp" : "Email"}
+                    <Badge variant={template.channel === "both" ? "outline" : template.channel === "wa" ? "default" : "secondary"}>
+                      {template.channel === "wa" ? "WhatsApp" : template.channel === "email" ? "Email" : "Both"}
                     </Badge>
                   </TableCell>
                   <TableCell>
