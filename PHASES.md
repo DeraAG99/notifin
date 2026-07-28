@@ -73,7 +73,7 @@ components/ui/ (21 shadcn components)
   - Webhook handler
   - Device status check
 - [x] Email client (`lib/email.ts`)
-  - Resend integration
+  - Nodemailer (SMTP) integration
   - sendEmail, sendBulkEmail
   - Health check
 - [x] Queue setup (`lib/queue.ts`)
@@ -202,44 +202,37 @@ components/dashboard/queue-health.tsx
 
 ---
 
-## Phase 6: Frontend - Feature Pages
+## Phase 6: Frontend - Feature Pages ✅
 
-### To Do
-- [ ] Templates page (`app/(dashboard)/templates/page.tsx`)
-  - Table list with channel badge
-  - Create/Edit dialog with form
-  - Content editor with variable picker
-  - Live preview panel
+### Completed
+- [x] Templates page (`app/(dashboard)/templates/page.tsx`)
+  - Table list with channel badge, search, create button
+  - Create/Edit form with channel selection, subject, content, variables
+  - Live preview with sample data
   - Delete confirmation
-- [ ] Template detail (`app/(dashboard)/templates/[id]/page.tsx`)
-  - Detail view
-  - Test send functionality
-  - Schedule list using template
-  - Recent logs
-- [ ] Users page (`app/(dashboard)/users/page.tsx`)
-  - Table with pagination, search
-  - Import CSV dialog
-  - Create/Edit user form
-  - User detail: history, schedules
-- [ ] Schedules page (`app/(dashboard)/schedules/page.tsx`)
-  - Calendar/list view toggle
-  - Cron builder (preset + custom)
-  - Timezone selection
-  - Manual trigger button
-- [ ] Logs page (`app/(dashboard)/logs/page.tsx`)
-  - Filterable table (date, channel, status, user)
+- [x] Template detail (`app/(dashboard)/templates/[id]/page.tsx`)
+  - Detail view with variable list, test send button
+- [x] Users page (`app/(dashboard)/users/page.tsx`)
+  - Table with pagination, search, CRUD operations
+  - Import CSV dialog with PapaParse
+  - Create/Edit user form with timezone
+- [x] Schedules page (`app/(dashboard)/schedules/page.tsx`)
+  - Table with template/user info
+  - Cron builder with presets (daily, weekly, monthly)
+  - Create/Edit form with template/user selection
+- [x] Logs page (`app/(dashboard)/logs/page.tsx`)
+  - Filterable table (date, channel, status, search)
   - Status badges (color coded)
-  - Detail modal
+  - Detail modal with full log info
   - Export to CSV
-  - Retry failed
-- [ ] Settings page (`app/(dashboard)/settings/page.tsx`)
-  - Fonnte config form
-  - Email config form
-  - Default timezone
-  - Queue concurrency settings
-  - System health check
+  - Retry failed notifications
+- [x] Settings page (`app/(dashboard)/settings/page.tsx`)
+  - System health check (Fonnte, SMTP, Redis, DB)
+  - Fonnte config form (token, rate limit)
+  - SMTP config form (host, port, user, pass, from)
+  - General settings (timezone)
 
-### Files to Create
+### Files Created
 ```
 app/(dashboard)/templates/page.tsx
 app/(dashboard)/templates/[id]/page.tsx
@@ -249,8 +242,8 @@ app/(dashboard)/logs/page.tsx
 app/(dashboard)/settings/page.tsx
 components/templates/template-form.tsx
 components/templates/template-preview.tsx
-components/notifications/send-dialog.tsx
-components/dashboard/* (as listed above)
+components/users/user-form.tsx
+components/users/csv-import.tsx
 ```
 
 ---
@@ -286,18 +279,18 @@ emails/notification.tsx
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start Next.js dev server |
-| `npm run build` | Build for production |
-| `npm run start` | Start production server |
-| `npm run worker` | Start notification worker |
-| `npm run scheduler` | Start scheduler worker |
-| `npm run dev:all` | Start all services concurrently |
-| `npm run db:generate` | Generate Drizzle migrations |
-| `npm run db:push` | Push schema to database |
-| `npm run db:migrate` | Run migrations |
-| `npm run db:studio` | Open Drizzle Studio |
-| `npm run db:seed` | Seed database with sample data |
-| `npm run lint` | Run ESLint |
+| `bun run dev` | Start Next.js dev server |
+| `bun run build` | Build for production |
+| `bun run start` | Start production server |
+| `bun run worker` | Start notification worker |
+| `bun run scheduler` | Start scheduler worker |
+| `bun run dev:all` | Start all services concurrently |
+| `bun run db:generate` | Generate Drizzle migrations |
+| `bun run db:push` | Push schema to database |
+| `bun run db:migrate` | Run migrations |
+| `bun run db:studio` | Open Drizzle Studio |
+| `bun run db:seed` | Seed database with sample data |
+| `bun run lint` | Run ESLint |
 
 ---
 
@@ -314,8 +307,11 @@ REDIS_URL=redis://localhost:6379
 FONNTE_TOKEN=your_fonnte_token_here
 FONNTE_RATE_LIMIT=100
 
-# Email (Resend)
-RESEND_API_KEY=re_your_api_key_here
+# Email (SMTP/Nodemailer)
+SMTP_HOST=smtp.provider.com
+SMTP_PORT=587
+SMTP_USER=your@email.com
+SMTP_PASS=your_password
 EMAIL_FROM=notifications@yourdomain.com
 
 # App
