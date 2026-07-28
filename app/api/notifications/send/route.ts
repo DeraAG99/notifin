@@ -1,0 +1,88 @@
+import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { notificationLogs, notificationTemplates, users } from "@/lib/db/schema";
+import { sendNotificationSchema } from "@/lib/validations";
+import { addNotificationJob } from "@/lib/queue";
+import { templateEngine } from "@/lib/template-engine";
+import { eq } from "drizzle-orm";
+import type { ApiResponse } from "@/types";
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const validated = sendNotificationSchema.parse(body);
+
+    const [template] = await db
+      .select()
+      .from(notificationTemplates)
+      .where(eq(notificationTemplates.id, validated.templateId))
+      .limit(1);
+
+    if (!template) {
+      return NextResponse.json(
+        { success: false, error: "Template not found" },
+        { status: 404 }
+      );
+    }
+
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, validated.userId))
+      .limit(1);
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    const renderedText = templateEngine.render(
+      template.content.text,
+      validated.variables || { name: user.name, email: user.email, phone: user.phone }
+    );
+
+    const [log] = await db
+      .insert(notificationLogs)
+      .values({
+        templateId: template.id,
+        userId: user.id,
+        channel: validated.channel,
+        priority: validated.priority,
+        content: { text: renderedText },
+        status: "pending",
+      })
+      .returning();
+
+    await addNotificationJob({
+      type: validated.channel === "wa" ? "send-wa" : "send-email",
+      logId: log.id,
+      templateId: template.id,
+      userId: user.id,
+      channel: validated.channel,
+      priority: validated.priority,
+      content: { text: renderedText },
+      subject: template.subject || undefined,
+      recipientPhone: user.phone || undefined,
+      recipientEmail: user.email || undefined,
+      recipientName: user.name,
+    });
+
+    return NextResponse.json(
+      { success: true, data: { logId: log.id }, message: "Notification queued" },
+      { status: 201 }
+    );
+  } catch (error) {
+    if (error instanceof Error && error.name === "ZodError") {
+      return NextResponse.json(
+        { success: false, error: "Validation failed", message: error.message },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json(
+      { success: false, error: "Failed to send notification" },
+      { status: 500 }
+    );
+  }
+}

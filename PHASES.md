@@ -96,36 +96,36 @@ components/ui/ (21 shadcn components)
 
 ---
 
-## Phase 3: API Routes
+## Phase 3: API Routes ✅
 
-### To Do
-- [ ] CRUD `/api/templates`
+### Completed
+- [x] CRUD `/api/templates`
   - GET /api/templates (list, filter by channel)
   - POST /api/templates (create)
   - PUT /api/templates/[id] (update)
   - DELETE /api/templates/[id] (delete)
   - POST /api/templates/[id]/preview (preview with sample data)
-- [ ] CRUD `/api/users`
+- [x] CRUD `/api/users`
   - GET /api/users (list with pagination, search)
   - POST /api/users (create single/bulk)
   - PUT /api/users/[id]
   - DELETE /api/users/[id]
-- [ ] Notifications `/api/notifications`
+- [x] Notifications `/api/notifications`
   - POST /api/notifications/send
   - POST /api/notifications/batch
-- [ ] CRUD `/api/schedules`
+- [x] CRUD `/api/schedules`
   - GET /api/schedules (list all)
   - POST /api/schedules (create)
   - PUT /api/schedules/[id] (update/toggle)
   - DELETE /api/schedules/[id]
-- [ ] Webhooks
+- [x] Webhooks
   - POST /api/webhooks/fonnte (delivery status, incoming messages)
-- [ ] Logs & Monitoring
+- [x] Logs & Monitoring
   - GET /api/logs (list with filters)
   - GET /api/logs/stats (statistics)
   - GET /api/queue/stats (BullMQ metrics)
-- [ ] Settings
-  - GET/PUT /api/settings (config management)
+- [x] Settings
+  - GET/PUT /api/settings (config management + health check)
 
 ### Files to Create
 ```
