@@ -6,7 +6,7 @@
 - **UI:** shadcn/ui + Tailwind CSS v4
 - **Queue:** BullMQ + Redis
 - **WhatsApp:** Fonnte Gateway API
-- **Email:** Resend + React Email
+- **Email:** Nodemailer (SMTP)
 - **Validation:** Zod v4
 - **Charts:** Recharts
 - **Scheduler:** node-cron

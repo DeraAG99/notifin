@@ -97,7 +97,10 @@ export const fonnteWebhookSchema = z.object({
 export const settingsSchema = z.object({
   fonnteToken: z.string().optional(),
   fonnteRateLimit: z.number().int().positive().optional(),
-  resendApiKey: z.string().optional(),
+  smtpHost: z.string().optional(),
+  smtpPort: z.number().int().positive().optional(),
+  smtpUser: z.string().optional(),
+  smtpPass: z.string().optional(),
   emailFrom: z.string().email().optional(),
   defaultTimezone: z.string().optional(),
   waConcurrency: z.number().int().positive().optional(),

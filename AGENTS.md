@@ -16,7 +16,7 @@ WhatsApp & Email notification system with scheduling, templates, and queue manag
 - **UI:** shadcn/ui + Tailwind CSS v4
 - **Queue:** BullMQ + Redis
 - **WhatsApp:** Fonnte Gateway API
-- **Email:** Resend
+- **Email:** Nodemailer (SMTP)
 - **Validation:** Zod v4
 
 ## Critical: Next.js 16 Breaking Changes

@@ -1,4 +1,4 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
 interface SendEmailParams {
   to: string | string[];
@@ -7,6 +7,7 @@ interface SendEmailParams {
   text?: string;
   from?: string;
   replyTo?: string;
+  attachments?: { filename: string; content: Buffer | string; contentType?: string }[];
 }
 
 interface EmailResponse {
@@ -15,55 +16,52 @@ interface EmailResponse {
   error?: string;
 }
 
-let resendClient: Resend | null = null;
+let transporter: nodemailer.Transporter | null = null;
 
-function getResendClient(): Resend {
-  if (!resendClient) {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      throw new Error("RESEND_API_KEY environment variable is required");
+function getTransporter(): nodemailer.Transporter {
+  if (!transporter) {
+    const host = process.env.SMTP_HOST;
+    const port = parseInt(process.env.SMTP_PORT || "587", 10);
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+
+    if (!host) {
+      throw new Error("SMTP_HOST environment variable is required");
     }
-    resendClient = new Resend(apiKey);
+
+    transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: user && pass ? { user, pass } : undefined,
+      tls: {
+        rejectUnauthorized: false,
+      },
+    });
   }
-  return resendClient;
+  return transporter;
 }
 
 function getFromAddress(): string {
-  return process.env.EMAIL_FROM || "notifications@notifin.app";
+  return process.env.EMAIL_FROM || process.env.SMTP_USER || "notifications@notifin.app";
 }
 
 export async function sendEmail(params: SendEmailParams): Promise<EmailResponse> {
-  const resend = getResendClient();
+  const transport = getTransporter();
 
   try {
-    const payload: Record<string, unknown> = {
+    const info = await transport.sendMail({
       from: params.from || getFromAddress(),
-      to: Array.isArray(params.to) ? params.to : [params.to],
+      to: Array.isArray(params.to) ? params.to.join(", ") : params.to,
       subject: params.subject,
-    };
-
-    if (params.html) {
-      payload.html = params.html;
-    }
-    if (params.text) {
-      payload.text = params.text;
-    }
-    if (params.replyTo) {
-      payload.replyTo = params.replyTo;
-    }
-
-    const result = await resend.emails.send(payload as unknown as Parameters<typeof resend.emails.send>[0]);
-
-    if (result.error) {
-      return {
-        id: "",
-        success: false,
-        error: result.error.message || "Unknown email error",
-      };
-    }
+      html: params.html,
+      text: params.text,
+      replyTo: params.replyTo,
+      attachments: params.attachments,
+    });
 
     return {
-      id: result.data?.id || "",
+      id: info.messageId,
       success: true,
     };
   } catch (error) {
@@ -97,8 +95,8 @@ export async function sendBulkEmail(
 
 export async function checkEmailHealth(): Promise<boolean> {
   try {
-    const resend = getResendClient();
-    await resend.apiKeys.list();
+    const transport = getTransporter();
+    await transport.verify();
     return true;
   } catch {
     return false;
