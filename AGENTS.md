@@ -10,7 +10,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 WhatsApp & Email notification system with scheduling, templates, and queue management.
 
 ## Tech Stack
-- **Runtime:** Node.js (npm)
+- **Runtime:** Bun
 - **Framework:** Next.js 16 (App Router) + TypeScript
 - **Database:** PostgreSQL + Drizzle ORM
 - **UI:** shadcn/ui + Tailwind CSS v4
@@ -57,15 +57,15 @@ workers/            # Background job processors
 
 ## Commands
 ```bash
-npm run dev          # Next.js dev server
-npm run build        # Production build
-npm run worker       # Notification worker
-npm run scheduler    # Scheduler worker
-npm run dev:all      # All services concurrently
-npm run db:push      # Push schema changes
-npm run db:seed      # Seed database
-npm run lint         # ESLint
-npx tsc --noEmit     # Type check (ALWAYS run after changes)
+bun run dev          # Next.js dev server
+bun run build        # Production build
+bun run worker       # Notification worker
+bun run scheduler    # Scheduler worker
+bun run dev:all      # All services concurrently
+bun run db:push      # Push schema changes
+bun run db:seed      # Seed database
+bun run lint         # ESLint
+bunx tsc --noEmit    # Type check (ALWAYS run after changes)
 ```
 
 ## Before Making Changes
