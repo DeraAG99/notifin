@@ -167,26 +167,25 @@ workers/scheduler-worker.ts
 
 ---
 
-## Phase 5: Frontend - Layout & Dashboard
+## Phase 5: Frontend - Layout & Dashboard ✅
 
-### To Do
-- [ ] Root layout update (`app/layout.tsx`)
+### Completed
+- [x] Root layout update (`app/layout.tsx`)
   - Metadata (title, description)
   - Font configuration
   - Toaster provider
-- [ ] Dashboard layout (`app/(dashboard)/layout.tsx`)
+- [x] Dashboard layout (`app/(dashboard)/layout.tsx`)
   - Sidebar navigation
-  - Header with user info
+  - Header with date display
   - Mobile responsive sheet menu
-- [ ] Dashboard page (`app/(dashboard)/dashboard/page.tsx`)
+- [x] Dashboard page (`app/(dashboard)/dashboard/page.tsx`)
   - Stat cards: Total sent, Delivered, Failed, Pending
-  - Chart: Notifications per day (recharts)
+  - Chart: Notifications per day (recharts bar chart)
   - Recent logs table
-  - Queue health indicator
-- [ ] Shared components
-  - Loading skeletons
-  - Empty states
-  - Error boundaries
+  - Queue health indicator (WA + Email)
+- [x] Shared components
+  - Loading skeletons (dashboard + table)
+  - Empty state with CTA
 
 ### Files to Create/Update
 ```
