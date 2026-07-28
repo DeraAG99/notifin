@@ -75,5 +75,10 @@ bunx tsc --noEmit    # Type check (ALWAYS run after changes)
 4. Wrap API handlers in try-catch blocks
 5. Return `{ success: boolean, data?, error? }` from all APIs
 
+## Git Conventions
+- After completing each phase: commit & push to origin
+- Commit format: `feat: Phase X - description` or `docs: description`
+- Always update PHASES.md before committing
+
 ## Environment Variables
 See `.env.example` for all required vars. Never commit secrets.
