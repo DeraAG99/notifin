@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,12 +13,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "@/components/ui/toast";
+import {
+  MessageSquare,
+  Mail,
+  Copy,
+  Plus,
+  X,
+  Eye,
+  Pencil,
+} from "lucide-react";
 import type { NotificationTemplate } from "@/types";
 
 interface TemplateFormProps {
   template?: NotificationTemplate | null;
   onSuccess: () => void;
 }
+
+const AVAILABLE_VARIABLES = ["name", "email", "phone", "amount", "date", "message", "company"];
 
 export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
   const [name, setName] = useState(template?.name || "");
@@ -28,118 +42,339 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
   const [contentHtml, setContentHtml] = useState(template?.content?.html || "");
   const [isActive, setIsActive] = useState(template?.isActive ?? true);
   const [loading, setLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const detectedVariables = useMemo(() => {
+    const matches = contentText.match(/\{\{(\w+)\}\}/g);
+    if (!matches) return [];
+    return [...new Set(matches.map((v) => v.replace(/\{\{|\}\}/g, "")))];
+  }, [contentText]);
+
+  const sampleData: Record<string, string> = useMemo(() => {
+    const data: Record<string, string> = {};
+    detectedVariables.forEach((v) => {
+      switch (v) {
+        case "name": data[v] = "John Doe"; break;
+        case "email": data[v] = "john@example.com"; break;
+        case "phone": data[v] = "6281234567890"; break;
+        case "amount": data[v] = "Rp 150.000"; break;
+        case "date": data[v] = new Date().toLocaleDateString("id-ID"); break;
+        case "message": data[v] = "Your order has been processed"; break;
+        case "company": data[v] = "Notifin"; break;
+        default: data[v] = `[${v}]`;
+      }
+    });
+    return data;
+  }, [detectedVariables]);
+
+  const renderedPreview = useMemo(() => {
+    let text = contentText;
+    Object.entries(sampleData).forEach(([key, value]) => {
+      text = text.replaceAll(`{{${key}}}`, value);
+    });
+    return text;
+  }, [contentText, sampleData]);
+
+  const insertVariable = useCallback((variable: string) => {
+    const textarea = document.getElementById("content") as HTMLTextAreaElement;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newText = contentText.substring(0, start) + `{{${variable}}}` + contentText.substring(end);
+      setContentText(newText);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + variable.length + 4, start + variable.length + 4);
+      }, 0);
+    } else {
+      setContentText((prev) => prev + `{{${variable}}}`);
+    }
+  }, [contentText]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
-    const variables = contentText.match(/\{\{(\w+)\}\}/g)?.map((v) => v.replace(/\{\{|\}\}/g, "")) || [];
 
     const body = {
       name,
       channel,
       subject: channel !== "wa" ? subject : null,
       content: { text: contentText, html: contentHtml || undefined },
-      variables: [...new Set(variables)],
+      variables: detectedVariables,
       isActive,
     };
 
     try {
       const url = template ? `/api/templates/${template.id}` : "/api/templates";
       const method = template ? "PUT" : "POST";
-      await fetch(url, {
+      const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      onSuccess();
-    } catch (error) {
-      console.error("Failed to save template:", error);
+      const data = await res.json();
+      if (data.success) {
+        toast.add({
+          title: template ? "Template updated" : "Template created",
+          description: `"${name}" has been ${template ? "updated" : "created"} successfully.`,
+          type: "success",
+        });
+        onSuccess();
+      } else {
+        toast.add({
+          title: "Error",
+          description: data.error || "Failed to save template",
+          type: "error",
+        });
+      }
+    } catch {
+      toast.add({
+        title: "Error",
+        description: "Failed to save template. Please try again.",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  const channelIcon = channel === "wa" ? <MessageSquare className="h-4 w-4" /> : <Mail className="h-4 w-4" />;
+  const channelLabel = channel === "wa" ? "WhatsApp" : channel === "email" ? "Email" : "Both";
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="name">Name</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Template name"
-            required
-          />
+    <form onSubmit={handleSubmit}>
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Editor Panel */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Pencil className="h-4 w-4" /> Editor
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="name">Template Name</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Welcome Message"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Channel</Label>
+              <Select value={channel} onValueChange={(v) => setChannel(v as "wa" | "email" | "both")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="wa">
+                    <span className="flex items-center gap-2"><MessageSquare className="h-4 w-4" /> WhatsApp</span>
+                  </SelectItem>
+                  <SelectItem value="email">
+                    <span className="flex items-center gap-2"><Mail className="h-4 w-4" /> Email</span>
+                  </SelectItem>
+                  <SelectItem value="both">
+                    <span className="flex items-center gap-2">{channelIcon} Both (WA + Email)</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {channel !== "wa" && (
+            <div className="space-y-2">
+              <Label htmlFor="subject">Email Subject</Label>
+              <Input
+                id="subject"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="e.g. Your invoice for {{amount}}"
+              />
+              <p className="text-xs text-muted-foreground">
+                Supports {"{{variables}}"} like {"{{name}}"}, {"{{amount}}"}
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="content">Message Content</Label>
+              <span className="text-xs text-muted-foreground">
+                {contentText.length} chars
+              </span>
+            </div>
+            <Textarea
+              id="content"
+              value={contentText}
+              onChange={(e) => setContentText(e.target.value)}
+              placeholder={"Hi {{name}},\n\nYour notification message here..."}
+              rows={8}
+              required
+              className="font-mono text-sm"
+            />
+          </div>
+
+          {/* Variable Chips */}
+          <div className="space-y-2">
+            <Label>Variables</Label>
+            <div className="flex flex-wrap gap-2">
+              {detectedVariables.length > 0 ? (
+                detectedVariables.map((v) => (
+                  <Badge key={v} variant="secondary" className="gap-1">
+                    {`{{${v}}}`}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setContentText(contentText.replaceAll(`{{${v}}}`, ""));
+                      }}
+                      className="ml-1 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-xs text-muted-foreground">No variables detected. Type {"{{variable}}"} in your content.</span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1 mt-1">
+              <span className="text-xs text-muted-foreground mr-1">Insert:</span>
+              {AVAILABLE_VARIABLES.filter((v) => !detectedVariables.includes(v)).map((v) => (
+                <Button
+                  key={v}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-xs"
+                  onClick={() => insertVariable(v)}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  {`{{${v}}}`}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {channel !== "wa" && (
+            <div className="space-y-2">
+              <Label htmlFor="html">HTML Template (optional)</Label>
+              <Textarea
+                id="html"
+                value={contentHtml}
+                onChange={(e) => setContentHtml(e.target.value)}
+                placeholder={'<h2>Hello {{name}}</h2>\n<p>Your message here</p>'}
+                rows={5}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave empty to use plain text. HTML is used for email rendering.
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            <Switch
+              id="active"
+              checked={isActive}
+              onCheckedChange={setIsActive}
+            />
+            <Label htmlFor="active">Active</Label>
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label>Channel</Label>
-          <Select value={channel} onValueChange={(v) => setChannel(v as "wa" | "email" | "both")}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="wa">WhatsApp</SelectItem>
-              <SelectItem value="email">Email</SelectItem>
-              <SelectItem value="both">Both (WA + Email)</SelectItem>
-            </SelectContent>
-          </Select>
+
+        {/* Preview Panel */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <Eye className="h-4 w-4" /> Live Preview
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                navigator.clipboard.writeText(renderedPreview);
+                toast.add({ title: "Copied!", description: "Preview copied to clipboard", type: "success" });
+              }}
+            >
+              <Copy className="h-4 w-4 mr-1" /> Copy
+            </Button>
+          </div>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm">
+                  {channelLabel} Message
+                </CardTitle>
+                {channel !== "wa" && subject && (
+                  <Badge variant="outline" className="text-xs">
+                    Subject: {Object.entries(sampleData).reduce(
+                      (s, [k, v]) => s.replaceAll(`{{${k}}}`, v),
+                      subject
+                    )}
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {contentText ? (
+                <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                    {renderedPreview}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-muted-foreground text-sm">
+                  Start typing to see a preview...
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Sample Data Editor */}
+          {detectedVariables.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Sample Data</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {detectedVariables.map((v) => (
+                    <div key={v} className="flex items-center gap-2">
+                      <code className="text-xs bg-muted px-2 py-1 rounded min-w-[80px] font-mono">
+                        {`{{${v}}}`}
+                      </code>
+                      <Input
+                        value={sampleData[v] || ""}
+                        onChange={(e) => {
+                          const newData = { ...sampleData, [v]: e.target.value };
+                          Object.entries(newData).forEach(([key, val]) => {
+                            const old = sampleData[key] || "";
+                            if (old && val === old) {
+                              // keep old value
+                            }
+                          });
+                        }}
+                        placeholder={`Sample ${v}`}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Edit sample data to customize the preview
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
-      {channel !== "wa" && (
-        <div className="space-y-2">
-          <Label htmlFor="subject">Subject</Label>
-          <Input
-            id="subject"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            placeholder="Email subject (supports {{variables}})"
-          />
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <Label htmlFor="content">Content</Label>
-        <Textarea
-          id="content"
-          value={contentText}
-          onChange={(e) => setContentText(e.target.value)}
-          placeholder="Hello {{name}}, your notification..."
-          rows={5}
-          required
-        />
-        <p className="text-xs text-muted-foreground">
-          Use {"{{variable}}"} for dynamic content
-        </p>
-      </div>
-
-      {channel !== "wa" && (
-        <div className="space-y-2">
-          <Label htmlFor="html">HTML (optional)</Label>
-          <Textarea
-            id="html"
-            value={contentHtml}
-            onChange={(e) => setContentHtml(e.target.value)}
-            placeholder="<h1>Hello {{name}}</h1>"
-            rows={5}
-          />
-        </div>
-      )}
-
-      <div className="flex items-center gap-2">
-        <Switch
-          id="active"
-          checked={isActive}
-          onCheckedChange={setIsActive}
-        />
-        <Label htmlFor="active">Active</Label>
-      </div>
-
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
         <Button type="submit" disabled={loading}>
-          {loading ? "Saving..." : template ? "Update" : "Create"}
+          {loading ? "Saving..." : template ? "Update Template" : "Create Template"}
         </Button>
       </div>
     </form>

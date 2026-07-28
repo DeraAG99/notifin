@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "@/components/ui/toast";
+import { Copy, MessageSquare, Mail } from "lucide-react";
 import type { NotificationTemplate } from "@/types";
 
 interface TemplatePreviewProps {
@@ -14,77 +16,105 @@ interface TemplatePreviewProps {
 
 export function TemplatePreview({ template }: TemplatePreviewProps) {
   const [sampleData, setSampleData] = useState<Record<string, string>>({});
-  const [rendered, setRendered] = useState<string>("");
-  const [loading, setLoading] = useState(false);
 
   const variables = template.variables || [];
 
-  const handlePreview = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/templates/${template.id}/preview`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sampleData }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setRendered(data.data.rendered.text);
-      }
-    } catch (error) {
-      console.error("Failed to preview:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const renderedText = useMemo(() => {
+    let text = template.content.text;
+    Object.entries(sampleData).forEach(([key, value]) => {
+      text = text.replaceAll(`{{${key}}}`, value || `{{${key}}}`);
+    });
+    return text;
+  }, [template.content.text, sampleData]);
+
+  const renderedSubject = useMemo(() => {
+    if (!template.subject) return null;
+    let text = template.subject;
+    Object.entries(sampleData).forEach(([key, value]) => {
+      text = text.replaceAll(`{{${key}}}`, value || `{{${key}}}`);
+    });
+    return text;
+  }, [template.subject, sampleData]);
+
+  const channelLabel = template.channel === "wa" ? "WhatsApp" : template.channel === "email" ? "Email" : "Both";
+  const ChannelIcon = template.channel === "wa" ? MessageSquare : Mail;
 
   return (
     <div className="space-y-4">
+      {/* Sample Data Input */}
       {variables.length > 0 && (
         <div className="space-y-3">
-          <Label>Sample Data</Label>
-          {variables.map((variable) => (
-            <div key={variable} className="flex items-center gap-2">
-              <code className="text-sm bg-muted px-2 py-1 rounded min-w-[100px]">
-                {`{{${variable}}}`}
-              </code>
-              <Input
-                value={sampleData[variable] || ""}
-                onChange={(e) =>
-                  setSampleData({ ...sampleData, [variable]: e.target.value })
-                }
-                placeholder={`Sample ${variable}`}
-              />
-            </div>
-          ))}
+          <Label className="text-sm font-medium">Sample Data</Label>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {variables.map((variable) => (
+              <div key={variable} className="flex items-center gap-2">
+                <code className="text-xs bg-muted px-2 py-1.5 rounded font-mono min-w-[70px]">
+                  {`{{${variable}}}`}
+                </code>
+                <Input
+                  value={sampleData[variable] || ""}
+                  onChange={(e) =>
+                    setSampleData({ ...sampleData, [variable]: e.target.value })
+                  }
+                  placeholder={variable}
+                  className="h-8 text-sm"
+                />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      <Button onClick={handlePreview} disabled={loading}>
-        {loading ? "Loading..." : "Preview"}
-      </Button>
-
-      {rendered && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Rendered Output</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="whitespace-pre-wrap text-sm bg-muted p-4 rounded-lg">
-              {rendered}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
+      {/* Preview Card */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Original Template</CardTitle>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <ChannelIcon className="h-4 w-4" />
+              {channelLabel} Preview
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                navigator.clipboard.writeText(renderedText);
+                toast.add({ title: "Copied!", description: "Preview copied to clipboard", type: "success" });
+              }}
+            >
+              <Copy className="h-4 w-4 mr-1" /> Copy
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="whitespace-pre-wrap text-sm bg-muted p-4 rounded-lg">
+          {renderedSubject && (
+            <div className="mb-3 pb-3 border-b">
+              <Badge variant="outline" className="text-xs mb-1">Subject</Badge>
+              <p className="text-sm font-medium">{renderedSubject}</p>
+            </div>
+          )}
+          <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+            <div className="whitespace-pre-wrap text-sm leading-relaxed">
+              {renderedText}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Original Template */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm text-muted-foreground">Original Template</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="whitespace-pre-wrap text-sm bg-muted p-4 rounded-lg font-mono">
             {template.content.text}
           </div>
+          {template.subject && (
+            <div className="mt-2">
+              <Badge variant="outline" className="text-xs mb-1">Subject</Badge>
+              <p className="text-sm font-mono bg-muted p-2 rounded">{template.subject}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
