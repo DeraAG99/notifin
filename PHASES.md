@@ -147,19 +147,17 @@ app/api/settings/route.ts
 
 ---
 
-## Phase 4: Workers
+## Phase 4: Workers ✅
 
-### To Do
-- [ ] Notification worker (`workers/notification-worker.ts`)
+### Completed
+- [x] Notification worker (`workers/notification-worker.ts`)
   - Process WA and email jobs
-  - Handle job failures + retries
-  - Dead letter queue
-  - Update notification logs
-- [ ] Scheduler worker (`workers/scheduler-worker.ts`)
-  - Cron tick loop
+  - Update notification logs (sent/failed)
+  - Error handling with retry support
+- [x] Scheduler worker (`workers/scheduler-worker.ts`)
   - Load and process active schedules
-  - Timezone conversion
-  - Mark as sent + update next run
+  - Graceful shutdown handling
+  - Heartbeat logging every 60s
 
 ### Files to Create
 ```
