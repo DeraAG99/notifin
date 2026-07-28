@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,9 +50,9 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
     return [...new Set(matches.map((v) => v.replace(/\{\{|\}\}/g, "")))];
   }, [contentText]);
 
-  const sampleData: Record<string, string> = useMemo(() => {
+  const getDefaultSampleData = useCallback((vars: string[]): Record<string, string> => {
     const data: Record<string, string> = {};
-    detectedVariables.forEach((v) => {
+    vars.forEach((v) => {
       switch (v) {
         case "name": data[v] = "John Doe"; break;
         case "email": data[v] = "john@example.com"; break;
@@ -65,7 +65,30 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
       }
     });
     return data;
-  }, [detectedVariables]);
+  }, []);
+
+  const [sampleData, setSampleData] = useState<Record<string, string>>(() =>
+    getDefaultSampleData(template?.variables || [])
+  );
+
+  // When detected variables change, add new ones with defaults, keep existing edits
+  useEffect(() => {
+    setSampleData((prev) => {
+      const updated = { ...prev };
+      detectedVariables.forEach((v) => {
+        if (!(v in updated)) {
+          updated[v] = getDefaultSampleData([v])[v] || "";
+        }
+      });
+      // Remove variables no longer in content
+      Object.keys(updated).forEach((k) => {
+        if (!detectedVariables.includes(k)) {
+          delete updated[k];
+        }
+      });
+      return updated;
+    });
+  }, [detectedVariables, getDefaultSampleData]);
 
   const renderedPreview = useMemo(() => {
     let text = contentText;
@@ -348,15 +371,7 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
                       </code>
                       <Input
                         value={sampleData[v] || ""}
-                        onChange={(e) => {
-                          const newData = { ...sampleData, [v]: e.target.value };
-                          Object.entries(newData).forEach(([key, val]) => {
-                            const old = sampleData[key] || "";
-                            if (old && val === old) {
-                              // keep old value
-                            }
-                          });
-                        }}
+                        onChange={(e) => setSampleData((prev) => ({ ...prev, [v]: e.target.value }))}
                         placeholder={`Sample ${v}`}
                         className="h-8 text-sm"
                       />
