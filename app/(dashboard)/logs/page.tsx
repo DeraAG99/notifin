@@ -69,7 +69,7 @@ export default function LogsPage() {
         });
       }
     } catch (error) {
-      console.error("Failed to fetch logs:", error);
+      console.error("Gagal memuat log:", error);
     } finally {
       setLoading(false);
     }
@@ -95,12 +95,12 @@ export default function LogsPage() {
       });
       fetchLogs(pagination.page);
     } catch (error) {
-      console.error("Failed to retry:", error);
+      console.error("Gagal mencoba ulang:", error);
     }
   };
 
   const handleExport = () => {
-    const headers = ["ID", "Channel", "Status", "Priority", "Content", "Error", "Created At"];
+    const headers = ["ID", "Channel", "Status", "Prioritas", "Isi", "Error", "Dibuat"];
     const rows = logs.map((log) => [
       log.id,
       log.channel,
@@ -116,7 +116,7 @@ export default function LogsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `logs-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `log-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -125,11 +125,11 @@ export default function LogsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Logs</h1>
-          <p className="text-muted-foreground">Notification delivery history</p>
+          <h1 className="text-2xl font-bold">Log</h1>
+          <p className="text-muted-foreground">Riwayat pengiriman notifikasi</p>
         </div>
         <Button variant="outline" onClick={handleExport}>
-          <Download className="h-4 w-4 mr-2" /> Export CSV
+          <Download className="h-4 w-4 mr-2" /> Ekspor CSV
         </Button>
       </div>
 
@@ -138,10 +138,10 @@ export default function LogsPage() {
           <Label className="text-xs">Channel</Label>
           <Select value={channelFilter} onValueChange={(v) => setChannelFilter(v ?? "")}>
             <SelectTrigger className="w-[130px]">
-              <SelectValue placeholder="All" />
+              <SelectValue placeholder="Semua" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All</SelectItem>
+              <SelectItem value="">Semua</SelectItem>
               <SelectItem value="wa">WhatsApp</SelectItem>
               <SelectItem value="email">Email</SelectItem>
             </SelectContent>
@@ -151,20 +151,20 @@ export default function LogsPage() {
           <Label className="text-xs">Status</Label>
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? "")}>
             <SelectTrigger className="w-[130px]">
-              <SelectValue placeholder="All" />
+              <SelectValue placeholder="Semua" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="sent">Sent</SelectItem>
-              <SelectItem value="delivered">Delivered</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
-              <SelectItem value="read">Read</SelectItem>
+              <SelectItem value="">Semua</SelectItem>
+              <SelectItem value="pending">Tertunda</SelectItem>
+              <SelectItem value="sent">Terkirim</SelectItem>
+              <SelectItem value="delivered">Tersampaikan</SelectItem>
+              <SelectItem value="failed">Gagal</SelectItem>
+              <SelectItem value="read">Dibaca</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Start Date</Label>
+          <Label className="text-xs">Tanggal Mulai</Label>
           <Input
             type="date"
             value={startDate}
@@ -173,7 +173,7 @@ export default function LogsPage() {
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">End Date</Label>
+          <Label className="text-xs">Tanggal Akhir</Label>
           <Input
             type="date"
             value={endDate}
@@ -182,16 +182,16 @@ export default function LogsPage() {
           />
         </div>
         <Button variant="outline" size="sm" onClick={() => fetchLogs(pagination.page)}>
-          <RefreshCw className="h-4 w-4 mr-1" /> Refresh
+          <RefreshCw className="h-4 w-4 mr-1" /> Segarkan
         </Button>
       </div>
 
-      <div className="text-sm text-muted-foreground">{pagination.total} logs found</div>
+      <div className="text-sm text-muted-foreground">{pagination.total} log ditemukan</div>
 
       {logs.length === 0 ? (
         <EmptyState
-          title="No logs"
-          description="Notification logs will appear here once you start sending."
+          title="Belum ada log"
+          description="Log notifikasi akan muncul di sini setelah Anda mulai mengirim."
         />
       ) : (
         <div className="border rounded-lg">
@@ -200,10 +200,10 @@ export default function LogsPage() {
               <TableRow>
                 <TableHead>Channel</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead>Content</TableHead>
+                <TableHead>Prioritas</TableHead>
+                <TableHead>Isi</TableHead>
                 <TableHead>Error</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -263,10 +263,10 @@ export default function LogsPage() {
             onClick={() => fetchLogs(pagination.page - 1)}
             disabled={pagination.page <= 1}
           >
-            Previous
+            Sebelumnya
           </Button>
           <span className="text-sm">
-            Page {pagination.page} of {pagination.totalPages}
+            Halaman {pagination.page} dari {pagination.totalPages}
           </span>
           <Button
             variant="outline"
@@ -274,7 +274,7 @@ export default function LogsPage() {
             onClick={() => fetchLogs(pagination.page + 1)}
             disabled={pagination.page >= pagination.totalPages}
           >
-            Next
+            Selanjutnya
           </Button>
         </div>
       )}
@@ -282,7 +282,7 @@ export default function LogsPage() {
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Log Detail</DialogTitle>
+            <DialogTitle>Detail Log</DialogTitle>
           </DialogHeader>
           {selectedLog && (
             <div className="space-y-3">
@@ -300,16 +300,16 @@ export default function LogsPage() {
                   </Badge>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Priority:</span>{" "}
+                  <span className="text-muted-foreground">Prioritas:</span>{" "}
                   <Badge variant="outline">{selectedLog.priority}</Badge>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Created:</span>{" "}
+                  <span className="text-muted-foreground">Dibuat:</span>{" "}
                   {selectedLog.createdAt ? new Date(selectedLog.createdAt).toLocaleString("id-ID") : "-"}
                 </div>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Content:</p>
+                <p className="text-sm text-muted-foreground mb-1">Isi:</p>
                 <div className="bg-muted p-3 rounded text-sm whitespace-pre-wrap">
                   {selectedLog.content?.text || "-"}
                 </div>

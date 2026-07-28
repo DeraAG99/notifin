@@ -17,12 +17,12 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/templates", label: "Templates", icon: FileText },
-  { href: "/users", label: "Users", icon: Users },
-  { href: "/schedules", label: "Schedules", icon: Clock },
-  { href: "/logs", label: "Logs", icon: ScrollText },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard", label: "Dasbor", icon: LayoutDashboard },
+  { href: "/templates", label: "Template", icon: FileText },
+  { href: "/users", label: "Pengguna", icon: Users },
+  { href: "/schedules", label: "Jadwal", icon: Clock },
+  { href: "/logs", label: "Log", icon: ScrollText },
+  { href: "/settings", label: "Pengaturan", icon: Settings },
 ];
 
 function MobileNav({ pathname }: { pathname: string | null }) {
@@ -60,7 +60,7 @@ export function Header() {
         <Sheet>
           <SheetTrigger render={<Button variant="ghost" size="icon" className="lg:hidden" />}>
               <Menu className="h-5 w-5" />
-              <span className="sr-only">Open menu</span>
+              <span className="sr-only">Buka menu</span>
           </SheetTrigger>
           <SheetContent side="left" className="w-64 p-0">
             <div className="flex items-center gap-2 px-6 py-5 border-b">

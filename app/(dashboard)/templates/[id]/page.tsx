@@ -33,6 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
+import { TiptapEditor } from "@/components/ui/tiptap-editor";
 import {
   ArrowLeft, Send, Clock, ScrollText, MessageSquare, Mail, Layers,
   Pencil, Check, X, Eye, Copy, Trash2,
@@ -135,12 +136,12 @@ export default function TemplateDetailPage() {
       if (data.success) {
         setTemplate(data.data);
         setEditing(false);
-        toast.add({ title: "Saved", description: "Template updated successfully", type: "success" });
+        toast.add({ title: "Tersimpan", description: "Template berhasil diperbarui", type: "success" });
       } else {
-        toast.add({ title: "Error", description: data.error || "Failed to save", type: "error" });
+        toast.add({ title: "Gagal", description: data.error || "Gagal menyimpan", type: "error" });
       }
     } catch {
-      toast.add({ title: "Error", description: "Failed to save template", type: "error" });
+      toast.add({ title: "Gagal", description: "Gagal menyimpan template", type: "error" });
     }
     setSaving(false);
   };
@@ -161,8 +162,8 @@ export default function TemplateDetailPage() {
       const data = await res.json();
       if (data.success) {
         toast.add({
-          title: "Test sent!",
-          description: `Notification queued for ${data.data.logIds?.length || 1} channel(s)`,
+          title: "Terkirim!",
+          description: `Notifikasi antre untuk ${data.data.logIds?.length || 1} channel`,
           type: "success",
         });
         setTestSendOpen(false);
@@ -172,10 +173,10 @@ export default function TemplateDetailPage() {
         const logsData = await logsRes.json();
         if (logsData.success) setLogs(logsData.data.items.filter((l: NotificationLog) => l.templateId === template?.id));
       } else {
-        toast.add({ title: "Error", description: data.error || "Failed to send", type: "error" });
+        toast.add({ title: "Gagal", description: data.error || "Gagal mengirim", type: "error" });
       }
     } catch {
-      toast.add({ title: "Error", description: "Failed to send test notification", type: "error" });
+      toast.add({ title: "Gagal", description: "Gagal mengirim notifikasi uji", type: "error" });
     }
     setSending(false);
   };
@@ -186,13 +187,13 @@ export default function TemplateDetailPage() {
       const res = await fetch(`/api/templates/${template.id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
-        toast.add({ title: "Deleted", description: "Template has been deleted", type: "success" });
+        toast.add({ title: "Dihapus", description: "Template berhasil dihapus", type: "success" });
         router.push("/templates");
       } else {
-        toast.add({ title: "Error", description: data.error || "Failed to delete", type: "error" });
+        toast.add({ title: "Gagal", description: data.error || "Gagal menghapus", type: "error" });
       }
     } catch {
-      toast.add({ title: "Error", description: "Failed to delete template", type: "error" });
+      toast.add({ title: "Gagal", description: "Gagal menghapus template", type: "error" });
     }
     setDeleteOpen(false);
   };
@@ -200,13 +201,13 @@ export default function TemplateDetailPage() {
   if (!template) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-muted-foreground">Loading...</div>
+        <div className="text-muted-foreground">Memuat...</div>
       </div>
     );
   }
 
   const ChannelIcon = template.channel === "wa" ? MessageSquare : template.channel === "email" ? Mail : Layers;
-  const channelLabel = template.channel === "wa" ? "WhatsApp" : template.channel === "email" ? "Email" : "Both";
+  const channelLabel = template.channel === "wa" ? "WhatsApp" : template.channel === "email" ? "Email" : "Keduanya";
 
   return (
     <div className="space-y-6">
@@ -235,12 +236,12 @@ export default function TemplateDetailPage() {
                   <SelectContent>
                     <SelectItem value="wa"><span className="flex items-center gap-2"><MessageSquare className="h-3 w-3" /> WhatsApp</span></SelectItem>
                     <SelectItem value="email"><span className="flex items-center gap-2"><Mail className="h-3 w-3" /> Email</span></SelectItem>
-                    <SelectItem value="both"><span className="flex items-center gap-2"><Layers className="h-3 w-3" /> Both</span></SelectItem>
+                    <SelectItem value="both"><span className="flex items-center gap-2"><Layers className="h-3 w-3" /> Keduanya</span></SelectItem>
                   </SelectContent>
                 </Select>
                 <div className="flex items-center gap-2">
                   <Switch checked={editIsActive} onCheckedChange={setEditIsActive} />
-                  <span className="text-sm">{editIsActive ? "Active" : "Inactive"}</span>
+                  <span className="text-sm">{editIsActive ? "Aktif" : "Nonaktif"}</span>
                 </div>
               </>
             ) : (
@@ -250,7 +251,7 @@ export default function TemplateDetailPage() {
                   {channelLabel}
                 </Badge>
                 <Badge variant={template.isActive ? "default" : "secondary"}>
-                  {template.isActive ? "Active" : "Inactive"}
+                  {template.isActive ? "Aktif" : "Nonaktif"}
                 </Badge>
               </>
             )}
@@ -260,11 +261,11 @@ export default function TemplateDetailPage() {
           {editing ? (
             <>
               <Button variant="outline" onClick={cancelEditing}>
-                <X className="h-4 w-4 mr-1" /> Cancel
+                <X className="h-4 w-4 mr-1" /> Batal
               </Button>
               <Button onClick={saveEditing} disabled={saving}>
                 <Check className="h-4 w-4 mr-1" />
-                {saving ? "Saving..." : "Save"}
+                {saving ? "Menyimpan..." : "Simpan"}
               </Button>
             </>
           ) : (
@@ -276,7 +277,7 @@ export default function TemplateDetailPage() {
                 <Eye className="h-4 w-4 mr-1" /> Preview
               </Button>
               <Button onClick={() => setTestSendOpen(true)}>
-                <Send className="h-4 w-4 mr-1" /> Test Send
+                <Send className="h-4 w-4 mr-1" /> Uji Kirim
               </Button>
               <Button variant="ghost" size="icon" onClick={() => setDeleteOpen(true)}>
                 <Trash2 className="h-4 w-4 text-destructive" />
@@ -286,13 +287,13 @@ export default function TemplateDetailPage() {
         </div>
       </div>
 
-      {/* Content Area */}
+      {/* Area Konten */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Content */}
+        {/* Konten Utama */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <ScrollText className="h-5 w-5" /> Message Content
+              <ScrollText className="h-5 w-5" /> Isi Pesan
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -300,37 +301,35 @@ export default function TemplateDetailPage() {
               <>
                 {editChannel !== "wa" && (
                   <div className="space-y-2">
-                    <Label>Email Subject</Label>
+                    <Label>Subjek Email</Label>
                     <Input
                       value={editSubject}
                       onChange={(e) => setEditSubject(e.target.value)}
-                      placeholder="e.g. Your invoice for {{amount}}"
+                      placeholder="contoh: Tagihan Anda untuk {{amount}}"
                     />
                   </div>
                 )}
                 <div className="space-y-2">
-                  <Label>Message Content</Label>
+                  <Label>Isi Pesan</Label>
                   <Textarea
                     value={editContentText}
                     onChange={(e) => setEditContentText(e.target.value)}
                     rows={10}
                     className="font-mono text-sm"
-                    placeholder={"Hi {{name}},\n\nYour message here..."}
+                    placeholder={"Halo {{name}},\n\nPesan Anda di sini..."}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Use {"{{variable}}"} for dynamic content. Detected:{" "}
-                    {editContentText.match(/\{\{(\w+)\}\}/g)?.map((v) => v.replace(/\{\{|\}\}/g, "")).filter((v, i, a) => a.indexOf(v) === i).join(", ") || "none"}
+                    Gunakan {"{{variabel}}"} untuk konten dinamis. Terdeteksi:{" "}
+                    {editContentText.match(/\{\{(\w+)\}\}/g)?.map((v) => v.replace(/\{\{|\}\}/g, "")).filter((v, i, a) => a.indexOf(v) === i).join(", ") || "tidak ada"}
                   </p>
                 </div>
                 {editChannel !== "wa" && (
                   <div className="space-y-2">
-                    <Label>HTML Template (optional)</Label>
-                    <Textarea
-                      value={editContentHtml}
-                      onChange={(e) => setEditContentHtml(e.target.value)}
-                      rows={5}
-                      className="font-mono text-sm"
-                      placeholder={'<h2>Hello {{name}}</h2>'}
+                    <Label>Template HTML Email (opsional)</Label>
+                    <TiptapEditor
+                      content={editContentHtml}
+                      onChange={setEditContentHtml}
+                      placeholder="Desain tampilan email Anda di sini..."
                     />
                   </div>
                 )}
@@ -339,7 +338,7 @@ export default function TemplateDetailPage() {
               <>
                 {template.subject && (
                   <div>
-                    <Badge variant="outline" className="text-xs mb-2">Subject</Badge>
+                    <Badge variant="outline" className="text-xs mb-2">Subjek</Badge>
                     <p className="text-sm font-medium bg-muted p-3 rounded-lg">{template.subject}</p>
                   </div>
                 )}
@@ -350,7 +349,7 @@ export default function TemplateDetailPage() {
                 </div>
                 {template.content.html && (
                   <div>
-                    <Badge variant="outline" className="text-xs mb-2">HTML Preview</Badge>
+                    <Badge variant="outline" className="text-xs mb-2">Preview HTML</Badge>
                     <div
                       className="border rounded-lg p-4 bg-white"
                       dangerouslySetInnerHTML={{ __html: template.content.html }}
@@ -360,10 +359,10 @@ export default function TemplateDetailPage() {
               </>
             )}
 
-            {/* Variables */}
+            {/* Variabel */}
             {!editing && template.variables && template.variables.length > 0 && (
               <div>
-                <p className="text-sm font-medium mb-2">Variables:</p>
+                <p className="text-sm font-medium mb-2">Variabel:</p>
                 <div className="flex gap-2 flex-wrap">
                   {template.variables.map((v) => (
                     <Badge key={v} variant="outline" className="font-mono">{`{{${v}}}`}</Badge>
@@ -376,18 +375,18 @@ export default function TemplateDetailPage() {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Info Card */}
+          {/* Kartu Info */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Template Info</CardTitle>
+              <CardTitle className="text-sm">Info Template</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Created</span>
+                <span className="text-muted-foreground">Dibuat</span>
                 <span>{template.createdAt ? new Date(template.createdAt).toLocaleDateString("id-ID") : "—"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Updated</span>
+                <span className="text-muted-foreground">Diperbarui</span>
                 <span>{template.updatedAt ? new Date(template.updatedAt).toLocaleDateString("id-ID") : "—"}</span>
               </div>
               <div className="flex justify-between">
@@ -395,17 +394,17 @@ export default function TemplateDetailPage() {
                 <span>{channelLabel}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Variables</span>
+                <span className="text-muted-foreground">Variabel</span>
                 <span>{template.variables?.length || 0}</span>
               </div>
             </CardContent>
           </Card>
 
-          {/* Quick Actions */}
+          {/* Aksi Cepat */}
           {!editing && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Quick Actions</CardTitle>
+                <CardTitle className="text-sm">Aksi Cepat</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 <Button
@@ -413,32 +412,32 @@ export default function TemplateDetailPage() {
                   className="w-full justify-start"
                   onClick={() => {
                     navigator.clipboard.writeText(template.content.text);
-                    toast.add({ title: "Copied!", description: "Template content copied to clipboard", type: "success" });
+                    toast.add({ title: "Tersalin!", description: "Isi template disalin ke clipboard", type: "success" });
                   }}
                 >
-                  <Copy className="h-4 w-4 mr-2" /> Copy Content
+                  <Copy className="h-4 w-4 mr-2" /> Salin Isi
                 </Button>
               </CardContent>
             </Card>
           )}
 
-          {/* Schedules */}
+          {/* Jadwal */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Clock className="h-4 w-4" /> Schedules ({schedules.length})
+                <Clock className="h-4 w-4" /> Jadwal ({schedules.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
               {schedules.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No schedules</p>
+                <p className="text-sm text-muted-foreground">Tidak ada jadwal</p>
               ) : (
                 <div className="space-y-2">
                   {schedules.map((s) => (
                     <div key={s.id} className="flex items-center justify-between p-2 border rounded text-sm">
                       <code className="font-mono text-xs">{s.cronExpression}</code>
                       <Badge variant={s.isActive ? "default" : "secondary"} className="text-xs">
-                        {s.isActive ? "On" : "Off"}
+                        {s.isActive ? "Aktif" : "Nonaktif"}
                       </Badge>
                     </div>
                   ))}
@@ -447,14 +446,14 @@ export default function TemplateDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Recent Logs */}
+          {/* Log Terakhir */}
           <Card>
             <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
+              <CardTitle>Aktivitas Terakhir</CardTitle>
             </CardHeader>
             <CardContent>
               {logs.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No logs yet</p>
+                <p className="text-sm text-muted-foreground">Belum ada log</p>
               ) : (
                 <div className="space-y-2">
                   {logs.slice(0, 5).map((log) => {
@@ -464,7 +463,7 @@ export default function TemplateDetailPage() {
                         <div className="flex items-center gap-2 min-w-0">
                           {log.channel === "wa" ? <MessageSquare className="h-3 w-3 shrink-0" /> : <Mail className="h-3 w-3 shrink-0" />}
                           <span className="truncate text-muted-foreground">
-                            {user?.name || "Unknown"}
+                            {user?.name || "Tidak diketahui"}
                           </span>
                         </div>
                         <Badge
@@ -489,7 +488,7 @@ export default function TemplateDetailPage() {
         </div>
       </div>
 
-      {/* Preview Dialog */}
+      {/* Dialog Preview */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -499,21 +498,21 @@ export default function TemplateDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Test Send Dialog */}
+      {/* Dialog Uji Kirim */}
       <Dialog open={testSendOpen} onOpenChange={setTestSendOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Test Send</DialogTitle>
+            <DialogTitle>Uji Kirim</DialogTitle>
             <DialogDescription>
-              Send a test {channelLabel.toLowerCase()} notification using this template.
+              Kirim notifikasi {channelLabel.toLowerCase()} uji menggunakan template ini.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>Select User</Label>
+              <Label>Pilih Pengguna</Label>
               <Select value={selectedUser} onValueChange={(v) => setSelectedUser(v ?? "")}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose a recipient" />
+                  <SelectValue placeholder="Pilih penerima" />
                 </SelectTrigger>
                 <SelectContent>
                   {users.map((user) => (
@@ -528,31 +527,31 @@ export default function TemplateDetailPage() {
             </div>
             {template.channel === "both" && (
               <p className="text-xs text-muted-foreground">
-                This will send to both WhatsApp and Email for the selected user.
+                Ini akan mengirim ke WhatsApp dan Email untuk pengguna yang dipilih.
               </p>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTestSendOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setTestSendOpen(false)}>Batal</Button>
             <Button onClick={handleTestSend} disabled={!selectedUser || sending}>
-              {sending ? "Sending..." : "Send Test"}
+              {sending ? "Mengirim..." : "Kirim Uji"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Dialog Konfirmasi Hapus */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete Template</DialogTitle>
+            <DialogTitle>Hapus Template</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &quot;{template.name}&quot;? This action cannot be undone.
+              Apakah Anda yakin ingin menghapus &quot;{template.name}&quot;? Tindakan ini tidak dapat dibatalkan.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Batal</Button>
+            <Button variant="destructive" onClick={handleDelete}>Hapus</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

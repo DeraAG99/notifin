@@ -14,12 +14,12 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/templates", label: "Templates", icon: FileText },
-  { href: "/users", label: "Users", icon: Users },
-  { href: "/schedules", label: "Schedules", icon: Clock },
-  { href: "/logs", label: "Logs", icon: ScrollText },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard", label: "Dasbor", icon: LayoutDashboard },
+  { href: "/templates", label: "Template", icon: FileText },
+  { href: "/users", label: "Pengguna", icon: Users },
+  { href: "/schedules", label: "Jadwal", icon: Clock },
+  { href: "/logs", label: "Log", icon: ScrollText },
+  { href: "/settings", label: "Pengaturan", icon: Settings },
 ];
 
 export function Sidebar() {

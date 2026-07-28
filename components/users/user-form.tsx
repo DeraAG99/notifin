@@ -57,7 +57,7 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
       });
       onSuccess();
     } catch (error) {
-      console.error("Failed to save user:", error);
+      console.error("Gagal menyimpan pengguna:", error);
     } finally {
       setLoading(false);
     }
@@ -66,19 +66,19 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="name">Name</Label>
+        <Label htmlFor="name">Nama</Label>
         <Input
           id="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Full name"
+          placeholder="Nama lengkap"
           required
         />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="phone">Phone</Label>
+          <Label htmlFor="phone">Telepon</Label>
           <Input
             id="phone"
             value={phone}
@@ -93,7 +93,7 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="user@example.com"
+            placeholder="pengguna@contoh.com"
           />
         </div>
       </div>
@@ -118,12 +118,12 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
           checked={isActive}
           onCheckedChange={setIsActive}
         />
-        <Label htmlFor="active">Active</Label>
+        <Label htmlFor="active">Aktif</Label>
       </div>
 
       <div className="flex justify-end">
         <Button type="submit" disabled={loading}>
-          {loading ? "Saving..." : user ? "Update" : "Create"}
+          {loading ? "Menyimpan..." : user ? "Perbarui" : "Buat"}
         </Button>
       </div>
     </form>

@@ -49,7 +49,7 @@ export default function SettingsPage() {
           });
         }
       } catch (error) {
-        console.error("Failed to fetch settings:", error);
+        console.error("Gagal memuat pengaturan:", error);
       } finally {
         setLoading(false);
       }
@@ -77,29 +77,29 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setMessage("Settings saved successfully");
+        setMessage("Pengaturan berhasil disimpan");
       } else {
-        setMessage(data.error || "Failed to save settings");
+        setMessage(data.error || "Gagal menyimpan pengaturan");
       }
     } catch (error) {
-      setMessage("Failed to save settings");
+      setMessage("Gagal menyimpan pengaturan");
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <div className="p-8">Loading...</div>;
+  if (loading) return <div className="p-8">Memuat...</div>;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Configure your notification system</p>
+        <h1 className="text-2xl font-bold">Pengaturan</h1>
+        <p className="text-muted-foreground">Konfigurasi sistem notifikasi Anda</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>System Health</CardTitle>
+          <CardTitle>Kesehatan Sistem</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -128,16 +128,16 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>API Token</Label>
+            <Label>Token API</Label>
             <Input
               type="password"
               value={settings.fonnteToken}
               onChange={(e) => setSettings({ ...settings, fonnteToken: e.target.value })}
-              placeholder="Enter new token (leave blank to keep current)"
+              placeholder="Masukkan token baru (kosongkan untuk mempertahankan)"
             />
           </div>
           <div className="space-y-2">
-            <Label>Rate Limit (per minute)</Label>
+            <Label>Batas Laju (per menit)</Label>
             <Input
               type="number"
               value={settings.fonnteRateLimit}
@@ -154,7 +154,7 @@ export default function SettingsPage() {
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label>SMTP Host</Label>
+              <Label>Host SMTP</Label>
               <Input
                 value={settings.smtpHost}
                 onChange={(e) => setSettings({ ...settings, smtpHost: e.target.value })}
@@ -162,7 +162,7 @@ export default function SettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>SMTP Port</Label>
+              <Label>Port SMTP</Label>
               <Input
                 type="number"
                 value={settings.smtpPort}
@@ -172,29 +172,29 @@ export default function SettingsPage() {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label>SMTP User</Label>
+              <Label>Pengguna SMTP</Label>
               <Input
                 value={settings.smtpUser}
                 onChange={(e) => setSettings({ ...settings, smtpUser: e.target.value })}
-                placeholder="your@email.com"
+                placeholder="anda@domain.com"
               />
             </div>
             <div className="space-y-2">
-              <Label>SMTP Password</Label>
+              <Label>Kata Sandi SMTP</Label>
               <Input
                 type="password"
                 value={settings.smtpPass}
                 onChange={(e) => setSettings({ ...settings, smtpPass: e.target.value })}
-                placeholder="Enter new password (leave blank to keep current)"
+                placeholder="Masukkan kata sandi baru (kosongkan untuk mempertahankan)"
               />
             </div>
           </div>
           <div className="space-y-2">
-            <Label>From Address</Label>
+            <Label>Alamat Pengirim</Label>
             <Input
               value={settings.emailFrom}
               onChange={(e) => setSettings({ ...settings, emailFrom: e.target.value })}
-              placeholder="notifications@yourdomain.com"
+              placeholder="notifikasi@domainAnda.com"
             />
           </div>
         </CardContent>
@@ -202,11 +202,11 @@ export default function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>General</CardTitle>
+          <CardTitle>Umum</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <Label>Default Timezone</Label>
+            <Label>Timezone Default</Label>
             <Input
               value={settings.defaultTimezone}
               onChange={(e) => setSettings({ ...settings, defaultTimezone: e.target.value })}
@@ -218,10 +218,10 @@ export default function SettingsPage() {
       <div className="flex items-center gap-4">
         <Button onClick={handleSave} disabled={saving}>
           <Save className="h-4 w-4 mr-2" />
-          {saving ? "Saving..." : "Save Settings"}
+          {saving ? "Menyimpan..." : "Simpan Pengaturan"}
         </Button>
         {message && (
-          <span className={`text-sm ${message.includes("success") ? "text-green-600" : "text-destructive"}`}>
+          <span className={`text-sm ${message.includes("berhasil") ? "text-green-600" : "text-destructive"}`}>
             {message}
           </span>
         )}

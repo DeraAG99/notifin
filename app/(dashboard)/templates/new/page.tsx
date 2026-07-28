@@ -15,8 +15,8 @@ export default function NewTemplatePage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold">Create New Template</h1>
-          <p className="text-muted-foreground">Design a new notification template</p>
+          <h1 className="text-2xl font-bold">Buat Template Baru</h1>
+          <p className="text-muted-foreground">Buat template notifikasi baru</p>
         </div>
       </div>
 

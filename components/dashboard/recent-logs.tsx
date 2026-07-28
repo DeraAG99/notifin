@@ -33,12 +33,12 @@ export function RecentLogs({ logs }: RecentLogsProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Recent Notifications</CardTitle>
+        <CardTitle>Notifikasi Terakhir</CardTitle>
       </CardHeader>
       <CardContent>
         {logs.length === 0 ? (
           <div className="flex items-center justify-center h-32 text-muted-foreground">
-            No notifications yet
+            Belum ada notifikasi
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -47,9 +47,9 @@ export function RecentLogs({ logs }: RecentLogsProps) {
                 <TableRow>
                   <TableHead>Channel</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Content</TableHead>
-                  <TableHead className="text-right">Time</TableHead>
+                  <TableHead>Prioritas</TableHead>
+                  <TableHead>Isi</TableHead>
+                  <TableHead className="text-right">Waktu</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

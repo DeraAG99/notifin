@@ -28,12 +28,12 @@ export function NotificationChart({ data }: NotificationChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Notifications (Last 30 Days)</CardTitle>
+        <CardTitle>Notifikasi (30 Hari Terakhir)</CardTitle>
       </CardHeader>
       <CardContent>
         {chartData.length === 0 ? (
           <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-            No data available
+            Belum ada data
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={300}>

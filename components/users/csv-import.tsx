@@ -64,13 +64,13 @@ export function CsvImport({ onSuccess }: CsvImportProps) {
 
           const data = await res.json();
           if (data.success) {
-            setResult({ success: true, message: `${validRows.length} users imported` });
+            setResult({ success: true, message: `${validRows.length} pengguna berhasil diimpor` });
             onSuccess();
           } else {
-            setResult({ success: false, message: data.error || "Import failed" });
+            setResult({ success: false, message: data.error || "Gagal mengimpor" });
           }
         } catch (error) {
-          setResult({ success: false, message: "Import failed" });
+          setResult({ success: false, message: "Gagal mengimpor" });
         } finally {
           setLoading(false);
         }
@@ -93,22 +93,22 @@ export function CsvImport({ onSuccess }: CsvImportProps) {
         />
         <Upload className="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          {file ? file.name : "Click to upload CSV file"}
+          {file ? file.name : "Klik untuk mengunggah file CSV"}
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          CSV must have columns: name, phone, email, timezone
+          CSV harus memiliki kolom: name, phone, email, timezone
         </p>
       </div>
 
       {preview.length > 0 && (
         <div className="space-y-2">
-          <p className="text-sm font-medium">Preview (first 5 rows):</p>
+          <p className="text-sm font-medium">Preview (5 baris pertama):</p>
           <div className="border rounded-lg overflow-auto max-h-48">
             <table className="w-full text-sm">
               <thead className="bg-muted">
                 <tr>
-                  <th className="p-2 text-left">Name</th>
-                  <th className="p-2 text-left">Phone</th>
+                  <th className="p-2 text-left">Nama</th>
+                  <th className="p-2 text-left">Telepon</th>
                   <th className="p-2 text-left">Email</th>
                 </tr>
               </thead>
@@ -135,7 +135,7 @@ export function CsvImport({ onSuccess }: CsvImportProps) {
 
       <div className="flex justify-end">
         <Button onClick={handleImport} disabled={!file || loading}>
-          {loading ? "Importing..." : "Import Users"}
+          {loading ? "Mengimpor..." : "Impor Pengguna"}
         </Button>
       </div>
     </div>

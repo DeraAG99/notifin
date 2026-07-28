@@ -36,15 +36,15 @@ export function TemplatePreview({ template }: TemplatePreviewProps) {
     return text;
   }, [template.subject, sampleData]);
 
-  const channelLabel = template.channel === "wa" ? "WhatsApp" : template.channel === "email" ? "Email" : "Both";
+  const channelLabel = template.channel === "wa" ? "WhatsApp" : template.channel === "email" ? "Email" : "Keduanya";
   const ChannelIcon = template.channel === "wa" ? MessageSquare : Mail;
 
   return (
     <div className="space-y-4">
-      {/* Sample Data Input */}
+      {/* Input Data Contoh */}
       {variables.length > 0 && (
         <div className="space-y-3">
-          <Label className="text-sm font-medium">Sample Data</Label>
+          <Label className="text-sm font-medium">Data Contoh</Label>
           <div className="grid gap-2 sm:grid-cols-2">
             {variables.map((variable) => (
               <div key={variable} className="flex items-center gap-2">
@@ -65,30 +65,30 @@ export function TemplatePreview({ template }: TemplatePreviewProps) {
         </div>
       )}
 
-      {/* Preview Card */}
+      {/* Kartu Preview */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
               <ChannelIcon className="h-4 w-4" />
-              {channelLabel} Preview
+              Preview {channelLabel}
             </CardTitle>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
                 navigator.clipboard.writeText(renderedText);
-                toast.add({ title: "Copied!", description: "Preview copied to clipboard", type: "success" });
+                toast.add({ title: "Tersalin!", description: "Preview disalin ke clipboard", type: "success" });
               }}
             >
-              <Copy className="h-4 w-4 mr-1" /> Copy
+              <Copy className="h-4 w-4 mr-1" /> Salin
             </Button>
           </div>
         </CardHeader>
         <CardContent>
           {renderedSubject && (
             <div className="mb-3 pb-3 border-b">
-              <Badge variant="outline" className="text-xs mb-1">Subject</Badge>
+              <Badge variant="outline" className="text-xs mb-1">Subjek</Badge>
               <p className="text-sm font-medium">{renderedSubject}</p>
             </div>
           )}
@@ -100,10 +100,10 @@ export function TemplatePreview({ template }: TemplatePreviewProps) {
         </CardContent>
       </Card>
 
-      {/* Original Template */}
+      {/* Template Asli */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm text-muted-foreground">Original Template</CardTitle>
+          <CardTitle className="text-sm text-muted-foreground">Template Asli</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="whitespace-pre-wrap text-sm bg-muted p-4 rounded-lg font-mono">
@@ -111,7 +111,7 @@ export function TemplatePreview({ template }: TemplatePreviewProps) {
           </div>
           {template.subject && (
             <div className="mt-2">
-              <Badge variant="outline" className="text-xs mb-1">Subject</Badge>
+              <Badge variant="outline" className="text-xs mb-1">Subjek</Badge>
               <p className="text-sm font-mono bg-muted p-2 rounded">{template.subject}</p>
             </div>
           )}

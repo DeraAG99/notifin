@@ -51,7 +51,7 @@ export default function UsersPage() {
         });
       }
     } catch {
-      toast.add({ title: "Error", description: "Failed to load users", type: "error" });
+      toast.add({ title: "Gagal", description: "Gagal memuat pengguna", type: "error" });
     } finally {
       setLoading(false);
     }
@@ -67,13 +67,13 @@ export default function UsersPage() {
       const res = await fetch(`/api/users/${selectedUser.id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
-        toast.add({ title: "Deleted", description: `"${selectedUser.name}" has been deleted`, type: "success" });
+        toast.add({ title: "Dihapus", description: `"${selectedUser.name}" berhasil dihapus`, type: "success" });
         fetchUsers(pagination.page);
       } else {
-        toast.add({ title: "Error", description: data.error || "Failed to delete", type: "error" });
+        toast.add({ title: "Gagal", description: data.error || "Gagal menghapus", type: "error" });
       }
     } catch {
-      toast.add({ title: "Error", description: "Failed to delete user", type: "error" });
+      toast.add({ title: "Gagal", description: "Gagal menghapus pengguna", type: "error" });
     }
     setDeleteOpen(false);
     setSelectedUser(null);
@@ -83,15 +83,15 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Users</h1>
-          <p className="text-muted-foreground">Manage notification recipients</p>
+          <h1 className="text-2xl font-bold">Pengguna</h1>
+          <p className="text-muted-foreground">Kelola penerima notifikasi</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setImportOpen(true)}>
-            <Upload className="h-4 w-4 mr-2" /> Import CSV
+            <Upload className="h-4 w-4 mr-2" /> Impor CSV
           </Button>
           <Button onClick={() => { setSelectedUser(null); setFormOpen(true); }}>
-            <Plus className="h-4 w-4 mr-2" /> New User
+            <Plus className="h-4 w-4 mr-2" /> Pengguna Baru
           </Button>
         </div>
       </div>
@@ -100,22 +100,22 @@ export default function UsersPage() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by name, phone, or email..."
+            placeholder="Cari berdasarkan nama, telepon, atau email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
         <span className="text-sm text-muted-foreground">
-          {pagination.total} user{pagination.total !== 1 ? "s" : ""}
+          {pagination.total} pengguna
         </span>
       </div>
 
       {users.length === 0 ? (
         <EmptyState
-          title="No users yet"
-          description="Add users to start sending notifications."
-          actionLabel="Add User"
+          title="Belum ada pengguna"
+          description="Tambahkan pengguna untuk mulai mengirim notifikasi."
+          actionLabel="Tambah Pengguna"
           actionHref="#"
         />
       ) : (
@@ -123,11 +123,11 @@ export default function UsersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Contact</TableHead>
+                <TableHead>Pengguna</TableHead>
+                <TableHead>Kontak</TableHead>
                 <TableHead>Timezone</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -158,14 +158,14 @@ export default function UsersPage() {
                         </div>
                       )}
                       {!user.phone && !user.email && (
-                        <span className="text-sm text-muted-foreground">No contact info</span>
+                        <span className="text-sm text-muted-foreground">Tidak ada info kontak</span>
                       )}
                     </div>
                   </TableCell>
                   <TableCell className="text-sm">{user.timezone || "—"}</TableCell>
                   <TableCell>
                     <Badge variant={user.isActive ? "default" : "secondary"}>
-                      {user.isActive ? "Active" : "Inactive"}
+                      {user.isActive ? "Aktif" : "Nonaktif"}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
@@ -203,10 +203,10 @@ export default function UsersPage() {
             onClick={() => fetchUsers(pagination.page - 1)}
             disabled={pagination.page <= 1}
           >
-            Previous
+            Sebelumnya
           </Button>
           <span className="text-sm">
-            Page {pagination.page} of {pagination.totalPages}
+            Halaman {pagination.page} dari {pagination.totalPages}
           </span>
           <Button
             variant="outline"
@@ -214,17 +214,17 @@ export default function UsersPage() {
             onClick={() => fetchUsers(pagination.page + 1)}
             disabled={pagination.page >= pagination.totalPages}
           >
-            Next
+            Selanjutnya
           </Button>
         </div>
       )}
 
-      {/* Create/Edit Dialog */}
+      {/* Dialog Buat/Edit */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {selectedUser ? "Edit User" : "Add New User"}
+              {selectedUser ? "Edit Pengguna" : "Tambah Pengguna Baru"}
             </DialogTitle>
           </DialogHeader>
           <UserForm
@@ -233,8 +233,8 @@ export default function UsersPage() {
               setFormOpen(false);
               fetchUsers(pagination.page);
               toast.add({
-                title: selectedUser ? "User updated" : "User created",
-                description: selectedUser ? "User has been updated successfully" : "New user has been added",
+                title: selectedUser ? "Pengguna diperbarui" : "Pengguna dibuat",
+                description: selectedUser ? "Pengguna berhasil diperbarui" : "Pengguna baru berhasil ditambahkan",
                 type: "success",
               });
             }}
@@ -242,28 +242,28 @@ export default function UsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Import Dialog */}
+      {/* Dialog Impor */}
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Import Users from CSV</DialogTitle>
+            <DialogTitle>Impor Pengguna dari CSV</DialogTitle>
           </DialogHeader>
           <CsvImport onSuccess={() => { setImportOpen(false); fetchUsers(); }} />
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Dialog Konfirmasi Hapus */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
+            <DialogTitle>Hapus Pengguna</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &quot;{selectedUser?.name}&quot;? This will also delete all their schedules and logs.
+              Apakah Anda yakin ingin menghapus &quot;{selectedUser?.name}&quot;? Ini juga akan menghapus semua jadwal dan log mereka.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Batal</Button>
+            <Button variant="destructive" onClick={handleDelete}>Hapus</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

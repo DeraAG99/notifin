@@ -36,7 +36,7 @@ export default function TemplatesPage() {
       const data = await res.json();
       if (data.success) setTemplates(data.data);
     } catch {
-      toast.add({ title: "Error", description: "Failed to load templates", type: "error" });
+      toast.add({ title: "Gagal", description: "Gagal memuat template", type: "error" });
     } finally {
       setLoading(false);
     }
@@ -58,13 +58,13 @@ export default function TemplatesPage() {
       const res = await fetch(`/api/templates/${selectedTemplate.id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
-        toast.add({ title: "Deleted", description: `"${selectedTemplate.name}" has been deleted`, type: "success" });
+        toast.add({ title: "Dihapus", description: `"${selectedTemplate.name}" berhasil dihapus`, type: "success" });
         fetchTemplates();
       } else {
-        toast.add({ title: "Error", description: data.error || "Failed to delete", type: "error" });
+        toast.add({ title: "Gagal", description: data.error || "Gagal menghapus", type: "error" });
       }
     } catch {
-      toast.add({ title: "Error", description: "Failed to delete template", type: "error" });
+      toast.add({ title: "Gagal", description: "Gagal menghapus template", type: "error" });
     }
     setDeleteOpen(false);
     setSelectedTemplate(null);
@@ -90,11 +90,11 @@ export default function TemplatesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Templates</h1>
-          <p className="text-muted-foreground">Create and manage notification templates</p>
+          <h1 className="text-2xl font-bold">Template</h1>
+          <p className="text-muted-foreground">Buat dan kelola template notifikasi</p>
         </div>
         <Button onClick={() => window.open("/templates/new", "_blank")}>
-          <Plus className="h-4 w-4 mr-2" /> New Template
+          <Plus className="h-4 w-4 mr-2" /> Template Baru
         </Button>
       </div>
 
@@ -102,22 +102,22 @@ export default function TemplatesPage() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by name or channel..."
+            placeholder="Cari berdasarkan nama atau channel..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
         <div className="text-sm text-muted-foreground">
-          {filtered.length} template{filtered.length !== 1 ? "s" : ""}
+          {filtered.length} template
         </div>
       </div>
 
       {filtered.length === 0 ? (
         <EmptyState
-          title="No templates yet"
-          description="Create your first notification template to start sending messages."
-          actionLabel="Create Template"
+          title="Belum ada template"
+          description="Buat template notifikasi pertama Anda untuk mulai mengirim pesan."
+          actionLabel="Buat Template"
           actionHref="#"
         />
       ) : (
@@ -131,7 +131,7 @@ export default function TemplatesPage() {
                     <CardTitle className="text-base">{template.name}</CardTitle>
                   </div>
                   <Badge variant={getChannelBadgeVariant(template.channel)}>
-                    {template.channel === "wa" ? "WA" : template.channel === "email" ? "Email" : "Both"}
+                    {template.channel === "wa" ? "WA" : template.channel === "email" ? "Email" : "Keduanya"}
                   </Badge>
                 </div>
               </CardHeader>
@@ -157,7 +157,7 @@ export default function TemplatesPage() {
 
                 <div className="flex items-center justify-between pt-2 border-t">
                   <Badge variant={template.isActive ? "default" : "secondary"}>
-                    {template.isActive ? "Active" : "Inactive"}
+                    {template.isActive ? "Aktif" : "Nonaktif"}
                   </Badge>
                   <div className="flex items-center gap-1">
                     <Button
@@ -192,7 +192,7 @@ export default function TemplatesPage() {
         </div>
       )}
 
-      {/* Preview Dialog */}
+      {/* Dialog Preview */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -202,18 +202,18 @@ export default function TemplatesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Dialog Konfirmasi Hapus */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete Template</DialogTitle>
+            <DialogTitle>Hapus Template</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &quot;{selectedTemplate?.name}&quot;? This action cannot be undone.
+              Apakah Anda yakin ingin menghapus &quot;{selectedTemplate?.name}&quot;? Tindakan ini tidak dapat dibatalkan.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Batal</Button>
+            <Button variant="destructive" onClick={handleDelete}>Hapus</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

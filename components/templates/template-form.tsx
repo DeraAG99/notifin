@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
+import { TiptapEditor } from "@/components/ui/tiptap-editor";
 import {
   MessageSquare,
   Mail,
@@ -42,7 +43,6 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
   const [contentHtml, setContentHtml] = useState(template?.content?.html || "");
   const [isActive, setIsActive] = useState(template?.isActive ?? true);
   const [loading, setLoading] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
 
   const detectedVariables = useMemo(() => {
     const matches = contentText.match(/\{\{(\w+)\}\}/g);
@@ -54,12 +54,12 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
     const data: Record<string, string> = {};
     vars.forEach((v) => {
       switch (v) {
-        case "name": data[v] = "John Doe"; break;
-        case "email": data[v] = "john@example.com"; break;
+        case "name": data[v] = "Budi Santoso"; break;
+        case "email": data[v] = "budi@example.com"; break;
         case "phone": data[v] = "6281234567890"; break;
         case "amount": data[v] = "Rp 150.000"; break;
         case "date": data[v] = new Date().toLocaleDateString("id-ID"); break;
-        case "message": data[v] = "Your order has been processed"; break;
+        case "message": data[v] = "Pesanan Anda sedang diproses"; break;
         case "company": data[v] = "Notifin"; break;
         default: data[v] = `[${v}]`;
       }
@@ -71,7 +71,6 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
     getDefaultSampleData(template?.variables || [])
   );
 
-  // When detected variables change, add new ones with defaults, keep existing edits
   useEffect(() => {
     setSampleData((prev) => {
       const updated = { ...prev };
@@ -80,7 +79,6 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
           updated[v] = getDefaultSampleData([v])[v] || "";
         }
       });
-      // Remove variables no longer in content
       Object.keys(updated).forEach((k) => {
         if (!detectedVariables.includes(k)) {
           delete updated[k];
@@ -138,22 +136,22 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
       const data = await res.json();
       if (data.success) {
         toast.add({
-          title: template ? "Template updated" : "Template created",
-          description: `"${name}" has been ${template ? "updated" : "created"} successfully.`,
+          title: template ? "Template diperbarui" : "Template dibuat",
+          description: `"${name}" berhasil ${template ? "diperbarui" : "dibuat"}.`,
           type: "success",
         });
         onSuccess();
       } else {
         toast.add({
-          title: "Error",
-          description: data.error || "Failed to save template",
+          title: "Gagal",
+          description: data.error || "Gagal menyimpan template",
           type: "error",
         });
       }
     } catch {
       toast.add({
-        title: "Error",
-        description: "Failed to save template. Please try again.",
+        title: "Gagal",
+        description: "Gagal menyimpan template. Silakan coba lagi.",
         type: "error",
       });
     } finally {
@@ -162,12 +160,12 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
   };
 
   const channelIcon = channel === "wa" ? <MessageSquare className="h-4 w-4" /> : <Mail className="h-4 w-4" />;
-  const channelLabel = channel === "wa" ? "WhatsApp" : channel === "email" ? "Email" : "Both";
+  const channelLabel = channel === "wa" ? "WhatsApp" : channel === "email" ? "Email" : "Keduanya";
 
   return (
     <form onSubmit={handleSubmit}>
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Editor Panel */}
+        {/* Panel Editor */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
             <Pencil className="h-4 w-4" /> Editor
@@ -175,12 +173,12 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="name">Template Name</Label>
+              <Label htmlFor="name">Nama Template</Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Welcome Message"
+                placeholder="contoh: Pesan Selamat Datang"
                 required
               />
             </div>
@@ -198,7 +196,7 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
                     <span className="flex items-center gap-2"><Mail className="h-4 w-4" /> Email</span>
                   </SelectItem>
                   <SelectItem value="both">
-                    <span className="flex items-center gap-2">{channelIcon} Both (WA + Email)</span>
+                    <span className="flex items-center gap-2">{channelIcon} Keduanya (WA + Email)</span>
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -207,40 +205,40 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
 
           {channel !== "wa" && (
             <div className="space-y-2">
-              <Label htmlFor="subject">Email Subject</Label>
+              <Label htmlFor="subject">Subjek Email</Label>
               <Input
                 id="subject"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                placeholder="e.g. Your invoice for {{amount}}"
+                placeholder="contoh: Tagihan Anda untuk {{amount}}"
               />
               <p className="text-xs text-muted-foreground">
-                Supports {"{{variables}}"} like {"{{name}}"}, {"{{amount}}"}
+                Mendukung {"{{variabel}}"} seperti {"{{name}}"}, {"{{amount}}"}
               </p>
             </div>
           )}
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="content">Message Content</Label>
+              <Label htmlFor="content">Isi Pesan</Label>
               <span className="text-xs text-muted-foreground">
-                {contentText.length} chars
+                {contentText.length} karakter
               </span>
             </div>
             <Textarea
               id="content"
               value={contentText}
               onChange={(e) => setContentText(e.target.value)}
-              placeholder={"Hi {{name}},\n\nYour notification message here..."}
+              placeholder={"Halo {{name}},\n\nPesan notifikasi Anda di sini..."}
               rows={8}
               required
               className="font-mono text-sm"
             />
           </div>
 
-          {/* Variable Chips */}
+          {/* Chip Variabel */}
           <div className="space-y-2">
-            <Label>Variables</Label>
+            <Label>Variabel</Label>
             <div className="flex flex-wrap gap-2">
               {detectedVariables.length > 0 ? (
                 detectedVariables.map((v) => (
@@ -258,11 +256,11 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
                   </Badge>
                 ))
               ) : (
-                <span className="text-xs text-muted-foreground">No variables detected. Type {"{{variable}}"} in your content.</span>
+                <span className="text-xs text-muted-foreground">Belum ada variabel. Ketik {"{{variabel}}"} di isi pesan.</span>
               )}
             </div>
             <div className="flex flex-wrap gap-1 mt-1">
-              <span className="text-xs text-muted-foreground mr-1">Insert:</span>
+              <span className="text-xs text-muted-foreground mr-1">Sisipkan:</span>
               {AVAILABLE_VARIABLES.filter((v) => !detectedVariables.includes(v)).map((v) => (
                 <Button
                   key={v}
@@ -281,17 +279,14 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
 
           {channel !== "wa" && (
             <div className="space-y-2">
-              <Label htmlFor="html">HTML Template (optional)</Label>
-              <Textarea
-                id="html"
-                value={contentHtml}
-                onChange={(e) => setContentHtml(e.target.value)}
-                placeholder={'<h2>Hello {{name}}</h2>\n<p>Your message here</p>'}
-                rows={5}
-                className="font-mono text-sm"
+              <Label>Template HTML Email (opsional)</Label>
+              <TiptapEditor
+                content={contentHtml}
+                onChange={setContentHtml}
+                placeholder="Desain tampilan email Anda di sini..."
               />
               <p className="text-xs text-muted-foreground">
-                Leave empty to use plain text. HTML is used for email rendering.
+                Gunakan editor visual untuk mendesain email. Kosongkan untuk menggunakan teks biasa.
               </p>
             </div>
           )}
@@ -302,15 +297,15 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
               checked={isActive}
               onCheckedChange={setIsActive}
             />
-            <Label htmlFor="active">Active</Label>
+            <Label htmlFor="active">Aktif</Label>
           </div>
         </div>
 
-        {/* Preview Panel */}
+        {/* Panel Preview */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Eye className="h-4 w-4" /> Live Preview
+              <Eye className="h-4 w-4" /> Preview Langsung
             </div>
             <Button
               type="button"
@@ -318,10 +313,10 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
               size="sm"
               onClick={() => {
                 navigator.clipboard.writeText(renderedPreview);
-                toast.add({ title: "Copied!", description: "Preview copied to clipboard", type: "success" });
+                toast.add({ title: "Tersalin!", description: "Preview disalin ke clipboard", type: "success" });
               }}
             >
-              <Copy className="h-4 w-4 mr-1" /> Copy
+              <Copy className="h-4 w-4 mr-1" /> Salin
             </Button>
           </div>
 
@@ -329,11 +324,11 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm">
-                  {channelLabel} Message
+                  Pesan {channelLabel}
                 </CardTitle>
                 {channel !== "wa" && subject && (
                   <Badge variant="outline" className="text-xs">
-                    Subject: {Object.entries(sampleData).reduce(
+                    Subjek: {Object.entries(sampleData).reduce(
                       (s, [k, v]) => s.replaceAll(`{{${k}}}`, v),
                       subject
                     )}
@@ -350,17 +345,17 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
                 </div>
               ) : (
                 <div className="text-center py-12 text-muted-foreground text-sm">
-                  Start typing to see a preview...
+                  Mulai menulis untuk melihat preview...
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Sample Data Editor */}
+          {/* Editor Sample Data */}
           {detectedVariables.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Sample Data</CardTitle>
+                <CardTitle className="text-sm">Data Contoh</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -372,14 +367,14 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
                       <Input
                         value={sampleData[v] || ""}
                         onChange={(e) => setSampleData((prev) => ({ ...prev, [v]: e.target.value }))}
-                        placeholder={`Sample ${v}`}
+                        placeholder={`Contoh ${v}`}
                         className="h-8 text-sm"
                       />
                     </div>
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Edit sample data to customize the preview
+                  Ubah data contoh untuk menyesuaikan preview
                 </p>
               </CardContent>
             </Card>
@@ -389,7 +384,7 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
 
       <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
         <Button type="submit" disabled={loading}>
-          {loading ? "Saving..." : template ? "Update Template" : "Create Template"}
+          {loading ? "Menyimpan..." : template ? "Perbarui Template" : "Buat Template"}
         </Button>
       </div>
     </form>

@@ -16,28 +16,28 @@ interface StatCardsProps {
 export function StatCards({ stats }: StatCardsProps) {
   const cards = [
     {
-      title: "Total Sent",
+      title: "Total Terkirim",
       value: stats.totalSent,
       icon: Send,
       color: "text-blue-600",
       bg: "bg-blue-50",
     },
     {
-      title: "Delivered",
+      title: "Terkirim",
       value: stats.totalDelivered,
       icon: CheckCircle,
       color: "text-green-600",
       bg: "bg-green-50",
     },
     {
-      title: "Failed",
+      title: "Gagal",
       value: stats.totalFailed,
       icon: XCircle,
       color: "text-red-600",
       bg: "bg-red-50",
     },
     {
-      title: "Pending",
+      title: "Tertunda",
       value: stats.totalPending,
       icon: Clock,
       color: "text-yellow-600",
@@ -59,9 +59,9 @@ export function StatCards({ stats }: StatCardsProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{card.value.toLocaleString()}</div>
-            {card.title === "Total Sent" && stats.sentToday > 0 && (
+            {card.title === "Total Terkirim" && stats.sentToday > 0 && (
               <p className="text-xs text-muted-foreground mt-1">
-                {stats.sentToday} sent today
+                {stats.sentToday} terkirim hari ini
               </p>
             )}
           </CardContent>

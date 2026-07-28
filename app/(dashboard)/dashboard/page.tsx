@@ -34,7 +34,7 @@ export default function DashboardPage() {
         if (logsData.success) setLogs(logsData.data.items);
         if (queueData.success) setQueueStats(queueData.data);
       } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
+        console.error("Gagal memuat data dasbor:", error);
       } finally {
         setLoading(false);
       }
@@ -50,9 +50,9 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <h1 className="text-2xl font-bold">Dasbor</h1>
         <p className="text-muted-foreground">
-          Overview of your notification system
+          Ringkasan sistem notifikasi Anda
         </p>
       </div>
 

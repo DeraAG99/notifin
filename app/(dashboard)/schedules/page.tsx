@@ -31,11 +31,11 @@ import { EmptyState } from "@/components/shared/empty-state";
 import type { NotificationSchedule } from "@/types";
 
 const cronPresets = [
-  { label: "Every minute", value: "* * * * *" },
-  { label: "Every hour", value: "0 * * * *" },
-  { label: "Daily at 9 AM", value: "0 9 * * *" },
-  { label: "Weekly (Monday)", value: "0 9 * * 1" },
-  { label: "Monthly (1st)", value: "0 9 1 * *" },
+  { label: "Setiap menit", value: "* * * * *" },
+  { label: "Setiap jam", value: "0 * * * *" },
+  { label: "Harian jam 9 pagi", value: "0 9 * * *" },
+  { label: "Mingguan (Senin)", value: "0 9 * * 1" },
+  { label: "Bulanan (tanggal 1)", value: "0 9 1 * *" },
 ];
 
 export default function SchedulesPage() {
@@ -55,7 +55,7 @@ export default function SchedulesPage() {
       const data = await res.json();
       if (data.success) setSchedules(data.data);
     } catch (error) {
-      console.error("Failed to fetch schedules:", error);
+      console.error("Gagal memuat jadwal:", error);
     } finally {
       setLoading(false);
     }
@@ -88,7 +88,7 @@ export default function SchedulesPage() {
       setFormOpen(false);
       fetchSchedules();
     } catch (error) {
-      console.error("Failed to create schedule:", error);
+      console.error("Gagal membuat jadwal:", error);
     }
   };
 
@@ -101,17 +101,17 @@ export default function SchedulesPage() {
       });
       fetchSchedules();
     } catch (error) {
-      console.error("Failed to toggle schedule:", error);
+      console.error("Gagal mengubah jadwal:", error);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this schedule?")) return;
+    if (!confirm("Hapus jadwal ini?")) return;
     try {
       await fetch(`/api/schedules/${id}`, { method: "DELETE" });
       fetchSchedules();
     } catch (error) {
-      console.error("Failed to delete schedule:", error);
+      console.error("Gagal menghapus jadwal:", error);
     }
   };
 
@@ -119,19 +119,19 @@ export default function SchedulesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Schedules</h1>
-          <p className="text-muted-foreground">Manage automated notification schedules</p>
+          <h1 className="text-2xl font-bold">Jadwal</h1>
+          <p className="text-muted-foreground">Kelola jadwal notifikasi otomatis</p>
         </div>
         <Button onClick={() => setFormOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" /> New Schedule
+          <Plus className="h-4 w-4 mr-2" /> Jadwal Baru
         </Button>
       </div>
 
       {schedules.length === 0 ? (
         <EmptyState
-          title="No schedules"
-          description="Create a schedule to automate notifications."
-          actionLabel="New Schedule"
+          title="Belum ada jadwal"
+          description="Buat jadwal untuk mengotomatiskan notifikasi."
+          actionLabel="Jadwal Baru"
           actionHref="#"
         />
       ) : (
@@ -141,10 +141,10 @@ export default function SchedulesPage() {
               <TableRow>
                 <TableHead>Cron</TableHead>
                 <TableHead>Template</TableHead>
-                <TableHead>User</TableHead>
-                <TableHead>Next Run</TableHead>
+                <TableHead>Pengguna</TableHead>
+                <TableHead>Jalan Berikutnya</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -164,7 +164,7 @@ export default function SchedulesPage() {
                   </TableCell>
                   <TableCell>
                     <Badge variant={schedule.isActive ? "default" : "secondary"}>
-                      {schedule.isActive ? "Active" : "Paused"}
+                      {schedule.isActive ? "Aktif" : "Jeda"}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
@@ -195,14 +195,14 @@ export default function SchedulesPage() {
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>New Schedule</DialogTitle>
+            <DialogTitle>Jadwal Baru</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="space-y-2">
               <Label>Template</Label>
               <Select value={templateId} onValueChange={(v) => setTemplateId(v ?? "")}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select template" />
+                  <SelectValue placeholder="Pilih template" />
                 </SelectTrigger>
                 <SelectContent>
                   {templates.map((t) => (
@@ -213,10 +213,10 @@ export default function SchedulesPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>User</Label>
+              <Label>Pengguna</Label>
               <Select value={userId} onValueChange={(v) => setUserId(v ?? "")}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select user" />
+                  <SelectValue placeholder="Pilih pengguna" />
                 </SelectTrigger>
                 <SelectContent>
                   {users.map((u) => (
@@ -227,7 +227,7 @@ export default function SchedulesPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Cron Expression</Label>
+              <Label>Ekspresi Cron</Label>
               <div className="flex gap-2">
                 <Input
                   value={cronExpression}
@@ -237,7 +237,7 @@ export default function SchedulesPage() {
                 />
                 <Select value={cronExpression} onValueChange={(v) => setCronExpression(v ?? "")}>
                   <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Presets" />
+                    <SelectValue placeholder="Preset" />
                   </SelectTrigger>
                   <SelectContent>
                     {cronPresets.map((preset) => (
@@ -249,16 +249,16 @@ export default function SchedulesPage() {
                 </Select>
               </div>
               <p className="text-xs text-muted-foreground">
-                Format: minute hour day month weekday
+                Format: menit jam hari bulan hari-dalam-minggu
               </p>
             </div>
 
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setFormOpen(false)}>
-                Cancel
+                Batal
               </Button>
               <Button type="submit" disabled={!templateId || !userId}>
-                Create Schedule
+                Buat Jadwal
               </Button>
             </div>
           </form>
