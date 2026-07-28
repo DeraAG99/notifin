@@ -38,7 +38,7 @@ export default function TemplateDetailPage() {
       const [templateRes, schedulesRes, logsRes] = await Promise.all([
         fetch(`/api/templates/${id}`),
         fetch("/api/schedules"),
-        fetch(`/api/logs?pageSize=10`),
+        fetch("/api/logs?pageSize=10"),
       ]);
 
       const templateData = await templateRes.json();
