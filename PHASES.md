@@ -248,16 +248,28 @@ components/users/csv-import.tsx
 
 ---
 
-## Phase 7: React Email Templates
+## Phase 7: React Email Templates ✅
 
-### To Do
-- [ ] Welcome email (`emails/welcome.tsx`)
-- [ ] Notification email (`emails/notification.tsx`)
+### Completed
+- [x] Welcome email (`emails/welcome.tsx`)
+  - React Email component with Tailwind-like styles
+  - Props: name, loginUrl
+- [x] Notification email (`emails/notification.tsx`)
+  - React Email component for message delivery
+  - Props: title, message, recipientName, actionUrl, actionLabel
+- [x] Template renderer (`lib/email-templates.ts`)
+  - renderWelcomeEmail(), renderNotificationEmail()
+  - Renders React components to HTML strings via @react-email/render
+- [x] Updated `lib/email.ts`
+  - Added sendWelcomeEmail() and sendNotificationEmail() helpers
+  - Uses template renderer + Nodemailer SMTP
 
-### Files to Create
+### Files Created/Modified
 ```
 emails/welcome.tsx
 emails/notification.tsx
+lib/email-templates.ts (new)
+lib/email.ts (updated with template helpers)
 ```
 
 ---

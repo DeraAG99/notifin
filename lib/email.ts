@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { renderWelcomeEmail, renderNotificationEmail } from "./email-templates";
 
 interface SendEmailParams {
   to: string | string[];
@@ -101,4 +102,27 @@ export async function checkEmailHealth(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export async function sendWelcomeEmail(to: string, name: string): Promise<EmailResponse> {
+  const html = await renderWelcomeEmail(name);
+  return sendEmail({
+    to,
+    subject: "Welcome to Notifin",
+    html,
+  });
+}
+
+export async function sendNotificationEmail(
+  to: string,
+  title: string,
+  message: string,
+  recipientName?: string
+): Promise<EmailResponse> {
+  const html = await renderNotificationEmail(title, message, recipientName);
+  return sendEmail({
+    to,
+    subject: title,
+    html,
+  });
 }
