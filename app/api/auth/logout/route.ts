@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { clearSessionCookie } from "@/lib/auth/session";
+import { getCookieName } from "@/lib/auth/session";
 
 export async function POST() {
   try {
-    await clearSessionCookie();
-    return NextResponse.json({ success: true });
+    const cookieName = getCookieName();
+    const response = NextResponse.json({ success: true });
+    response.cookies.delete(cookieName);
+    return response;
   } catch {
     return NextResponse.json(
       { success: false, error: "Terjadi kesalahan server" },

@@ -6,6 +6,13 @@ const secret = new TextEncoder().encode(
 );
 
 const COOKIE_NAME = "session";
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax" as const,
+  maxAge: 60 * 60 * 24 * 7,
+  path: "/",
+};
 
 export interface SessionPayload {
   adminId: string;
@@ -42,24 +49,12 @@ export async function getSession(): Promise<SessionPayload | null> {
   }
 }
 
-export async function setSessionCookie(token: string): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7,
-    path: "/",
-  });
-}
-
-export async function clearSessionCookie(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(COOKIE_NAME);
-}
-
 export function getCookieName(): string {
   return COOKIE_NAME;
+}
+
+export function getCookieOptions(): typeof COOKIE_OPTIONS {
+  return { ...COOKIE_OPTIONS };
 }
 
 export async function hashPassword(password: string): Promise<string> {
