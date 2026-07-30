@@ -23,10 +23,15 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-notifin}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-notifin} -d ${POSTGRES_DB:-notifin} && (psql -U ${POSTGRES_USER:-notifin} -d postgres -tc \"SELECT 1 FROM pg_database WHERE datname='${OPENWA_DB:-openwa}'\" | grep -q 1 || psql -U ${POSTGRES_USER:-notifin} -d postgres -c \"CREATE DATABASE ${OPENWA_DB:-openwa} OWNER ${OPENWA_USER:-notifin}\")",
+        ]
       interval: 5s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
   redis:
     image: redis:7-alpine
