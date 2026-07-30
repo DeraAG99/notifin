@@ -1,89 +1,54 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import {
-  LayoutDashboard,
-  FileText,
-  Users,
-  Clock,
-  ScrollText,
-  Settings,
-  Bell,
-  Menu,
-} from "lucide-react";
+import { useI18n } from "@/lib/i18n/context";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { LanguageSwitcher } from "@/components/layouts/language-switcher";
 
-const navItems = [
-  { href: "/dashboard", label: "Dasbor", icon: LayoutDashboard },
-  { href: "/templates", label: "Template", icon: FileText },
-  { href: "/users", label: "Pengguna", icon: Users },
-  { href: "/schedules", label: "Jadwal", icon: Clock },
-  { href: "/logs", label: "Log", icon: ScrollText },
-  { href: "/settings", label: "Pengaturan", icon: Settings },
-];
+const pageTitles: Record<string, string> = {
+  dashboard: "dashboard.title",
+  templates: "templates.title",
+  users: "users.title",
+  schedules: "schedules.title",
+  logs: "logs.title",
+  settings: "settings.title",
+};
 
-function MobileNav({ pathname }: { pathname: string | null }) {
-  return (
-    <nav className="flex flex-col gap-1 p-4">
-      {navItems.map((item) => {
-        const isActive =
-          pathname === item.href || pathname?.startsWith(item.href + "/");
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-              isActive
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-            )}
-          >
-            <item.icon className="h-5 w-5" />
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
+function getPageTitle(pathname: string | null, t: ReturnType<typeof useI18n>["t"]): string {
+  if (!pathname) return t.dashboard.title;
+  const segment = pathname.split("/").filter(Boolean)[0] || "dashboard";
+  const key = pageTitles[segment];
+  if (!key) return t.dashboard.title;
+  const val = key.split(".").reduce<Record<string, unknown>>((obj, k) => (obj?.[k] ?? {}) as Record<string, unknown>, t as unknown as Record<string, unknown>);
+  return typeof val === "string" ? val : segment;
 }
 
 export function Header() {
   const pathname = usePathname();
+  const { t, locale } = useI18n();
+
+  const pageTitle = getPageTitle(pathname, t);
+  const dateLang = locale === "id" ? "id-ID" : "en-US";
 
   return (
-    <header className="flex items-center justify-between px-6 py-4 border-b bg-card lg:px-8">
-      <div className="flex items-center gap-4">
-        <Sheet>
-          <SheetTrigger render={<Button variant="ghost" size="icon" className="lg:hidden" />}>
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Buka menu</span>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-64 p-0">
-            <div className="flex items-center gap-2 px-6 py-5 border-b">
-              <Bell className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold">Notifin</span>
-            </div>
-            <MobileNav pathname={pathname} />
-          </SheetContent>
-        </Sheet>
-        <div className="flex items-center gap-2 lg:hidden">
-          <Bell className="h-5 w-5 text-primary" />
-          <span className="font-bold">Notifin</span>
-        </div>
+    <header className="flex items-center h-14 shrink-0 border-b px-4 lg:px-6">
+      <div className="flex items-center gap-2">
+        <SidebarTrigger className="-ml-1 size-8" />
+        <span className="text-sm font-medium text-muted-foreground select-none">
+          {pageTitle}
+        </span>
       </div>
-      <div className="flex items-center gap-4">
-        <div className="text-sm text-muted-foreground hidden sm:block">
-          {new Date().toLocaleDateString("id-ID", {
+
+      <div className="flex items-center gap-3 ml-auto">
+        <span className="text-xs text-muted-foreground hidden md:block">
+          {new Date().toLocaleDateString(dateLang, {
             weekday: "long",
             year: "numeric",
             month: "long",
             day: "numeric",
           })}
-        </div>
+        </span>
+        <LanguageSwitcher />
       </div>
     </header>
   );

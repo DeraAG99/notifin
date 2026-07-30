@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/context";
 import { Upload, FileText, CheckCircle, XCircle } from "lucide-react";
 import Papa from "papaparse";
 
@@ -17,6 +18,7 @@ interface CsvRow {
 }
 
 export function CsvImport({ onSuccess }: CsvImportProps) {
+  const { t, tx } = useI18n();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<CsvRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -64,13 +66,13 @@ export function CsvImport({ onSuccess }: CsvImportProps) {
 
           const data = await res.json();
           if (data.success) {
-            setResult({ success: true, message: `${validRows.length} pengguna berhasil diimpor` });
+            setResult({ success: true, message: tx("csv.importSuccess", { count: validRows.length }) });
             onSuccess();
           } else {
-            setResult({ success: false, message: data.error || "Gagal mengimpor" });
+            setResult({ success: false, message: data.error || t.csv.importFailed });
           }
-        } catch (error) {
-          setResult({ success: false, message: "Gagal mengimpor" });
+        } catch {
+          setResult({ success: false, message: t.csv.importFailed });
         } finally {
           setLoading(false);
         }
@@ -93,23 +95,23 @@ export function CsvImport({ onSuccess }: CsvImportProps) {
         />
         <Upload className="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          {file ? file.name : "Klik untuk mengunggah file CSV"}
+          {file ? file.name : t.csv.uploadPrompt}
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          CSV harus memiliki kolom: name, phone, email, timezone
+          {t.csv.uploadHint}
         </p>
       </div>
 
       {preview.length > 0 && (
         <div className="space-y-2">
-          <p className="text-sm font-medium">Preview (5 baris pertama):</p>
+          <p className="text-sm font-medium">{t.csv.preview}</p>
           <div className="border rounded-lg overflow-auto max-h-48">
             <table className="w-full text-sm">
               <thead className="bg-muted">
                 <tr>
-                  <th className="p-2 text-left">Nama</th>
-                  <th className="p-2 text-left">Telepon</th>
-                  <th className="p-2 text-left">Email</th>
+                  <th className="p-2 text-left">{t.users.form.name}</th>
+                  <th className="p-2 text-left">{t.users.form.phone}</th>
+                  <th className="p-2 text-left">{t.users.form.email}</th>
                 </tr>
               </thead>
               <tbody>
@@ -135,7 +137,7 @@ export function CsvImport({ onSuccess }: CsvImportProps) {
 
       <div className="flex justify-end">
         <Button onClick={handleImport} disabled={!file || loading}>
-          {loading ? "Mengimpor..." : "Impor Pengguna"}
+          {loading ? t.csv.importing : t.csv.importButton}
         </Button>
       </div>
     </div>

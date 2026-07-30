@@ -34,9 +34,10 @@ import {
 } from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
 import { TiptapEditor } from "@/components/ui/tiptap-editor";
+import { useI18n } from "@/lib/i18n/context";
 import {
   ArrowLeft, Send, Clock, ScrollText, MessageSquare, Mail, Layers,
-  Pencil, Check, X, Eye, Copy, Trash2,
+  Pencil, Check, X, Eye, Copy, Trash2, Plus,
 } from "lucide-react";
 import { TemplatePreview } from "@/components/templates/template-preview";
 import type { NotificationTemplate, NotificationSchedule, NotificationLog, User } from "@/types";
@@ -45,6 +46,7 @@ export default function TemplateDetailPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t, tx } = useI18n();
   const [template, setTemplate] = useState<NotificationTemplate | null>(null);
   const [schedules, setSchedules] = useState<NotificationSchedule[]>([]);
   const [logs, setLogs] = useState<NotificationLog[]>([]);
@@ -54,8 +56,8 @@ export default function TemplateDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState("");
   const [sending, setSending] = useState(false);
+  const [testVariables, setTestVariables] = useState<Array<{ key: string; value: string }>>([]);
 
-  // Inline edit state
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editChannel, setEditChannel] = useState<"wa" | "email" | "both">("wa");
@@ -81,14 +83,14 @@ export default function TemplateDetailPage() {
       const usersData = await usersRes.json();
 
       if (templateData.success) {
-        const t = templateData.data;
-        setTemplate(t);
-        setEditName(t.name);
-        setEditChannel(t.channel);
-        setEditSubject(t.subject || "");
-        setEditContentText(t.content?.text || "");
-        setEditContentHtml(t.content?.html || "");
-        setEditIsActive(t.isActive ?? true);
+        const tmpl = templateData.data;
+        setTemplate(tmpl);
+        setEditName(tmpl.name);
+        setEditChannel(tmpl.channel);
+        setEditSubject(tmpl.subject || "");
+        setEditContentText(tmpl.content?.text || "");
+        setEditContentHtml(tmpl.content?.html || "");
+        setEditIsActive(tmpl.isActive ?? true);
         if (searchParams.get("edit") === "true") {
           setEditing(true);
         }
@@ -136,12 +138,12 @@ export default function TemplateDetailPage() {
       if (data.success) {
         setTemplate(data.data);
         setEditing(false);
-        toast.add({ title: "Tersimpan", description: "Template berhasil diperbarui", type: "success" });
+        toast.add({ title: t.common.success, description: "Template berhasil diperbarui", type: "success" });
       } else {
-        toast.add({ title: "Gagal", description: data.error || "Gagal menyimpan", type: "error" });
+        toast.add({ title: t.common.error, description: data.error || "Gagal menyimpan", type: "error" });
       }
     } catch {
-      toast.add({ title: "Gagal", description: "Gagal menyimpan template", type: "error" });
+      toast.add({ title: t.common.error, description: "Gagal menyimpan template", type: "error" });
     }
     setSaving(false);
   };
@@ -149,6 +151,12 @@ export default function TemplateDetailPage() {
   const handleTestSend = async () => {
     if (!selectedUser || !template) return;
     setSending(true);
+
+    const customVars: Record<string, string> = {};
+    testVariables.forEach(({ key, value }) => {
+      if (key.trim()) customVars[key.trim()] = value;
+    });
+
     try {
       const res = await fetch("/api/notifications/send", {
         method: "POST",
@@ -157,26 +165,27 @@ export default function TemplateDetailPage() {
           templateId: template.id,
           userId: selectedUser,
           channel: template.channel === "both" ? "both" : template.channel,
+          variables: Object.keys(customVars).length > 0 ? customVars : undefined,
         }),
       });
       const data = await res.json();
       if (data.success) {
         toast.add({
-          title: "Terkirim!",
-          description: `Notifikasi antre untuk ${data.data.logIds?.length || 1} channel`,
+          title: t.templates.testSend.sent,
+          description: tx("templates.testSend.sentDesc", { count: data.data.logIds?.length || 1 }),
           type: "success",
         });
         setTestSendOpen(false);
         setSelectedUser("");
-        // Refresh logs
+        setTestVariables([]);
         const logsRes = await fetch(`/api/logs?pageSize=10`);
         const logsData = await logsRes.json();
         if (logsData.success) setLogs(logsData.data.items.filter((l: NotificationLog) => l.templateId === template?.id));
       } else {
-        toast.add({ title: "Gagal", description: data.error || "Gagal mengirim", type: "error" });
+        toast.add({ title: t.common.error, description: data.error || "Gagal mengirim", type: "error" });
       }
     } catch {
-      toast.add({ title: "Gagal", description: "Gagal mengirim notifikasi uji", type: "error" });
+      toast.add({ title: t.common.error, description: "Gagal mengirim notifikasi uji", type: "error" });
     }
     setSending(false);
   };
@@ -187,13 +196,13 @@ export default function TemplateDetailPage() {
       const res = await fetch(`/api/templates/${template.id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
-        toast.add({ title: "Dihapus", description: "Template berhasil dihapus", type: "success" });
+        toast.add({ title: t.common.deleted, description: "Template berhasil dihapus", type: "success" });
         router.push("/templates");
       } else {
-        toast.add({ title: "Gagal", description: data.error || "Gagal menghapus", type: "error" });
+        toast.add({ title: t.common.error, description: data.error || "Gagal menghapus", type: "error" });
       }
     } catch {
-      toast.add({ title: "Gagal", description: "Gagal menghapus template", type: "error" });
+      toast.add({ title: t.common.error, description: "Gagal menghapus template", type: "error" });
     }
     setDeleteOpen(false);
   };
@@ -201,13 +210,13 @@ export default function TemplateDetailPage() {
   if (!template) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-muted-foreground">Memuat...</div>
+        <div className="text-muted-foreground">{t.common.loading}</div>
       </div>
     );
   }
 
   const ChannelIcon = template.channel === "wa" ? MessageSquare : template.channel === "email" ? Mail : Layers;
-  const channelLabel = template.channel === "wa" ? "WhatsApp" : template.channel === "email" ? "Email" : "Keduanya";
+  const channelLabel = template.channel === "wa" ? "WhatsApp" : template.channel === "email" ? "Email" : t.templates.channelLabel.both;
 
   return (
     <div className="space-y-6">
@@ -236,12 +245,12 @@ export default function TemplateDetailPage() {
                   <SelectContent>
                     <SelectItem value="wa"><span className="flex items-center gap-2"><MessageSquare className="h-3 w-3" /> WhatsApp</span></SelectItem>
                     <SelectItem value="email"><span className="flex items-center gap-2"><Mail className="h-3 w-3" /> Email</span></SelectItem>
-                    <SelectItem value="both"><span className="flex items-center gap-2"><Layers className="h-3 w-3" /> Keduanya</span></SelectItem>
+                    <SelectItem value="both"><span className="flex items-center gap-2"><Layers className="h-3 w-3" /> {t.templates.channelLabel.both}</span></SelectItem>
                   </SelectContent>
                 </Select>
                 <div className="flex items-center gap-2">
                   <Switch checked={editIsActive} onCheckedChange={setEditIsActive} />
-                  <span className="text-sm">{editIsActive ? "Aktif" : "Nonaktif"}</span>
+                  <span className="text-sm">{editIsActive ? t.common.active : t.common.inactive}</span>
                 </div>
               </>
             ) : (
@@ -251,7 +260,7 @@ export default function TemplateDetailPage() {
                   {channelLabel}
                 </Badge>
                 <Badge variant={template.isActive ? "default" : "secondary"}>
-                  {template.isActive ? "Aktif" : "Nonaktif"}
+                  {template.isActive ? t.common.active : t.common.inactive}
                 </Badge>
               </>
             )}
@@ -261,23 +270,23 @@ export default function TemplateDetailPage() {
           {editing ? (
             <>
               <Button variant="outline" onClick={cancelEditing}>
-                <X className="h-4 w-4 mr-1" /> Batal
+                <X className="h-4 w-4 mr-1" /> {t.common.cancel}
               </Button>
               <Button onClick={saveEditing} disabled={saving}>
                 <Check className="h-4 w-4 mr-1" />
-                {saving ? "Menyimpan..." : "Simpan"}
+                {saving ? t.common.saving : t.common.save}
               </Button>
             </>
           ) : (
             <>
               <Button variant="outline" onClick={startEditing}>
-                <Pencil className="h-4 w-4 mr-1" /> Edit
+                <Pencil className="h-4 w-4 mr-1" /> {t.common.edit}
               </Button>
               <Button variant="outline" onClick={() => setPreviewOpen(true)}>
-                <Eye className="h-4 w-4 mr-1" /> Preview
+                <Eye className="h-4 w-4 mr-1" /> {t.templates.preview}
               </Button>
               <Button onClick={() => setTestSendOpen(true)}>
-                <Send className="h-4 w-4 mr-1" /> Uji Kirim
+                <Send className="h-4 w-4 mr-1" /> {t.templates.testSend.sendTest}
               </Button>
               <Button variant="ghost" size="icon" onClick={() => setDeleteOpen(true)}>
                 <Trash2 className="h-4 w-4 text-destructive" />
@@ -287,13 +296,13 @@ export default function TemplateDetailPage() {
         </div>
       </div>
 
-      {/* Area Konten */}
+      {/* Content Area */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Konten Utama */}
+        {/* Main Content */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <ScrollText className="h-5 w-5" /> Isi Pesan
+              <ScrollText className="h-5 w-5" /> {t.templates.form.messageContent}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -301,35 +310,35 @@ export default function TemplateDetailPage() {
               <>
                 {editChannel !== "wa" && (
                   <div className="space-y-2">
-                    <Label>Subjek Email</Label>
+                    <Label>{t.templates.form.emailSubject}</Label>
                     <Input
                       value={editSubject}
                       onChange={(e) => setEditSubject(e.target.value)}
-                      placeholder="contoh: Tagihan Anda untuk {{amount}}"
+                      placeholder={t.templates.form.emailSubjectPlaceholder}
                     />
                   </div>
                 )}
                 <div className="space-y-2">
-                  <Label>Isi Pesan</Label>
+                  <Label>{t.templates.form.messageContent}</Label>
                   <Textarea
                     value={editContentText}
                     onChange={(e) => setEditContentText(e.target.value)}
                     rows={10}
                     className="font-mono text-sm"
-                    placeholder={"Halo {{name}},\n\nPesan Anda di sini..."}
+                    placeholder={"Halo {{name}},\n\n" + t.templates.form.messagePlaceholder}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Gunakan {"{{variabel}}"} untuk konten dinamis. Terdeteksi:{" "}
+                    {"{{variabel}}"} untuk konten dinamis. Terdeteksi:{" "}
                     {editContentText.match(/\{\{(\w+)\}\}/g)?.map((v) => v.replace(/\{\{|\}\}/g, "")).filter((v, i, a) => a.indexOf(v) === i).join(", ") || "tidak ada"}
                   </p>
                 </div>
                 {editChannel !== "wa" && (
                   <div className="space-y-2">
-                    <Label>Template HTML Email (opsional)</Label>
+                    <Label>{t.templates.form.htmlTemplate}</Label>
                     <TiptapEditor
                       content={editContentHtml}
                       onChange={setEditContentHtml}
-                      placeholder="Desain tampilan email Anda di sini..."
+                      placeholder={t.templates.form.htmlEditorPlaceholder}
                     />
                   </div>
                 )}
@@ -338,7 +347,7 @@ export default function TemplateDetailPage() {
               <>
                 {template.subject && (
                   <div>
-                    <Badge variant="outline" className="text-xs mb-2">Subjek</Badge>
+                    <Badge variant="outline" className="text-xs mb-2">{t.templates.form.emailSubject}</Badge>
                     <p className="text-sm font-medium bg-muted p-3 rounded-lg">{template.subject}</p>
                   </div>
                 )}
@@ -349,7 +358,7 @@ export default function TemplateDetailPage() {
                 </div>
                 {template.content.html && (
                   <div>
-                    <Badge variant="outline" className="text-xs mb-2">Preview HTML</Badge>
+                    <Badge variant="outline" className="text-xs mb-2">{t.templates.preview} HTML</Badge>
                     <div
                       className="border rounded-lg p-4 bg-white"
                       dangerouslySetInnerHTML={{ __html: template.content.html }}
@@ -359,10 +368,10 @@ export default function TemplateDetailPage() {
               </>
             )}
 
-            {/* Variabel */}
+            {/* Variables */}
             {!editing && template.variables && template.variables.length > 0 && (
               <div>
-                <p className="text-sm font-medium mb-2">Variabel:</p>
+                <p className="text-sm font-medium mb-2">{t.templates.variables}:</p>
                 <div className="flex gap-2 flex-wrap">
                   {template.variables.map((v) => (
                     <Badge key={v} variant="outline" className="font-mono">{`{{${v}}}`}</Badge>
@@ -375,36 +384,36 @@ export default function TemplateDetailPage() {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Kartu Info */}
+          {/* Info Card */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Info Template</CardTitle>
+              <CardTitle className="text-sm">{t.templates.templateInfo}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Dibuat</span>
-                <span>{template.createdAt ? new Date(template.createdAt).toLocaleDateString("id-ID") : "—"}</span>
+                <span className="text-muted-foreground">{t.common.created}</span>
+                <span>{template.createdAt ? new Date(template.createdAt).toLocaleDateString() : "—"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Diperbarui</span>
-                <span>{template.updatedAt ? new Date(template.updatedAt).toLocaleDateString("id-ID") : "—"}</span>
+                <span className="text-muted-foreground">{t.common.updated}</span>
+                <span>{template.updatedAt ? new Date(template.updatedAt).toLocaleDateString() : "—"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Channel</span>
+                <span className="text-muted-foreground">{t.common.channel}</span>
                 <span>{channelLabel}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Variabel</span>
+                <span className="text-muted-foreground">{t.templates.variables}</span>
                 <span>{template.variables?.length || 0}</span>
               </div>
             </CardContent>
           </Card>
 
-          {/* Aksi Cepat */}
+          {/* Quick Actions */}
           {!editing && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Aksi Cepat</CardTitle>
+                <CardTitle className="text-sm">{t.templates.quickActions}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 <Button
@@ -412,32 +421,32 @@ export default function TemplateDetailPage() {
                   className="w-full justify-start"
                   onClick={() => {
                     navigator.clipboard.writeText(template.content.text);
-                    toast.add({ title: "Tersalin!", description: "Isi template disalin ke clipboard", type: "success" });
+                    toast.add({ title: t.common.copied, description: t.templates.copyContent, type: "success" });
                   }}
                 >
-                  <Copy className="h-4 w-4 mr-2" /> Salin Isi
+                  <Copy className="h-4 w-4 mr-2" /> {t.templates.copyContent}
                 </Button>
               </CardContent>
             </Card>
           )}
 
-          {/* Jadwal */}
+          {/* Schedules */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Clock className="h-4 w-4" /> Jadwal ({schedules.length})
+                <Clock className="h-4 w-4" /> {t.templates.schedules} ({schedules.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
               {schedules.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Tidak ada jadwal</p>
+                <p className="text-sm text-muted-foreground">{t.templates.noSchedules}</p>
               ) : (
                 <div className="space-y-2">
                   {schedules.map((s) => (
                     <div key={s.id} className="flex items-center justify-between p-2 border rounded text-sm">
                       <code className="font-mono text-xs">{s.cronExpression}</code>
                       <Badge variant={s.isActive ? "default" : "secondary"} className="text-xs">
-                        {s.isActive ? "Aktif" : "Nonaktif"}
+                        {s.isActive ? t.common.active : t.common.inactive}
                       </Badge>
                     </div>
                   ))}
@@ -446,14 +455,14 @@ export default function TemplateDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Log Terakhir */}
+          {/* Recent Activity */}
           <Card>
             <CardHeader>
-              <CardTitle>Aktivitas Terakhir</CardTitle>
+              <CardTitle>{t.templates.recentActivity}</CardTitle>
             </CardHeader>
             <CardContent>
               {logs.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Belum ada log</p>
+                <p className="text-sm text-muted-foreground">{t.templates.noLogs}</p>
               ) : (
                 <div className="space-y-2">
                   {logs.slice(0, 5).map((log) => {
@@ -463,7 +472,7 @@ export default function TemplateDetailPage() {
                         <div className="flex items-center gap-2 min-w-0">
                           {log.channel === "wa" ? <MessageSquare className="h-3 w-3 shrink-0" /> : <Mail className="h-3 w-3 shrink-0" />}
                           <span className="truncate text-muted-foreground">
-                            {user?.name || "Tidak diketahui"}
+                            {user?.name || t.common.unknown}
                           </span>
                         </div>
                         <Badge
@@ -488,31 +497,31 @@ export default function TemplateDetailPage() {
         </div>
       </div>
 
-      {/* Dialog Preview */}
+      {/* Preview Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Preview: {template.name}</DialogTitle>
+            <DialogTitle>{tx("templates.previewTitle", { name: template.name })}</DialogTitle>
           </DialogHeader>
           <TemplatePreview template={template} />
         </DialogContent>
       </Dialog>
 
-      {/* Dialog Uji Kirim */}
+      {/* Test Send Dialog */}
       <Dialog open={testSendOpen} onOpenChange={setTestSendOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Uji Kirim</DialogTitle>
+            <DialogTitle>{t.templates.testSend.title}</DialogTitle>
             <DialogDescription>
-              Kirim notifikasi {channelLabel.toLowerCase()} uji menggunakan template ini.
+              {tx("templates.testSend.description", { channel: channelLabel.toLowerCase() })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>Pilih Pengguna</Label>
+              <Label>{t.templates.testSend.selectUser}</Label>
               <Select value={selectedUser} onValueChange={(v) => setSelectedUser(v ?? "")}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih penerima" />
+                  <SelectValue placeholder={t.templates.testSend.chooseRecipient} />
                 </SelectTrigger>
                 <SelectContent>
                   {users.map((user) => (
@@ -525,33 +534,80 @@ export default function TemplateDetailPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Custom Variables */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">{t.templates.testSend.customVariables}</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs"
+                  onClick={() => setTestVariables((prev) => [...prev, { key: "", value: "" }])}
+                >
+                  <Plus className="h-3 w-3 mr-1" /> {t.templates.testSend.addVariable}
+                </Button>
+              </div>
+              {testVariables.length > 0 && (
+                <div className="space-y-2">
+                  {testVariables.map((field, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <Input
+                        value={field.key}
+                        onChange={(e) => setTestVariables((prev) => prev.map((f, j) => j === i ? { ...f, key: e.target.value } : f))}
+                        placeholder={t.templates.testSend.variableName}
+                        className="h-8 text-sm flex-1"
+                      />
+                      <Input
+                        value={field.value}
+                        onChange={(e) => setTestVariables((prev) => prev.map((f, j) => j === i ? { ...f, value: e.target.value } : f))}
+                        placeholder={t.templates.testSend.variableValue}
+                        className="h-8 text-sm flex-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setTestVariables((prev) => prev.filter((_, j) => j !== i))}
+                        className="p-1 hover:text-destructive"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {t.templates.testSend.variableHint}
+              </p>
+            </div>
+
             {template.channel === "both" && (
               <p className="text-xs text-muted-foreground">
-                Ini akan mengirim ke WhatsApp dan Email untuk pengguna yang dipilih.
+                {t.templates.testSend.bothHint}
               </p>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTestSendOpen(false)}>Batal</Button>
+            <Button variant="outline" onClick={() => { setTestSendOpen(false); setTestVariables([]); }}>{t.common.cancel}</Button>
             <Button onClick={handleTestSend} disabled={!selectedUser || sending}>
-              {sending ? "Mengirim..." : "Kirim Uji"}
+              {sending ? t.templates.testSend.sending : t.templates.testSend.sendTest}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog Konfirmasi Hapus */}
+      {/* Delete Dialog */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Hapus Template</DialogTitle>
+            <DialogTitle>{t.templates.deleteTemplate}</DialogTitle>
             <DialogDescription>
-              Apakah Anda yakin ingin menghapus &quot;{template.name}&quot;? Tindakan ini tidak dapat dibatalkan.
+              {tx("templates.deleteConfirm", { name: template.name })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Batal</Button>
-            <Button variant="destructive" onClick={handleDelete}>Hapus</Button>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>{t.common.cancel}</Button>
+            <Button variant="destructive" onClick={handleDelete}>{t.common.delete}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

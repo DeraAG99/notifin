@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "@/lib/i18n/context";
 import { Activity, AlertTriangle, CheckCircle } from "lucide-react";
 
 interface QueueHealthProps {
@@ -12,10 +13,12 @@ interface QueueHealthProps {
 }
 
 export function QueueHealth({ stats }: QueueHealthProps) {
+  const { t, tx } = useI18n();
+
   const getHealthStatus = (queue: QueueHealthProps["stats"]["whatsapp"]) => {
-    if (queue.failed > 0) return { status: "warning", label: "Masalah", icon: AlertTriangle, color: "text-yellow-600" };
-    if (queue.active > 0 || queue.waiting > 0) return { status: "active", label: "Aktif", icon: Activity, color: "text-blue-600" };
-    return { status: "healthy", label: "Sehat", icon: CheckCircle, color: "text-green-600" };
+    if (queue.failed > 0) return { status: "warning", label: t.dashboard.issues, icon: AlertTriangle, color: "text-yellow-600" };
+    if (queue.active > 0 || queue.waiting > 0) return { status: "active", label: t.common.active, icon: Activity, color: "text-blue-600" };
+    return { status: "healthy", label: t.dashboard.healthy, icon: CheckCircle, color: "text-green-600" };
   };
 
   const waHealth = getHealthStatus(stats.whatsapp);
@@ -25,7 +28,7 @@ export function QueueHealth({ stats }: QueueHealthProps) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          Kesehatan Antrean
+          {t.dashboard.queueHealth}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -33,9 +36,9 @@ export function QueueHealth({ stats }: QueueHealthProps) {
           <div className="flex items-center gap-3">
             <waHealth.icon className={`h-5 w-5 ${waHealth.color}`} />
             <div>
-              <p className="font-medium">Antrean WhatsApp</p>
+              <p className="font-medium">{t.dashboard.whatsappQueue}</p>
               <p className="text-sm text-muted-foreground">
-                {stats.whatsapp.waiting} menunggu, {stats.whatsapp.active} aktif
+                {tx("dashboard.waiting", { count: stats.whatsapp.waiting })}, {tx("dashboard.active", { count: stats.whatsapp.active })}
               </p>
             </div>
           </div>
@@ -47,9 +50,9 @@ export function QueueHealth({ stats }: QueueHealthProps) {
           <div className="flex items-center gap-3">
             <emailHealth.icon className={`h-5 w-5 ${emailHealth.color}`} />
             <div>
-              <p className="font-medium">Antrean Email</p>
+              <p className="font-medium">{t.dashboard.emailQueue}</p>
               <p className="text-sm text-muted-foreground">
-                {stats.email.waiting} menunggu, {stats.email.active} aktif
+                {tx("dashboard.waiting", { count: stats.email.waiting })}, {tx("dashboard.active", { count: stats.email.active })}
               </p>
             </div>
           </div>

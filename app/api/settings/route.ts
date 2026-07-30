@@ -1,27 +1,96 @@
 import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { settings } from "@/lib/db/schema";
 import { settingsSchema } from "@/lib/validations";
-import { getFonnteClient } from "@/lib/fonnte";
+import { getWaHealth, resetWaProvider } from "@/lib/wa";
 import { checkEmailHealth } from "@/lib/email";
-import type { ApiResponse } from "@/types";
+
+const SETTING_KEYS = [
+  "waProvider",
+  "fonnteToken",
+  "fonnteRateLimit",
+  "evolutionBaseUrl",
+  "evolutionApiKey",
+  "evolutionInstance",
+  "openwaBaseUrl",
+  "openwaApiKey",
+  "openwaSession",
+  "smtpHost",
+  "smtpPort",
+  "smtpUser",
+  "smtpPass",
+  "emailFrom",
+  "defaultTimezone",
+  "waConcurrency",
+  "emailConcurrency",
+] as const;
+
+type SettingKey = (typeof SETTING_KEYS)[number];
+
+const STRING_SETTINGS: SettingKey[] = [
+  "waProvider",
+  "fonnteToken",
+  "evolutionBaseUrl",
+  "evolutionApiKey",
+  "evolutionInstance",
+  "openwaBaseUrl",
+  "openwaApiKey",
+  "openwaSession",
+  "smtpHost",
+  "smtpUser",
+  "smtpPass",
+  "emailFrom",
+  "defaultTimezone",
+];
+
+const NUMBER_SETTINGS: SettingKey[] = [
+  "fonnteRateLimit",
+  "smtpPort",
+  "waConcurrency",
+  "emailConcurrency",
+];
+
+async function getSettingsMap(): Promise<Record<string, string | number | boolean | null>> {
+  const rows = await db.select().from(settings);
+  const map: Record<string, string | number | boolean | null> = {};
+  for (const row of rows) {
+    map[row.key] = row.value;
+  }
+  return map;
+}
+
+function mask(value: string | number | boolean | null): string | null {
+  if (!value) return null;
+  const s = String(value);
+  if (s.length <= 4) return "****";
+  return "****" + s.slice(-4);
+}
 
 export async function GET() {
   try {
-    const waHealth = await getFonnteClient()
-      .checkDevice()
-      .then((d) => d.status)
-      .catch(() => false);
-
-    const emailHealth = await checkEmailHealth();
+    const [waHealth, emailHealth, stored] = await Promise.all([
+      getWaHealth(),
+      checkEmailHealth(),
+      getSettingsMap(),
+    ]);
 
     return NextResponse.json({
       success: true,
       data: {
-        fonnteToken: process.env.FONNTE_TOKEN ? "****" + process.env.FONNTE_TOKEN.slice(-4) : null,
-        fonnteRateLimit: parseInt(process.env.FONNTE_RATE_LIMIT || "100"),
-        emailFrom: process.env.EMAIL_FROM || null,
-        defaultTimezone: process.env.DEFAULT_TIMEZONE || "Asia/Jakarta",
+        waProvider: stored.waProvider || "fonnte",
+        fonnteToken: mask(stored.fonnteToken),
+        fonnteRateLimit: Number(stored.fonnteRateLimit) || 100,
+        openwaBaseUrl: stored.openwaBaseUrl || null,
+        openwaApiKey: mask(stored.openwaApiKey),
+        openwaSession: stored.openwaSession || null,
+        smtpHost: stored.smtpHost || null,
+        smtpPort: Number(stored.smtpPort) || 587,
+        smtpUser: stored.smtpUser || null,
+        smtpPass: stored.smtpPass ? "****" : null,
+        emailFrom: stored.emailFrom || null,
+        defaultTimezone: stored.defaultTimezone || "Asia/Jakarta",
         health: {
-          fonnte: waHealth,
+          wa: waHealth,
           email: emailHealth,
           redis: true,
           database: true,
@@ -41,28 +110,48 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const validated = settingsSchema.parse(body);
 
-    const updates: string[] = [];
+    const entries: { key: SettingKey; value: string | number }[] = [];
 
-    if (validated.fonnteToken) {
-      process.env.FONNTE_TOKEN = validated.fonnteToken;
-      updates.push("FONNTE_TOKEN");
+    for (const key of STRING_SETTINGS) {
+      const val = validated[key as keyof typeof validated];
+      if (val !== undefined) entries.push({ key, value: val });
     }
-    if (validated.fonnteRateLimit) {
-      process.env.FONNTE_RATE_LIMIT = String(validated.fonnteRateLimit);
-      updates.push("FONNTE_RATE_LIMIT");
+
+    for (const key of NUMBER_SETTINGS) {
+      const val = validated[key as keyof typeof validated];
+      if (val !== undefined) entries.push({ key, value: val });
     }
-    if (validated.emailFrom) {
-      process.env.EMAIL_FROM = validated.emailFrom;
-      updates.push("EMAIL_FROM");
+
+    for (const entry of entries) {
+      await db
+        .insert(settings)
+        .values({ key: entry.key, value: entry.value })
+        .onConflictDoUpdate({
+          target: settings.key,
+          set: { value: entry.value, updatedAt: new Date() },
+        });
     }
-    if (validated.defaultTimezone) {
-      process.env.DEFAULT_TIMEZONE = validated.defaultTimezone;
-      updates.push("DEFAULT_TIMEZONE");
-    }
+
+    // Reset cached provider if WA settings changed
+    const hasWaUpdate = entries.some(
+      (e) =>
+        e.key === "waProvider" ||
+        e.key === "fonnteToken" ||
+        e.key === "fonnteRateLimit" ||
+        e.key === "evolutionBaseUrl" ||
+        e.key === "evolutionApiKey" ||
+        e.key === "evolutionInstance" ||
+        e.key === "openwaBaseUrl" ||
+        e.key === "openwaApiKey" ||
+        e.key === "openwaSession"
+    );
+    if (hasWaUpdate) resetWaProvider();
+
+    const updatedKeys = entries.map((e) => e.key);
 
     return NextResponse.json({
       success: true,
-      message: `Updated: ${updates.join(", ") || "nothing"}`,
+      message: `Updated: ${updatedKeys.join(", ") || "nothing"}`,
     });
   } catch (error) {
     if (error instanceof Error && error.name === "ZodError") {

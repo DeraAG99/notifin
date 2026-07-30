@@ -3,16 +3,41 @@ import { db } from "@/lib/db";
 import { notificationLogs } from "@/lib/db/schema";
 import { fonnteWebhookSchema } from "@/lib/validations";
 import { eq } from "drizzle-orm";
-import { getFonnteClient } from "@/lib/fonnte";
-import type { ApiResponse } from "@/types";
+
+function parseFonnteWebhook(payload: Record<string, unknown>): {
+  type: "status" | "message";
+  messageId?: string;
+  status?: string;
+  phone?: string;
+  message?: string;
+} {
+  const data = payload.data as Record<string, unknown> | undefined;
+
+  if (payload.event === "message" && data) {
+    return {
+      type: "message",
+      phone: String(data.sender || ""),
+      message: String(data.message || ""),
+    };
+  }
+
+  if (payload.event === "send-response" && data) {
+    return {
+      type: "status",
+      messageId: String(data.id || ""),
+      status: String(data.status || "unknown"),
+    };
+  }
+
+  return { type: "status", status: "unknown" };
+}
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const validated = fonnteWebhookSchema.parse(body);
 
-    const fonnte = getFonnteClient();
-    const webhookData = await fonnte.handleWebhook(body);
+    const webhookData = parseFonnteWebhook(body);
 
     if (webhookData.type === "status" && webhookData.messageId) {
       const statusMap: Record<string, "sent" | "delivered" | "failed" | "read"> = {

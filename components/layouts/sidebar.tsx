@@ -2,7 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/context";
+import {
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarSeparator,
+} from "@/components/ui/sidebar";
 import {
   LayoutDashboard,
   FileText,
@@ -13,48 +26,105 @@ import {
   Bell,
 } from "lucide-react";
 
-const navItems = [
-  { href: "/dashboard", label: "Dasbor", icon: LayoutDashboard },
-  { href: "/templates", label: "Template", icon: FileText },
-  { href: "/users", label: "Pengguna", icon: Users },
-  { href: "/schedules", label: "Jadwal", icon: Clock },
-  { href: "/logs", label: "Log", icon: ScrollText },
-  { href: "/settings", label: "Pengaturan", icon: Settings },
-];
-
-export function Sidebar() {
+export function AppSidebar() {
   const pathname = usePathname();
+  const { t } = useI18n();
+
+  const mainNav = [
+    { href: "/dashboard", label: t.nav.dashboard, icon: LayoutDashboard },
+    { href: "/templates", label: t.nav.templates, icon: FileText },
+    { href: "/users", label: t.nav.users, icon: Users },
+  ];
+
+  const systemNav = [
+    { href: "/schedules", label: t.nav.schedules, icon: Clock },
+    { href: "/logs", label: t.nav.logs, icon: ScrollText },
+    { href: "/settings", label: t.nav.settings, icon: Settings },
+  ];
 
   return (
-    <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r bg-card">
-      <div className="flex items-center gap-2 px-6 py-5 border-b">
-        <Bell className="h-6 w-6 text-primary" />
-        <span className="text-xl font-bold">Notifin</span>
-      </div>
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map((item) => {
-          const isActive =
-            pathname === item.href || pathname?.startsWith(item.href + "/");
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              )}
-            >
-              <item.icon className="h-5 w-5" />
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-      <div className="px-6 py-4 border-t text-xs text-muted-foreground">
-        Notifin v0.1.0
-      </div>
-    </aside>
+    <Sidebar>
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Bell className="size-4" />
+              </div>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-semibold">Notifin</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  Notification System
+                </span>
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+
+      <SidebarSeparator />
+
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {mainNav.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    isActive={
+                      pathname === item.href ||
+                      pathname?.startsWith(item.href + "/")
+                    }
+                    tooltip={item.label}
+                    render={<Link href={item.href} />}
+                  >
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Sistem</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {systemNav.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    isActive={
+                      pathname === item.href ||
+                      pathname?.startsWith(item.href + "/")
+                    }
+                    tooltip={item.label}
+                    render={<Link href={item.href} />}
+                  >
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarSeparator />
+
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <div className="px-2 py-1.5 text-xs text-muted-foreground">
+              Notifin v0.1.0
+            </div>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
   );
 }

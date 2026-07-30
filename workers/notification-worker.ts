@@ -1,11 +1,84 @@
 import { createWorker, QUEUE_NAMES, type NotificationJobData } from "../lib/queue";
 import { db } from "../lib/db";
-import { notificationLogs } from "../lib/db/schema";
+import { notificationLogs, settings } from "../lib/db/schema";
 import { eq } from "drizzle-orm";
-import { getFonnteClient } from "../lib/fonnte";
+import { getWaProvider } from "../lib/wa";
 import { sendEmail } from "../lib/email";
-import { templateEngine } from "../lib/template-engine";
-import { db as dbDirect } from "../lib/db";
+
+function buildDefaultHtml(title: string, message: string, recipientName?: string): string {
+  return `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+          <tr>
+            <td style="background-color:#18181b;padding:24px 32px;">
+              <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:600;">Notifin</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px;">
+              ${recipientName ? `<p style="margin:0 0 16px;color:#52525b;font-size:15px;">Halo ${recipientName},</p>` : ""}
+              <h2 style="margin:0 0 16px;color:#18181b;font-size:22px;font-weight:600;">${title}</h2>
+              <div style="color:#52525b;font-size:15px;line-height:1.7;white-space:pre-wrap;">${message}</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px;border-top:1px solid #e4e4e7;">
+              <p style="margin:0;color:#a1a1aa;font-size:12px;text-align:center;">Dikirim oleh Notifin</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+async function getSetting(key: string): Promise<string | number | boolean | null> {
+  try {
+    const rows = await db.select().from(settings).where(eq(settings.key, key));
+    return rows.length > 0 ? rows[0].value : null;
+  } catch {
+    return null;
+  }
+}
+
+async function autoConnectBaileys() {
+  try {
+    const providerType = await getSetting("waProvider");
+    if (providerType !== "baileys") return;
+
+    console.log("[Worker] Auto-connecting Baileys...");
+    const mod = await import("../lib/wa/baileys-manager");
+    const manager = mod.BaileysManager.getInstance();
+    manager.connect().catch((err: Error) => {
+      console.error("[Worker] Baileys auto-connect failed:", err.message);
+    });
+  } catch {
+    // silent
+  }
+}
+
+async function handleBaileysConnect() {
+  console.log("[Worker] Baileys connect job received, initiating connection...");
+  try {
+    const mod = await import("../lib/wa/baileys-manager");
+    const manager = mod.BaileysManager.getInstance();
+    await manager.connect();
+    console.log("[Worker] Baileys connect completed, connected:", manager.isConnected());
+  } catch (err) {
+    console.error("[Worker] Baileys connect failed:", err instanceof Error ? err.message : "Unknown error");
+  }
+}
 
 async function processNotification(job: { id?: string | number; data: NotificationJobData }) {
   const { data } = job;
@@ -52,19 +125,19 @@ async function processWhatsApp(data: NotificationJobData) {
     throw new Error("No phone number for WhatsApp notification");
   }
 
-  const fonnte = getFonnteClient();
-  const result = await fonnte.sendText(data.recipientPhone, data.content.text);
+  const provider = await getWaProvider();
+  const result = await provider.sendText(data.recipientPhone, data.content.text);
 
-  if (!result.status) {
-    throw new Error(result.message || "Failed to send WhatsApp message");
+  if (!result.success) {
+    throw new Error(result.error || "Failed to send WhatsApp message");
   }
 
-  if (data.logId && result.data?.id) {
+  if (data.logId && result.messageId) {
     await db
       .update(notificationLogs)
       .set({
         metadata: {
-          fonnteMessageId: result.data.id,
+          waMessageId: result.messageId,
           sentAt: new Date().toISOString(),
         },
       })
@@ -77,10 +150,12 @@ async function processEmail(data: NotificationJobData) {
     throw new Error("No email address for email notification");
   }
 
+  const html = data.content.html || buildDefaultHtml(data.subject || "Notifikasi", data.content.text, data.recipientName);
+
   const result = await sendEmail({
     to: data.recipientEmail,
     subject: data.subject || "Notification",
-    html: data.content.html || data.content.text,
+    html,
     text: data.content.text,
   });
 
@@ -107,14 +182,25 @@ async function main() {
   const waWorker = createWorker(QUEUE_NAMES.whatsapp, processNotification);
   const emailWorker = createWorker(QUEUE_NAMES.email, processNotification);
 
-  console.log(`WA worker concurrency: 10`);
+  const baileysWorker = createWorker(
+    QUEUE_NAMES.baileys,
+    async () => {
+      await handleBaileysConnect();
+    }
+  );
+
+  console.log(`WA worker concurrency: 2`);
   console.log(`Email worker concurrency: 20`);
+  console.log("Baileys worker listening for connect jobs");
   console.log("Workers are running. Press Ctrl+C to stop.");
+
+  await autoConnectBaileys();
 
   const shutdown = async () => {
     console.log("\nShutting down workers...");
     await waWorker.close();
     await emailWorker.close();
+    await baileysWorker.close();
     process.exit(0);
   };
 

@@ -57,6 +57,12 @@ export interface NotificationLog {
   createdAt: Date | null;
 }
 
+export interface Setting {
+  key: string;
+  value: string | number | boolean | null;
+  updatedAt: Date | null;
+}
+
 export interface FonnteResponse {
   status: boolean;
   message: string;

@@ -94,9 +94,18 @@ export const fonnteWebhookSchema = z.object({
   data: z.record(z.string(), z.unknown()).optional(),
 });
 
+export const waProviderEnum = z.enum(["fonnte", "evolution", "baileys", "openwa"]);
+
 export const settingsSchema = z.object({
+  waProvider: waProviderEnum.optional(),
   fonnteToken: z.string().optional(),
   fonnteRateLimit: z.number().int().positive().optional(),
+  evolutionBaseUrl: z.string().optional(),
+  evolutionApiKey: z.string().optional(),
+  evolutionInstance: z.string().optional(),
+  openwaBaseUrl: z.string().optional(),
+  openwaApiKey: z.string().optional(),
+  openwaSession: z.string().optional(),
   smtpHost: z.string().optional(),
   smtpPort: z.number().int().positive().optional(),
   smtpUser: z.string().optional(),

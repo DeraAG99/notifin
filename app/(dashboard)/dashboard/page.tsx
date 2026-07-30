@@ -6,9 +6,11 @@ import { NotificationChart } from "@/components/dashboard/notification-chart";
 import { RecentLogs } from "@/components/dashboard/recent-logs";
 import { QueueHealth } from "@/components/dashboard/queue-health";
 import { DashboardSkeleton } from "@/components/shared/skeletons";
+import { useI18n } from "@/lib/i18n/context";
 import type { DashboardStats, NotificationLog } from "@/types";
 
 export default function DashboardPage() {
+  const { t } = useI18n();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [logs, setLogs] = useState<NotificationLog[]>([]);
   const [queueStats, setQueueStats] = useState<{
@@ -34,7 +36,7 @@ export default function DashboardPage() {
         if (logsData.success) setLogs(logsData.data.items);
         if (queueData.success) setQueueStats(queueData.data);
       } catch (error) {
-        console.error("Gagal memuat data dasbor:", error);
+        console.error("Dashboard fetch error:", error);
       } finally {
         setLoading(false);
       }
@@ -50,9 +52,9 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Dasbor</h1>
+        <h1 className="text-2xl font-bold">{t.dashboard.title}</h1>
         <p className="text-muted-foreground">
-          Ringkasan sistem notifikasi Anda
+          {t.dashboard.description}
         </p>
       </div>
 

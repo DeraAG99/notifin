@@ -15,6 +15,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
+import { useI18n } from "@/lib/i18n/context";
 import { Plus, Search, Pencil, Trash2, Eye, MessageSquare, Mail, Layers } from "lucide-react";
 import { TemplatePreview } from "@/components/templates/template-preview";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -22,6 +23,7 @@ import type { NotificationTemplate } from "@/types";
 
 export default function TemplatesPage() {
   const router = useRouter();
+  const { t, tx } = useI18n();
   const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -36,7 +38,7 @@ export default function TemplatesPage() {
       const data = await res.json();
       if (data.success) setTemplates(data.data);
     } catch {
-      toast.add({ title: "Gagal", description: "Gagal memuat template", type: "error" });
+      toast.add({ title: t.common.error, description: "Gagal memuat template", type: "error" });
     } finally {
       setLoading(false);
     }
@@ -47,9 +49,9 @@ export default function TemplatesPage() {
   }, []);
 
   const filtered = templates.filter(
-    (t) =>
-      t.name.toLowerCase().includes(search.toLowerCase()) ||
-      t.channel.toLowerCase().includes(search.toLowerCase())
+    (tmpl) =>
+      tmpl.name.toLowerCase().includes(search.toLowerCase()) ||
+      tmpl.channel.toLowerCase().includes(search.toLowerCase())
   );
 
   const handleDelete = async () => {
@@ -58,13 +60,13 @@ export default function TemplatesPage() {
       const res = await fetch(`/api/templates/${selectedTemplate.id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
-        toast.add({ title: "Dihapus", description: `"${selectedTemplate.name}" berhasil dihapus`, type: "success" });
+        toast.add({ title: t.common.deleted, description: `"${selectedTemplate.name}" berhasil dihapus`, type: "success" });
         fetchTemplates();
       } else {
-        toast.add({ title: "Gagal", description: data.error || "Gagal menghapus", type: "error" });
+        toast.add({ title: t.common.error, description: data.error || "Gagal menghapus", type: "error" });
       }
     } catch {
-      toast.add({ title: "Gagal", description: "Gagal menghapus template", type: "error" });
+      toast.add({ title: t.common.error, description: "Gagal menghapus template", type: "error" });
     }
     setDeleteOpen(false);
     setSelectedTemplate(null);
@@ -86,15 +88,23 @@ export default function TemplatesPage() {
     }
   };
 
+  const getChannelLabel = (channel: string) => {
+    switch (channel) {
+      case "wa": return "WA";
+      case "email": return "Email";
+      default: return t.templates.channelLabel.both;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Template</h1>
-          <p className="text-muted-foreground">Buat dan kelola template notifikasi</p>
+          <h1 className="text-2xl font-bold">{t.templates.title}</h1>
+          <p className="text-muted-foreground">{t.templates.description}</p>
         </div>
         <Button onClick={() => window.open("/templates/new", "_blank")}>
-          <Plus className="h-4 w-4 mr-2" /> Template Baru
+          <Plus className="h-4 w-4 mr-2" /> {t.templates.newTemplate}
         </Button>
       </div>
 
@@ -102,22 +112,22 @@ export default function TemplatesPage() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Cari berdasarkan nama atau channel..."
+            placeholder={t.templates.searchPlaceholder}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
         <div className="text-sm text-muted-foreground">
-          {filtered.length} template
+          {tx("templates.templateCount", { count: filtered.length })}
         </div>
       </div>
 
       {filtered.length === 0 ? (
         <EmptyState
-          title="Belum ada template"
-          description="Buat template notifikasi pertama Anda untuk mulai mengirim pesan."
-          actionLabel="Buat Template"
+          title={t.templates.noTemplates}
+          description={t.templates.noTemplatesDesc}
+          actionLabel={t.templates.createTemplate}
           actionHref="#"
         />
       ) : (
@@ -131,7 +141,7 @@ export default function TemplatesPage() {
                     <CardTitle className="text-base">{template.name}</CardTitle>
                   </div>
                   <Badge variant={getChannelBadgeVariant(template.channel)}>
-                    {template.channel === "wa" ? "WA" : template.channel === "email" ? "Email" : "Keduanya"}
+                    {getChannelLabel(template.channel)}
                   </Badge>
                 </div>
               </CardHeader>
@@ -157,7 +167,7 @@ export default function TemplatesPage() {
 
                 <div className="flex items-center justify-between pt-2 border-t">
                   <Badge variant={template.isActive ? "default" : "secondary"}>
-                    {template.isActive ? "Aktif" : "Nonaktif"}
+                    {template.isActive ? t.common.active : t.common.inactive}
                   </Badge>
                   <div className="flex items-center gap-1">
                     <Button
@@ -196,24 +206,24 @@ export default function TemplatesPage() {
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Preview: {selectedTemplate?.name}</DialogTitle>
+            <DialogTitle>{tx("templates.previewTitle", { name: selectedTemplate?.name || "" })}</DialogTitle>
           </DialogHeader>
           {selectedTemplate && <TemplatePreview template={selectedTemplate} />}
         </DialogContent>
       </Dialog>
 
-      {/* Dialog Konfirmasi Hapus */}
+      {/* Dialog Delete */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Hapus Template</DialogTitle>
+            <DialogTitle>{t.templates.deleteTemplate}</DialogTitle>
             <DialogDescription>
-              Apakah Anda yakin ingin menghapus &quot;{selectedTemplate?.name}&quot;? Tindakan ini tidak dapat dibatalkan.
+              {tx("templates.deleteConfirm", { name: selectedTemplate?.name || "" })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Batal</Button>
-            <Button variant="destructive" onClick={handleDelete}>Hapus</Button>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>{t.common.cancel}</Button>
+            <Button variant="destructive" onClick={handleDelete}>{t.common.delete}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

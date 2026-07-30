@@ -4,6 +4,7 @@ import { notificationLogs, notificationTemplates, users } from "@/lib/db/schema"
 import { batchSendSchema } from "@/lib/validations";
 import { addNotificationJob } from "@/lib/queue";
 import { templateEngine } from "@/lib/template-engine";
+import { mergeVariables } from "@/lib/variables";
 import { eq, inArray } from "drizzle-orm";
 import type { ApiResponse } from "@/types";
 
@@ -44,19 +45,21 @@ export async function POST(request: Request) {
       .insert(notificationLogs)
       .values(
         userList.flatMap((user) =>
-          channels.map((ch) => ({
-            templateId: template.id,
-            userId: user.id,
-            channel: ch,
-            priority: validated.priority,
-            content: {
-              text: templateEngine.render(
-                template.content.text,
-                validated.variables || { name: user.name, email: user.email, phone: user.phone }
-              ),
-            },
-            status: "pending" as const,
-          }))
+          channels.map((ch) => {
+            const vars = mergeVariables(user, validated.variables as Record<string, unknown> | undefined);
+            const renderedText = templateEngine.render(template.content.text, vars);
+            const renderedHtml = template.content.html
+              ? templateEngine.render(template.content.html, vars)
+              : undefined;
+            return {
+              templateId: template.id,
+              userId: user.id,
+              channel: ch,
+              priority: validated.priority,
+              content: { text: renderedText, html: renderedHtml },
+              status: "pending" as const,
+            };
+          })
         )
       )
       .returning();

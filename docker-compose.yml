@@ -1,0 +1,131 @@
+x-db-creds: &db-creds
+  POSTGRES_DB: ${POSTGRES_DB:-notifin}
+  POSTGRES_USER: ${POSTGRES_USER:-notifin}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-notifin_secret}
+
+x-db-url: &db-url postgresql://${POSTGRES_USER:-notifin}:${POSTGRES_PASSWORD:-notifin_secret}@postgres:5432/${POSTGRES_DB:-notifin}
+
+x-openwa-db-creds: &openwa-db-creds
+  OPENWA_DB: ${OPENWA_DB:-openwa}
+  OPENWA_USER: ${OPENWA_USER:-notifin}
+  OPENWA_PASSWORD: ${OPENWA_PASSWORD:-notifin_secret}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      <<: *db-creds
+      OPENWA_DB: ${OPENWA_DB:-openwa}
+      OPENWA_USER: ${OPENWA_USER:-notifin}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-openwa-db.sh:/docker-entrypoint-initdb.d/10-init-openwa-db.sh:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-notifin}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: *db-url
+      REDIS_URL: redis://redis:${REDIS_PORT:-6379}
+      NEXT_PUBLIC_APP_URL: ${APP_URL:-http://localhost:3000}
+      DEFAULT_TIMEZONE: ${TZ:-Asia/Jakarta}
+      BAILEYS_AUTH_DIR: /data/baileys-auth
+    volumes:
+      - baileys_auth:/data/baileys-auth
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    command: ["sh", "-c", "bun lib/db/migrate.ts && bun run start"]
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: *db-url
+      REDIS_URL: redis://redis:${REDIS_PORT:-6379}
+      BAILEYS_AUTH_DIR: /data/baileys-auth
+    volumes:
+      - baileys_auth:/data/baileys-auth
+    command: ["bun", "workers/notification-worker.ts"]
+    restart: unless-stopped
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: *db-url
+      REDIS_URL: redis://redis:${REDIS_PORT:-6379}
+    command: ["bun", "workers/scheduler-worker.ts"]
+    restart: unless-stopped
+
+  openwa:
+    image: ghcr.io/rmyndharis/openwa:latest
+    container_name: notifin-openwa
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${OPENWA_PORT:-2785}:2785"
+    volumes:
+      - openwa_data:/app/data
+    environment:
+      NODE_ENV: production
+      ENGINE_TYPE: baileys
+      API_MASTER_KEY: ${OPENWA_API_KEY:-notifin_openwa_key}
+      AUTO_START_SESSIONS: "true"
+      DATABASE_TYPE: postgres
+      DATABASE_HOST: postgres
+      DATABASE_PORT: "5432"
+      DATABASE_USERNAME: ${OPENWA_USER:-notifin}
+      DATABASE_PASSWORD: ${OPENWA_PASSWORD:-notifin_secret}
+      DATABASE_NAME: ${OPENWA_DB:-openwa}
+      DATABASE_SYNCHRONIZE: "true"
+      REDIS_ENABLED: "true"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  baileys_auth:
+  openwa_data:

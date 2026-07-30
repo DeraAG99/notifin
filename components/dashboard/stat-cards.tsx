@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useI18n } from "@/lib/i18n/context";
 import { Send, CheckCircle, XCircle, Clock } from "lucide-react";
 
 interface StatCardsProps {
@@ -14,30 +15,32 @@ interface StatCardsProps {
 }
 
 export function StatCards({ stats }: StatCardsProps) {
+  const { t, tx } = useI18n();
+
   const cards = [
     {
-      title: "Total Terkirim",
+      title: t.dashboard.totalSent,
       value: stats.totalSent,
       icon: Send,
       color: "text-blue-600",
       bg: "bg-blue-50",
     },
     {
-      title: "Terkirim",
+      title: t.dashboard.delivered,
       value: stats.totalDelivered,
       icon: CheckCircle,
       color: "text-green-600",
       bg: "bg-green-50",
     },
     {
-      title: "Gagal",
+      title: t.dashboard.failed,
       value: stats.totalFailed,
       icon: XCircle,
       color: "text-red-600",
       bg: "bg-red-50",
     },
     {
-      title: "Tertunda",
+      title: t.dashboard.pending,
       value: stats.totalPending,
       icon: Clock,
       color: "text-yellow-600",
@@ -59,9 +62,9 @@ export function StatCards({ stats }: StatCardsProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{card.value.toLocaleString()}</div>
-            {card.title === "Total Terkirim" && stats.sentToday > 0 && (
+            {card.title === t.dashboard.totalSent && stats.sentToday > 0 && (
               <p className="text-xs text-muted-foreground mt-1">
-                {stats.sentToday} terkirim hari ini
+                {tx("dashboard.sentToday", { count: stats.sentToday })}
               </p>
             )}
           </CardContent>

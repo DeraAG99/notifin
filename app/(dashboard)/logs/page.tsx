@@ -26,7 +26,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Download, RefreshCw, Eye } from "lucide-react";
+import { toast } from "@/components/ui/toast";
+import { useI18n } from "@/lib/i18n/context";
+import { Download, RefreshCw, Eye } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import type { NotificationLog, PaginatedResponse } from "@/types";
 
@@ -39,6 +41,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function LogsPage() {
+  const { t, tx } = useI18n();
   const [logs, setLogs] = useState<NotificationLog[]>([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [loading, setLoading] = useState(true);
@@ -125,46 +128,46 @@ export default function LogsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Log</h1>
-          <p className="text-muted-foreground">Riwayat pengiriman notifikasi</p>
+          <h1 className="text-2xl font-bold">{t.logs.title}</h1>
+          <p className="text-muted-foreground">{t.logs.description}</p>
         </div>
         <Button variant="outline" onClick={handleExport}>
-          <Download className="h-4 w-4 mr-2" /> Ekspor CSV
+          <Download className="h-4 w-4 mr-2" /> {t.logs.exportCSV}
         </Button>
       </div>
 
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-1">
-          <Label className="text-xs">Channel</Label>
+          <Label className="text-xs">{t.logs.channelFilter}</Label>
           <Select value={channelFilter} onValueChange={(v) => setChannelFilter(v ?? "")}>
             <SelectTrigger className="w-[130px]">
-              <SelectValue placeholder="Semua" />
+              <SelectValue placeholder={t.common.all} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Semua</SelectItem>
+              <SelectItem value="">{t.common.all}</SelectItem>
               <SelectItem value="wa">WhatsApp</SelectItem>
               <SelectItem value="email">Email</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Status</Label>
+          <Label className="text-xs">{t.logs.statusFilter}</Label>
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? "")}>
             <SelectTrigger className="w-[130px]">
-              <SelectValue placeholder="Semua" />
+              <SelectValue placeholder={t.common.all} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Semua</SelectItem>
-              <SelectItem value="pending">Tertunda</SelectItem>
-              <SelectItem value="sent">Terkirim</SelectItem>
-              <SelectItem value="delivered">Tersampaikan</SelectItem>
-              <SelectItem value="failed">Gagal</SelectItem>
-              <SelectItem value="read">Dibaca</SelectItem>
+              <SelectItem value="">{t.common.all}</SelectItem>
+              <SelectItem value="pending">{t.logs.statuses.pending}</SelectItem>
+              <SelectItem value="sent">{t.logs.statuses.sent}</SelectItem>
+              <SelectItem value="delivered">{t.logs.statuses.delivered}</SelectItem>
+              <SelectItem value="failed">{t.logs.statuses.failed}</SelectItem>
+              <SelectItem value="read">{t.logs.statuses.read}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Tanggal Mulai</Label>
+          <Label className="text-xs">{t.logs.startDate}</Label>
           <Input
             type="date"
             value={startDate}
@@ -173,7 +176,7 @@ export default function LogsPage() {
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Tanggal Akhir</Label>
+          <Label className="text-xs">{t.logs.endDate}</Label>
           <Input
             type="date"
             value={endDate}
@@ -182,28 +185,28 @@ export default function LogsPage() {
           />
         </div>
         <Button variant="outline" size="sm" onClick={() => fetchLogs(pagination.page)}>
-          <RefreshCw className="h-4 w-4 mr-1" /> Segarkan
+          <RefreshCw className="h-4 w-4 mr-1" /> {t.common.refresh}
         </Button>
       </div>
 
-      <div className="text-sm text-muted-foreground">{pagination.total} log ditemukan</div>
+      <div className="text-sm text-muted-foreground">{tx("logs.logCount", { count: pagination.total })}</div>
 
       {logs.length === 0 ? (
         <EmptyState
-          title="Belum ada log"
-          description="Log notifikasi akan muncul di sini setelah Anda mulai mengirim."
+          title={t.logs.noLogs}
+          description={t.logs.noLogsDesc}
         />
       ) : (
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Channel</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Prioritas</TableHead>
-                <TableHead>Isi</TableHead>
-                <TableHead>Error</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
+                <TableHead>{t.common.channel}</TableHead>
+                <TableHead>{t.common.status}</TableHead>
+                <TableHead>{t.common.priority}</TableHead>
+                <TableHead>{t.common.content}</TableHead>
+                <TableHead>{t.common.error}</TableHead>
+                <TableHead className="text-right">{t.common.actions}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -263,10 +266,10 @@ export default function LogsPage() {
             onClick={() => fetchLogs(pagination.page - 1)}
             disabled={pagination.page <= 1}
           >
-            Sebelumnya
+            {t.common.previous}
           </Button>
           <span className="text-sm">
-            Halaman {pagination.page} dari {pagination.totalPages}
+            {t.common.page} {pagination.page} {t.common.of} {pagination.totalPages}
           </span>
           <Button
             variant="outline"
@@ -274,7 +277,7 @@ export default function LogsPage() {
             onClick={() => fetchLogs(pagination.page + 1)}
             disabled={pagination.page >= pagination.totalPages}
           >
-            Selanjutnya
+            {t.common.next}
           </Button>
         </div>
       )}
@@ -282,41 +285,41 @@ export default function LogsPage() {
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Detail Log</DialogTitle>
+            <DialogTitle>{t.logs.detail}</DialogTitle>
           </DialogHeader>
           {selectedLog && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Channel:</span>{" "}
+                  <span className="text-muted-foreground">{t.common.channel}:</span>{" "}
                   <Badge variant={selectedLog.channel === "wa" ? "default" : "secondary"}>
                     {selectedLog.channel === "wa" ? "WhatsApp" : "Email"}
                   </Badge>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Status:</span>{" "}
+                  <span className="text-muted-foreground">{t.common.status}:</span>{" "}
                   <Badge className={statusColors[selectedLog.status || "pending"] || ""}>
                     {selectedLog.status}
                   </Badge>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Prioritas:</span>{" "}
+                  <span className="text-muted-foreground">{t.common.priority}:</span>{" "}
                   <Badge variant="outline">{selectedLog.priority}</Badge>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Dibuat:</span>{" "}
-                  {selectedLog.createdAt ? new Date(selectedLog.createdAt).toLocaleString("id-ID") : "-"}
+                  <span className="text-muted-foreground">{t.common.created}:</span>{" "}
+                  {selectedLog.createdAt ? new Date(selectedLog.createdAt).toLocaleString() : "-"}
                 </div>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Isi:</p>
+                <p className="text-sm text-muted-foreground mb-1">{t.common.content}:</p>
                 <div className="bg-muted p-3 rounded text-sm whitespace-pre-wrap">
                   {selectedLog.content?.text || "-"}
                 </div>
               </div>
               {selectedLog.error && (
                 <div>
-                  <p className="text-sm text-destructive mb-1">Error:</p>
+                  <p className="text-sm text-destructive mb-1">{t.common.error}:</p>
                   <div className="bg-red-50 text-red-800 p-3 rounded text-sm">
                     {selectedLog.error}
                   </div>
@@ -324,7 +327,7 @@ export default function LogsPage() {
               )}
               {selectedLog.metadata && Object.keys(selectedLog.metadata).length > 0 && (
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Metadata:</p>
+                  <p className="text-sm text-muted-foreground mb-1">{t.logs.metadata}:</p>
                   <pre className="bg-muted p-3 rounded text-xs overflow-auto">
                     {JSON.stringify(selectedLog.metadata, null, 2)}
                   </pre>

@@ -2,11 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/context";
 import { ArrowLeft } from "lucide-react";
 import { TemplateForm } from "@/components/templates/template-form";
 
 export default function NewTemplatePage() {
   const router = useRouter();
+  const { t } = useI18n();
 
   return (
     <div className="space-y-6">
@@ -15,8 +17,8 @@ export default function NewTemplatePage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold">Buat Template Baru</h1>
-          <p className="text-muted-foreground">Buat template notifikasi baru</p>
+          <h1 className="text-2xl font-bold">{t.templates.createNewTemplate}</h1>
+          <p className="text-muted-foreground">{t.templates.designTemplate}</p>
         </div>
       </div>
 

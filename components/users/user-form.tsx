@@ -12,6 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/context";
+import { Plus, X } from "lucide-react";
 import type { User } from "@/types";
 
 interface UserFormProps {
@@ -28,6 +30,7 @@ const timezones = [
 ];
 
 export function UserForm({ user, onSuccess }: UserFormProps) {
+  const { t } = useI18n();
   const [name, setName] = useState(user?.name || "");
   const [phone, setPhone] = useState(user?.phone || "");
   const [email, setEmail] = useState(user?.email || "");
@@ -35,9 +38,32 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
   const [isActive, setIsActive] = useState(user?.isActive ?? true);
   const [loading, setLoading] = useState(false);
 
+  const [metadata, setMetadata] = useState<Array<{ key: string; value: string }>>(() => {
+    const meta = user?.metadata as Record<string, unknown> | undefined;
+    if (!meta || Object.keys(meta).length === 0) return [];
+    return Object.entries(meta).map(([k, v]) => ({ key: k, value: String(v ?? "") }));
+  });
+
+  const addMetadataField = () => {
+    setMetadata((prev) => [...prev, { key: "", value: "" }]);
+  };
+
+  const removeMetadataField = (index: number) => {
+    setMetadata((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateMetadataField = (index: number, field: "key" | "value", val: string) => {
+    setMetadata((prev) => prev.map((item, i) => i === index ? { ...item, [field]: val } : item));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    const metadataObj: Record<string, string> = {};
+    metadata.forEach(({ key, value }) => {
+      if (key.trim()) metadataObj[key.trim()] = value;
+    });
 
     const body = {
       name,
@@ -45,6 +71,7 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
       email: email || null,
       timezone,
       isActive,
+      metadata: Object.keys(metadataObj).length > 0 ? metadataObj : null,
     };
 
     try {
@@ -66,40 +93,40 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="name">Nama</Label>
+        <Label htmlFor="name">{t.users.form.name}</Label>
         <Input
           id="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Nama lengkap"
+          placeholder={t.users.form.namePlaceholder}
           required
         />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="phone">Telepon</Label>
+          <Label htmlFor="phone">{t.users.form.phone}</Label>
           <Input
             id="phone"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            placeholder="6281234567890"
+            placeholder={t.users.form.phonePlaceholder}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">{t.users.form.email}</Label>
           <Input
             id="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="pengguna@contoh.com"
+            placeholder={t.users.form.emailPlaceholder}
           />
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label>Timezone</Label>
+        <Label>{t.users.form.timezone}</Label>
         <Select value={timezone} onValueChange={(v) => setTimezone(v ?? "Asia/Jakarta")}>
           <SelectTrigger>
             <SelectValue />
@@ -118,12 +145,52 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
           checked={isActive}
           onCheckedChange={setIsActive}
         />
-        <Label htmlFor="active">Aktif</Label>
+        <Label htmlFor="active">{t.users.form.active}</Label>
+      </div>
+
+      {/* Metadata Fields */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label>{t.users.form.metadata}</Label>
+          <Button type="button" variant="ghost" size="sm" onClick={addMetadataField} className="h-7 text-xs">
+            <Plus className="h-3 w-3 mr-1" /> {t.users.form.addField}
+          </Button>
+        </div>
+        {metadata.length > 0 && (
+          <div className="space-y-2">
+            {metadata.map((field, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Input
+                  value={field.key}
+                  onChange={(e) => updateMetadataField(i, "key", e.target.value)}
+                  placeholder={t.users.form.metadataKey}
+                  className="h-8 text-sm flex-1"
+                />
+                <Input
+                  value={field.value}
+                  onChange={(e) => updateMetadataField(i, "value", e.target.value)}
+                  placeholder={t.users.form.metadataValue}
+                  className="h-8 text-sm flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeMetadataField(i)}
+                  className="p-1 hover:text-destructive"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">
+          {t.users.form.metadataHint}
+        </p>
       </div>
 
       <div className="flex justify-end">
         <Button type="submit" disabled={loading}>
-          {loading ? "Menyimpan..." : user ? "Perbarui" : "Buat"}
+          {loading ? t.common.saving : user ? t.common.update : t.common.create}
         </Button>
       </div>
     </form>

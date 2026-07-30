@@ -68,6 +68,19 @@ bun run lint         # ESLint
 bunx tsc --noEmit    # Type check (ALWAYS run after changes)
 ```
 
+## Important: Evolution API Provider
+- Evolution API instance names must be URL-encoded (`encodeURIComponent`) when used in URL paths (`lib/wa/evolution-provider.ts`)
+- Trailing spaces in instance names can sneak in via the Manager UI and cause 404 errors
+- Integration type for normal WhatsApp Web QR: `"WHATSAPP-BAILEYS"` (hyphen, not underscore)
+- Manager UI at `http://localhost:8080/manager/`
+- Global API Key: `notifin_evolution_key`
+- Instance state values: `"connecting"` (QR shown, not yet scanned), `"open"` (connected/ready)
+
+## Docker Notes
+- `evolutionBaseUrl` must use Docker internal DNS: `http://evolution-api:8080`
+- `docker compose build web && docker compose up -d web` for code changes
+- Six services: postgres, redis, evolution-api, web, worker, scheduler
+
 ## Before Making Changes
 1. Always run `npx tsc --noEmit` to verify types
 2. Check existing patterns in similar files

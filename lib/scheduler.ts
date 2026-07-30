@@ -37,6 +37,12 @@ function calculateNextRun(cronExpression: string): Date {
   const now = new Date();
   const next = new Date(now);
 
+  if (parsed.minute === "*" && parsed.hour === "*") {
+    next.setSeconds(0, 0);
+    next.setMinutes(next.getMinutes() + 1);
+    return next;
+  }
+
   if (parsed.minute !== "*") {
     const minute = parseInt(parsed.minute, 10);
     if (!isNaN(minute)) next.setMinutes(minute, 0, 0);

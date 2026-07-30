@@ -24,10 +24,15 @@ export type NotificationJobData = {
   recipientName?: string;
 };
 
+export type BaileysConnectData = {
+  type: "baileys-connect";
+};
+
 const QUEUE_NAMES = {
   whatsapp: "whatsapp-queue",
   email: "email-queue",
   scheduled: "scheduled-queue",
+  baileys: "baileys-queue",
 } as const;
 
 const QUEUE_OPTIONS: QueueOptions = {
@@ -71,6 +76,19 @@ export const emailQueue = new Queue<NotificationJobData>(
 export const scheduledQueue = new Queue<NotificationJobData>(
   QUEUE_NAMES.scheduled,
   QUEUE_OPTIONS
+);
+
+export const baileysQueue = new Queue<BaileysConnectData>(
+  QUEUE_NAMES.baileys,
+  {
+    ...QUEUE_OPTIONS,
+    defaultJobOptions: {
+      ...QUEUE_OPTIONS.defaultJobOptions,
+      attempts: 1,
+      removeOnComplete: { count: 10 },
+      removeOnFail: { count: 5 },
+    },
+  }
 );
 
 function getPriorityValue(priority: "urgent" | "normal" | "low"): number {
@@ -149,7 +167,9 @@ export async function getQueueStats(queueName: string) {
       ? whatsappQueue
       : queueName === QUEUE_NAMES.email
         ? emailQueue
-        : scheduledQueue;
+        : queueName === QUEUE_NAMES.scheduled
+          ? scheduledQueue
+          : baileysQueue;
 
   const [waiting, active, completed, failed, delayed] = await Promise.all([
     queue.getWaitingCount(),
@@ -163,13 +183,22 @@ export async function getQueueStats(queueName: string) {
 }
 
 export async function getAllQueueStats() {
-  const [whatsapp, email, scheduled] = await Promise.all([
+  const [whatsapp, email, scheduled, baileys] = await Promise.all([
     getQueueStats(QUEUE_NAMES.whatsapp),
     getQueueStats(QUEUE_NAMES.email),
     getQueueStats(QUEUE_NAMES.scheduled),
+    getQueueStats(QUEUE_NAMES.baileys),
   ]);
 
-  return { whatsapp, email, scheduled };
+  return { whatsapp, email, scheduled, baileys };
+}
+
+export function addBaileysConnectJob(): Promise<Job<BaileysConnectData>> {
+  return baileysQueue.add(
+    "baileys-connect",
+    { type: "baileys-connect" },
+    { priority: 1 }
+  );
 }
 
 export { QUEUE_NAMES };

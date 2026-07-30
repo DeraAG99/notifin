@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "@/lib/i18n/context";
 import {
   Table,
   TableBody,
@@ -30,26 +31,28 @@ const channelColors: Record<string, string> = {
 };
 
 export function RecentLogs({ logs }: RecentLogsProps) {
+  const { t } = useI18n();
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Notifikasi Terakhir</CardTitle>
+        <CardTitle>{t.dashboard.recentNotifications}</CardTitle>
       </CardHeader>
       <CardContent>
         {logs.length === 0 ? (
           <div className="flex items-center justify-center h-32 text-muted-foreground">
-            Belum ada notifikasi
+            {t.dashboard.noNotifications}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Channel</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Prioritas</TableHead>
-                  <TableHead>Isi</TableHead>
-                  <TableHead className="text-right">Waktu</TableHead>
+                  <TableHead>{t.common.channel}</TableHead>
+                  <TableHead>{t.common.status}</TableHead>
+                  <TableHead>{t.common.priority}</TableHead>
+                  <TableHead>{t.common.content}</TableHead>
+                  <TableHead className="text-right">{t.common.start}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -73,7 +76,7 @@ export function RecentLogs({ logs }: RecentLogsProps) {
                     </TableCell>
                     <TableCell className="text-right text-sm text-muted-foreground">
                       {log.createdAt
-                        ? new Date(log.createdAt).toLocaleString("id-ID")
+                        ? new Date(log.createdAt).toLocaleString()
                         : "-"}
                     </TableCell>
                   </TableRow>

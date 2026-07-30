@@ -59,6 +59,12 @@ export const notificationSchedules = pgTable("notification_schedules", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const settings = pgTable("settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").$type<string | number | boolean | null>().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const notificationLogs = pgTable("notification_logs", {
   id: uuid("id").defaultRandom().primaryKey(),
   templateId: uuid("template_id").references(() => notificationTemplates.id),

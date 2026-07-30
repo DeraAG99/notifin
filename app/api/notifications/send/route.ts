@@ -4,6 +4,7 @@ import { notificationLogs, notificationTemplates, users } from "@/lib/db/schema"
 import { sendNotificationSchema } from "@/lib/validations";
 import { addNotificationJob } from "@/lib/queue";
 import { templateEngine } from "@/lib/template-engine";
+import { mergeVariables } from "@/lib/variables";
 import { eq } from "drizzle-orm";
 import type { ApiResponse } from "@/types";
 
@@ -38,10 +39,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const renderedText = templateEngine.render(
-      template.content.text,
-      validated.variables || { name: user.name, email: user.email, phone: user.phone }
-    );
+    const variables = mergeVariables(user, validated.variables as Record<string, unknown> | undefined);
+
+    const renderedText = templateEngine.render(template.content.text, variables);
+
+    const renderedHtml = template.content.html
+      ? templateEngine.render(template.content.html, variables)
+      : undefined;
 
     const channels: ("wa" | "email")[] =
       validated.channel === "both" ? ["wa", "email"] : [validated.channel];
@@ -70,7 +74,7 @@ export async function POST(request: Request) {
         userId: user.id,
         channel: ch,
         priority: validated.priority,
-        content: { text: renderedText },
+        content: { text: renderedText, html: renderedHtml },
         subject: template.subject || undefined,
         recipientPhone: user.phone || undefined,
         recipientEmail: user.email || undefined,

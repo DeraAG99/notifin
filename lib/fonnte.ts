@@ -1,4 +1,7 @@
 import type { FonnteResponse, DeviceStatus } from "@/types";
+import { db } from "@/lib/db";
+import { settings } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 interface RateLimiter {
   tokens: number;
@@ -122,7 +125,7 @@ class FonnteClient {
   async checkDevice(): Promise<DeviceStatus> {
     try {
       const response = await fetch(`${this.baseUrl}/device`, {
-        method: "GET",
+        method: "POST",
         headers: {
           Authorization: this.token,
         },
@@ -132,8 +135,12 @@ class FonnteClient {
         return { status: false };
       }
 
-      const data = await response.json();
-      return data as DeviceStatus;
+      const text = await response.text();
+      try {
+        return JSON.parse(text) as DeviceStatus;
+      } catch {
+        return { status: false };
+      }
     } catch {
       return { status: false };
     }
@@ -170,14 +177,39 @@ class FonnteClient {
 
 let client: FonnteClient | null = null;
 
-export function getFonnteClient(): FonnteClient {
-  if (!client) {
-    const token = process.env.FONNTE_TOKEN;
-    if (!token) {
-      throw new Error("FONNTE_TOKEN environment variable is required");
+async function loadTokenFromDb(): Promise<{ token: string; rateLimit: number } | null> {
+  try {
+    const rows = await db
+      .select()
+      .from(settings)
+      .where(eq(settings.key, "fonnteToken"));
+    if (rows.length > 0 && rows[0].value) {
+      const rateLimitRow = await db
+        .select()
+        .from(settings)
+        .where(eq(settings.key, "fonnteRateLimit"));
+      const rateLimit = rateLimitRow.length > 0 ? Number(rateLimitRow[0].value) : 100;
+      return { token: String(rows[0].value), rateLimit };
     }
-    const rateLimit = parseInt(process.env.FONNTE_RATE_LIMIT || "100", 10);
-    client = new FonnteClient(token, rateLimit);
+  } catch {
+    // DB not reachable, fall back to env
   }
+  return null;
+}
+
+export function resetFonnteClient(): void {
+  client = null;
+}
+
+export async function getFonnteClient(): Promise<FonnteClient> {
+  if (client) return client;
+
+  const fromDb = await loadTokenFromDb();
+  const token = fromDb?.token || process.env.FONNTE_TOKEN;
+  if (!token) {
+    throw new Error("FONNTE_TOKEN is not configured");
+  }
+  const rateLimit = fromDb?.rateLimit || parseInt(process.env.FONNTE_RATE_LIMIT || "100", 10);
+  client = new FonnteClient(token, rateLimit);
   return client;
 }
