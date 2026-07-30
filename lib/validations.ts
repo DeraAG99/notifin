@@ -121,6 +121,11 @@ export const loginSchema = z.object({
   password: z.string().min(6, "Kata sandi minimal 6 karakter"),
 });
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Password saat ini harus diisi"),
+  newPassword: z.string().min(6, "Password baru minimal 6 karakter"),
+});
+
 export const registerSchema = z.object({
   email: z.string().email("Email tidak valid"),
   password: z.string().min(6, "Kata sandi minimal 6 karakter"),
@@ -145,5 +150,6 @@ export type UpdateScheduleInput = z.infer<typeof updateScheduleSchema>;
 export type SendNotificationInput = z.infer<typeof sendNotificationSchema>;
 export type BatchSendInput = z.infer<typeof batchSendSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LogFilterInput = z.infer<typeof logFilterSchema>;

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, XCircle, Save, MessageSquare, Globe, AlertTriangle } from "lucide-react";
+import { CheckCircle, XCircle, Save, MessageSquare, Globe, AlertTriangle, Lock } from "lucide-react";
 import { useI18n } from "@/lib/i18n/context";
 
 type WaProvider = "fonnte" | "openwa";
@@ -40,6 +40,9 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "" });
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState("");
 
   async function fetchSettings() {
     try {
@@ -345,6 +348,71 @@ export default function SettingsPage() {
               value={settings.defaultTimezone}
               onChange={(e) => setSettings({ ...settings, defaultTimezone: e.target.value })}
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Lock className="h-5 w-5" />
+            Ganti Password
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Password Saat Ini</Label>
+            <Input
+              type="password"
+              value={passwordForm.currentPassword}
+              onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+              placeholder="Masukkan password saat ini"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Password Baru</Label>
+            <Input
+              type="password"
+              value={passwordForm.newPassword}
+              onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+              placeholder="Minimal 6 karakter"
+            />
+          </div>
+          <div className="flex items-center gap-4">
+            <Button
+              onClick={async () => {
+                setPasswordSaving(true);
+                setPasswordMessage("");
+                try {
+                  const res = await fetch("/api/auth/change-password", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(passwordForm),
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    setPasswordMessage("Password berhasil diubah");
+                    setPasswordForm({ currentPassword: "", newPassword: "" });
+                  } else {
+                    setPasswordMessage(data.error || "Gagal mengubah password");
+                  }
+                } catch {
+                  setPasswordMessage("Gagal mengubah password");
+                } finally {
+                  setPasswordSaving(false);
+                }
+              }}
+              disabled={passwordSaving}
+              variant="outline"
+            >
+              <Lock className="h-4 w-4 mr-2" />
+              {passwordSaving ? "Menyimpan..." : "Ubah Password"}
+            </Button>
+            {passwordMessage && (
+              <span className={`text-sm ${passwordMessage.includes("berhasil") ? "text-green-600" : "text-destructive"}`}>
+                {passwordMessage}
+              </span>
+            )}
           </div>
         </CardContent>
       </Card>
