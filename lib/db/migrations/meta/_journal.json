@@ -8,6 +8,13 @@
       "when": 1785296227803,
       "tag": "0000_lying_agent_brand",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785410743520,
+      "tag": "0001_wise_vulcan",
+      "breakpoints": true
     }
   ]
 }
