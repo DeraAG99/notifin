@@ -7,6 +7,9 @@ function createConnection() {
   return new IORedis(REDIS_URL, {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
+    retryStrategy: () => null,
+    connectTimeout: 5000,
+    lazyConnect: true,
   });
 }
 
@@ -182,12 +185,22 @@ export async function getQueueStats(queueName: string) {
   return { waiting, active, completed, failed, delayed };
 }
 
+const FALLBACK_QUEUE_STATS = { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 };
+
+async function safeGetQueueStats(name: string) {
+  try {
+    return await getQueueStats(name);
+  } catch {
+    return FALLBACK_QUEUE_STATS;
+  }
+}
+
 export async function getAllQueueStats() {
   const [whatsapp, email, scheduled, baileys] = await Promise.all([
-    getQueueStats(QUEUE_NAMES.whatsapp),
-    getQueueStats(QUEUE_NAMES.email),
-    getQueueStats(QUEUE_NAMES.scheduled),
-    getQueueStats(QUEUE_NAMES.baileys),
+    safeGetQueueStats(QUEUE_NAMES.whatsapp),
+    safeGetQueueStats(QUEUE_NAMES.email),
+    safeGetQueueStats(QUEUE_NAMES.scheduled),
+    safeGetQueueStats(QUEUE_NAMES.baileys),
   ]);
 
   return { whatsapp, email, scheduled, baileys };
