@@ -126,7 +126,7 @@ services:
       DATABASE_USERNAME: ${OPENWA_USER:-notifin}
       DATABASE_PASSWORD: ${OPENWA_PASSWORD:-notifin_secret}
       DATABASE_NAME: ${OPENWA_DB:-openwa}
-      DATABASE_SYNCHRONIZE: "true"
+      DATABASE_SYNCHRONIZE: "false"
       REDIS_ENABLED: "true"
       REDIS_HOST: redis
       REDIS_PORT: "6379"
