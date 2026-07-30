@@ -54,6 +54,7 @@ services:
       REDIS_URL: redis://redis:${REDIS_PORT:-6379}
       NEXT_PUBLIC_APP_URL: ${APP_URL:-http://localhost:3000}
       DEFAULT_TIMEZONE: ${TZ:-Asia/Jakarta}
+      JWT_SECRET: ${JWT_SECRET:-notifin-docker-secret-change-me}
       BAILEYS_AUTH_DIR: /data/baileys-auth
     volumes:
       - baileys_auth:/data/baileys-auth
@@ -74,6 +75,7 @@ services:
     environment:
       DATABASE_URL: *db-url
       REDIS_URL: redis://redis:${REDIS_PORT:-6379}
+      JWT_SECRET: ${JWT_SECRET:-notifin-docker-secret-change-me}
       BAILEYS_AUTH_DIR: /data/baileys-auth
     volumes:
       - baileys_auth:/data/baileys-auth
@@ -92,6 +94,7 @@ services:
     environment:
       DATABASE_URL: *db-url
       REDIS_URL: redis://redis:${REDIS_PORT:-6379}
+      JWT_SECRET: ${JWT_SECRET:-notifin-docker-secret-change-me}
     command: ["bun", "workers/scheduler-worker.ts"]
     restart: unless-stopped
 

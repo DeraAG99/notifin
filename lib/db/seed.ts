@@ -1,13 +1,35 @@
 import { db } from "./index";
 import {
+  admins,
   users,
   notificationTemplates,
   notificationSchedules,
   notificationLogs,
 } from "./schema";
+import { sql } from "drizzle-orm";
+import { hashPassword } from "@/lib/auth/session";
 
 async function seed() {
   console.log("Seeding database...");
+
+  const [existingAdmin] = await db
+    .select({ id: admins.id })
+    .from(admins)
+    .where(sql`${admins.email} = 'admin@notifin.com'`)
+    .limit(1);
+
+  if (!existingAdmin) {
+    const passwordHash = await hashPassword("admin123");
+    await db.insert(admins).values({
+      email: "admin@notifin.com",
+      passwordHash,
+      name: "Admin Notifin",
+      role: "superadmin",
+    });
+    console.log("Default admin created: admin@notifin.com / admin123");
+  } else {
+    console.log("Admin already exists, skipping...");
+  }
 
   const insertedUsers = await db
     .insert(users)

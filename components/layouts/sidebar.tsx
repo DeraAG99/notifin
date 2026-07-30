@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n/context";
+import { useAuth } from "@/lib/auth/context";
 import {
   Sidebar,
   SidebarHeader,
@@ -24,11 +25,14 @@ import {
   ScrollText,
   Settings,
   Bell,
+  LogOut,
 } from "lucide-react";
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { t } = useI18n();
+  const { user, logout } = useAuth();
 
   const mainNav = [
     { href: "/dashboard", label: t.nav.dashboard, icon: LayoutDashboard },
@@ -118,6 +122,27 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <SidebarMenu>
+          {user && (
+            <SidebarMenuItem>
+              <div className="flex items-center gap-2 px-2 py-1.5">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{user.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                </div>
+              </div>
+            </SidebarMenuItem>
+          )}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={async () => {
+                await logout();
+                router.push("/login");
+              }}
+            >
+              <LogOut className="size-4" />
+              <span>Keluar</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <div className="px-2 py-1.5 text-xs text-muted-foreground">
               Notifin v0.1.0

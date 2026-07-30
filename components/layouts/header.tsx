@@ -1,9 +1,12 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n/context";
+import { useAuth } from "@/lib/auth/context";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { LanguageSwitcher } from "@/components/layouts/language-switcher";
+import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
 
 const pageTitles: Record<string, string> = {
   dashboard: "dashboard.title",
@@ -25,7 +28,9 @@ function getPageTitle(pathname: string | null, t: ReturnType<typeof useI18n>["t"
 
 export function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const { t, locale } = useI18n();
+  const { user, logout } = useAuth();
 
   const pageTitle = getPageTitle(pathname, t);
   const dateLang = locale === "id" ? "id-ID" : "en-US";
@@ -49,6 +54,20 @@ export function Header() {
           })}
         </span>
         <LanguageSwitcher />
+        {user && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={async () => {
+              await logout();
+              router.push("/login");
+            }}
+            className="gap-2"
+          >
+            <LogOut className="size-4" />
+            <span className="hidden sm:inline">{user.name}</span>
+          </Button>
+        )}
       </div>
     </header>
   );

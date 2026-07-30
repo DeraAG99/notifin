@@ -17,6 +17,18 @@ export const statusEnum = pgEnum("status", [
   "read",
 ]);
 export const priorityEnum = pgEnum("priority", ["urgent", "normal", "low"]);
+export const adminRoleEnum = pgEnum("admin_role", ["superadmin", "admin"]);
+
+export const admins = pgTable("admins", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  email: text("email").unique().notNull(),
+  passwordHash: text("password_hash").notNull(),
+  name: text("name").notNull(),
+  role: adminRoleEnum("role").default("admin"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
 
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
