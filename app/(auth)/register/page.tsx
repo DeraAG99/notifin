@@ -4,28 +4,39 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/context";
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Check } from "lucide-react";
+import { User, Mail, Lock, Eye, EyeOff, ArrowRight, Check } from "lucide-react";
 
-export default function LoginPage() {
+export default function RegisterPage() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(false);
+  const [terms, setTerms] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const { login } = useAuth();
+  const { register } = useAuth();
   const router = useRouter();
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    setSubmitting(true);
 
-    const result = await login(email, password);
+    if (password !== confirmPassword) {
+      setError("Password confirmation doesn't match");
+      return;
+    }
+    if (!terms) {
+      setError("Please accept the Terms & Conditions to continue");
+      return;
+    }
+
+    setSubmitting(true);
+    const result = await register(name, email, password);
     if (result.success) {
       router.push("/dashboard");
     } else {
-      setError(result.error || "Login gagal");
+      setError(result.error || "Registration failed");
     }
     setSubmitting(false);
   }
@@ -44,21 +55,47 @@ export default function LoginPage() {
           </div>
           <div className="text-center">
             <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight hero-title-text">
-              Welcome Back
+              Create Account
             </h1>
             <p className="mt-1 text-base text-nf-on-surface-variant/80">
-              Log in to manage your automated notifications
+              Start managing your automated notifications
             </p>
           </div>
         </header>
 
-        {/* Login Form */}
+        {/* Register Form */}
         <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
           {error && (
             <div className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive border border-destructive/20">
               {error}
             </div>
           )}
+
+          {/* Full Name Field */}
+          <div className="flex flex-col gap-2">
+            <label
+              htmlFor="name"
+              className="font-label text-sm text-nf-on-surface-variant ml-1"
+            >
+              Full Name
+            </label>
+            <div className="relative group">
+              <User
+                size={18}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-nf-outline group-focus-within:text-nf-secondary transition-colors pointer-events-none"
+              />
+              <input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name"
+                required
+                autoComplete="name"
+                className="form-input w-full pl-12 pr-4 py-3.5 rounded-xl text-base text-nf-on-surface placeholder:text-nf-outline/40"
+              />
+            </div>
+          </div>
 
           {/* Email Field */}
           <div className="flex flex-col gap-2">
@@ -88,20 +125,12 @@ export default function LoginPage() {
 
           {/* Password Field */}
           <div className="flex flex-col gap-2">
-            <div className="flex justify-between items-center ml-1">
-              <label
-                htmlFor="password"
-                className="font-label text-sm text-nf-on-surface-variant"
-              >
-                Password
-              </label>
-              <a
-                href="#"
-                className="font-label text-sm text-nf-secondary hover:text-nf-primary transition-colors font-semibold"
-              >
-                Forgot?
-              </a>
-            </div>
+            <label
+              htmlFor="password"
+              className="font-label text-sm text-nf-on-surface-variant ml-1"
+            >
+              Password
+            </label>
             <div className="relative group">
               <Lock
                 size={18}
@@ -112,9 +141,10 @@ export default function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Minimum 6 characters"
                 required
-                autoComplete="current-password"
+                minLength={6}
+                autoComplete="new-password"
                 className="form-input w-full pl-12 pr-12 py-3.5 rounded-xl text-base text-nf-on-surface placeholder:text-nf-outline/40"
               />
               <button
@@ -128,14 +158,41 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Remember Me */}
+          {/* Confirm Password Field */}
+          <div className="flex flex-col gap-2">
+            <label
+              htmlFor="confirmPassword"
+              className="font-label text-sm text-nf-on-surface-variant ml-1"
+            >
+              Confirm Password
+            </label>
+            <div className="relative group">
+              <Lock
+                size={18}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-nf-outline group-focus-within:text-nf-secondary transition-colors pointer-events-none"
+              />
+              <input
+                id="confirmPassword"
+                type={showPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter your password"
+                required
+                minLength={6}
+                autoComplete="new-password"
+                className="form-input w-full pl-12 pr-4 py-3.5 rounded-xl text-base text-nf-on-surface placeholder:text-nf-outline/40"
+              />
+            </div>
+          </div>
+
+          {/* Terms */}
           <div className="flex items-center py-2">
             <label className="flex items-center gap-3 cursor-pointer group">
               <div className="relative flex items-center justify-center">
                 <input
                   type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
+                  checked={terms}
+                  onChange={(e) => setTerms(e.target.checked)}
                   className="peer appearance-none size-5 border border-white/10 rounded-lg bg-white/5 checked:bg-nf-secondary checked:border-nf-secondary transition-all cursor-pointer"
                 />
                 <Check
@@ -144,7 +201,10 @@ export default function LoginPage() {
                 />
               </div>
               <span className="text-base text-nf-on-surface-variant/80 group-hover:text-nf-on-surface transition-colors">
-                Keep me signed in
+                I agree to the{" "}
+                <span className="text-nf-secondary font-semibold hover:text-nf-primary transition-colors">
+                  Terms &amp; Conditions
+                </span>
               </span>
             </label>
           </div>
@@ -155,7 +215,7 @@ export default function LoginPage() {
             disabled={submitting}
             className="brand-gradient btn-shine w-full py-4 rounded-xl font-bold text-2xl text-white flex items-center justify-center gap-2 mt-1 shadow-xl shadow-nf-primary-container/30 hover:-translate-y-0.5 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <span>{submitting ? "Signing in..." : "Sign In"}</span>
+            <span>{submitting ? "Creating..." : "Create Account"}</span>
             <ArrowRight size={22} />
           </button>
         </form>
@@ -163,12 +223,12 @@ export default function LoginPage() {
         {/* Footer Meta */}
         <footer className="text-center">
           <p className="text-base text-nf-on-surface-variant/70">
-            Don&apos;t have an account?{" "}
+            Already have an account?{" "}
             <Link
-              href="/register"
+              href="/login"
               className="text-nf-secondary font-bold hover:text-nf-primary transition-colors ml-1"
             >
-              Get Started
+              Log In
             </Link>
           </p>
         </footer>

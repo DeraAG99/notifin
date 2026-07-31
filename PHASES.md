@@ -313,6 +313,10 @@ README.md (new)
 - [x] Interactivity: `tilt.tsx` (3D hover), `countup.tsx` (animated stats), `cursor-glow.tsx` (mouse spotlight), `mobile-nav.tsx` (hamburger menu), `.btn-shine` (button sweep), animated `.gradient-text`
 - [x] Responsive: bento shows from `md` breakpoint + compact mobile mockup, responsive title/CTA sizes
 - [x] Login page redesign to match `theme/loginpage.html`: glass card, brand-gradient CTA, `.form-input` focus glow, logo header, password toggle, ambient orbs, reveal animation (`app/(auth)/login/page.tsx` + layout)
+- [x] Register page matching login theme (`app/(auth)/register/page.tsx`): glass card, Full Name / Work Email / Password / Confirm Password fields, terms checkbox, brand-gradient "Create Account" CTA, ambient orbs
+- [x] `POST /api/auth/register` — validates via `registerSchema`, checks email uniqueness (409), hashes password (bcrypt), creates admin with role `admin`, auto-login (sets session cookie, same as login)
+- [x] `register()` added to `lib/auth/context.tsx`; login footer links to `/register`; middleware allows `/register` publicly + redirects authed users away from it
+- [x] Login CTA renamed from "Secure Sign In" → "Sign In"
 
 ### Files Modified/Created
 ```
@@ -329,6 +333,9 @@ components/landing/mobile-nav.tsx (new)
 public/notifin-logo.svg (new — brand logo, transparent bg)
 public/icon.svg (new — favicon, from design asset)
 theme/landingpage.html (design source)
+app/(auth)/register/page.tsx (new)
+app/api/auth/register/route.ts (new)
+lib/auth/context.tsx (register added)
 ```
 
 ---
