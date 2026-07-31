@@ -46,6 +46,21 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --font-display: var(--font-hanken);
+  --font-label: var(--font-jetbrains);
+  --color-nf-bg: var(--nf-bg);
+  --color-nf-bg-lowest: var(--nf-bg-lowest);
+  --color-nf-bg-low: var(--nf-bg-low);
+  --color-nf-surface: var(--nf-surface);
+  --color-nf-on-surface: var(--nf-on-surface);
+  --color-nf-on-surface-variant: var(--nf-on-surface-variant);
+  --color-nf-primary: var(--nf-primary);
+  --color-nf-primary-container: var(--nf-primary-container);
+  --color-nf-secondary: var(--nf-secondary);
+  --color-nf-secondary-container: var(--nf-secondary-container);
+  --color-nf-on-secondary-container: var(--nf-on-secondary-container);
+  --color-nf-outline: var(--nf-outline);
+  --color-nf-outline-variant: var(--nf-outline-variant);
 }
 
 :root {
@@ -73,6 +88,19 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
+  --nf-bg: #061423;
+  --nf-bg-lowest: #020f1e;
+  --nf-bg-low: #0f1c2c;
+  --nf-surface: #132030;
+  --nf-on-surface: #d6e4f9;
+  --nf-on-surface-variant: #c3c6d7;
+  --nf-primary: #b4c5ff;
+  --nf-primary-container: #2563eb;
+  --nf-secondary: #41ddc2;
+  --nf-secondary-container: #00c1a7;
+  --nf-on-secondary-container: #00483e;
+  --nf-outline: #8d90a0;
+  --nf-outline-variant: #434655;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -126,7 +154,74 @@
   }
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
   }
+}
+
+/* ===== Landing page ===== */
+.brand-gradient {
+  background: linear-gradient(135deg, #2563eb 0%, #00c2a8 100%);
+}
+
+.glass-panel {
+  background: rgba(22, 38, 56, 0.4);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.nav-glass {
+  background: rgba(6, 20, 35, 0.7);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ambient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: 0;
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+.orb-1 {
+  width: 400px;
+  height: 400px;
+  background: #2563eb;
+  top: -100px;
+  right: -100px;
+}
+
+.orb-2 {
+  width: 500px;
+  height: 500px;
+  background: #00c2a8;
+  bottom: -200px;
+  left: -100px;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.reveal.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.hero-title-text {
+  background: linear-gradient(to right, #ffffff 30%, #b4c5ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.stat-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* TipTap Editor Styles */

@@ -298,6 +298,29 @@ README.md (new)
 
 ---
 
+## Phase 10: Landing Page ✅
+
+### Completed
+- [x] Convert `theme/landingpage.html` to Next.js App Router landing page at `app/page.tsx`
+- [x] Add landing design tokens (`nf-*`) + custom classes (brand-gradient, glass-panel, reveal, nav-glass, hero-title-text, stat-card) to `app/globals.css`
+- [x] Add Hanken Grotesk + JetBrains Mono fonts (next/font) and updated metadata in `app/layout.tsx`
+- [x] `components/landing/reveal.tsx` — client IntersectionObserver scroll-reveal animation
+- [x] Replace Material Symbols with lucide-react (consistent with codebase)
+- [x] All CTAs link to `/login`; `next.config.ts` remotePatterns for `lh3.googleusercontent.com` images
+- [x] `bun run build` clean — `/` prerendered static
+
+### Files Modified/Created
+```
+app/page.tsx (rewritten as landing page)
+app/globals.css (landing tokens + classes)
+app/layout.tsx (fonts + metadata)
+next.config.ts (remote images)
+components/landing/reveal.tsx (new)
+theme/landingpage.html (design source)
+```
+
+---
+
 ## Phase 9: Docker/VPS Deployment Fixes ✅
 
 ### Completed

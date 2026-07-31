@@ -1,0 +1,478 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>NOTIFIN | User-Facing Notification Management Platform</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "background": "#061423",
+                    "on-secondary-fixed-variant": "#005045",
+                    "secondary-container": "#00c1a7",
+                    "tertiary-fixed-dim": "#b7c8e1",
+                    "surface-container-highest": "#283646",
+                    "primary-fixed-dim": "#b4c5ff",
+                    "on-background": "#d6e4f9",
+                    "on-surface": "#d6e4f9",
+                    "surface-container-lowest": "#020f1e",
+                    "on-primary-fixed-variant": "#003ea8",
+                    "primary-fixed": "#dbe1ff",
+                    "surface-bright": "#2d3a4a",
+                    "on-secondary-container": "#00483e",
+                    "error": "#ffb4ab",
+                    "on-primary-container": "#eeefff",
+                    "on-error": "#690005",
+                    "tertiary-fixed": "#d3e4fe",
+                    "on-tertiary-fixed-variant": "#38485d",
+                    "outline-variant": "#434655",
+                    "primary": "#b4c5ff",
+                    "on-tertiary-fixed": "#0b1c30",
+                    "on-error-container": "#ffdad6",
+                    "secondary-fixed-dim": "#41ddc2",
+                    "surface-container": "#132030",
+                    "on-primary-fixed": "#00174b",
+                    "secondary": "#41ddc2",
+                    "surface-tint": "#b4c5ff",
+                    "surface-container-high": "#1e2b3b",
+                    "inverse-surface": "#d6e4f9",
+                    "primary-container": "#2563eb",
+                    "on-tertiary": "#213145",
+                    "on-secondary-fixed": "#00201b",
+                    "inverse-primary": "#0053db",
+                    "inverse-on-surface": "#243141",
+                    "surface": "#061423",
+                    "outline": "#8d90a0",
+                    "tertiary-container": "#5e6e85",
+                    "surface-container-low": "#0f1c2c",
+                    "error-container": "#93000a",
+                    "surface-dim": "#061423",
+                    "secondary-fixed": "#65fade",
+                    "surface-variant": "#283646",
+                    "on-primary": "#002a78",
+                    "tertiary": "#b7c8e1",
+                    "on-tertiary-container": "#e9f0ff",
+                    "on-secondary": "#00382f",
+                    "on-surface-variant": "#c3c6d7"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "2xl": "1rem",
+                    "3xl": "1.5rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-desktop": "48px",
+                    "xs": "8px",
+                    "md": "24px",
+                    "sm": "16px",
+                    "margin-mobile": "16px",
+                    "gutter": "24px",
+                    "lg": "40px",
+                    "xl": "64px",
+                    "base": "4px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Hanken Grotesk"],
+                    "body-md": ["Hanken Grotesk"],
+                    "headline-lg": ["Hanken Grotesk"],
+                    "body-lg": ["Hanken Grotesk"],
+                    "label-md": ["JetBrains Mono"],
+                    "headline-lg-mobile": ["Hanken Grotesk"],
+                    "display-lg": ["Hanken Grotesk"]
+            },
+            "fontSize": {
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                    "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "700"}],
+                    "display-lg": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.03em", "fontWeight": "800"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        .brand-gradient {
+            background: linear-gradient(135deg, #2563EB 0%, #00C2A8 100%);
+        }
+
+        .glass-panel {
+            background: rgba(22, 38, 56, 0.4);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .ambient-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: 0;
+            opacity: 0.15;
+            pointer-events: none;
+        }
+
+        .orb-1 { width: 400px; height: 400px; background: #2563EB; top: -100px; right: -100px; }
+        .orb-2 { width: 500px; height: 500px; background: #00C2A8; bottom: -200px; left: -100px; }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .nav-glass {
+            background: rgba(6, 20, 35, 0.7);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .hero-title-text {
+            background: linear-gradient(to right, #ffffff 30%, #b4c5ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-card {
+            background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background selection:bg-secondary-container selection:text-on-secondary-container font-body-md overflow-x-hidden">
+<nav class="fixed top-0 left-0 right-0 z-50 nav-glass">
+<div class="flex justify-between items-center w-full px-margin-desktop py-4 max-w-screen-2xl mx-auto h-20">
+<div class="flex items-center gap-xs">
+<div class="h-10 w-32 flex items-center justify-center overflow-hidden invert brightness-200">
+                {{DATA:DOCUMENT:DOCUMENT_3}}
+            </div>
+</div>
+<div class="hidden md:flex items-center gap-lg">
+<a class="text-on-surface-variant font-medium text-body-md hover:text-secondary transition-colors" href="#features">Features</a>
+<a class="text-on-surface-variant font-medium text-body-md hover:text-secondary transition-colors" href="#solutions">Solutions</a>
+</div>
+<div class="flex items-center gap-sm">
+<button class="text-on-surface font-semibold text-label-md hover:text-primary transition-colors px-sm">Log In</button>
+<button class="brand-gradient text-white px-md py-2.5 rounded-lg font-bold text-label-md active:scale-95 transition-all shadow-lg shadow-primary-container/20">Get Started</button>
+</div>
+</div>
+</nav>
+<main>
+<!-- Hero Section -->
+<section class="relative min-h-screen flex items-center overflow-hidden px-margin-mobile md:px-margin-desktop pt-20">
+<div class="ambient-orb orb-1 animate-pulse-slow"></div>
+<div class="ambient-orb orb-2"></div>
+<div class="relative z-10 max-w-screen-2xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-xl items-center py-xl reveal active">
+<div class="flex flex-col gap-md">
+<div class="inline-flex items-center gap-xs px-4 py-1.5 rounded-full glass-panel border border-white/10 text-secondary w-fit">
+<span class="material-symbols-outlined text-[18px] fill-1">notifications_active</span>
+<span class="font-label-md text-label-md tracking-wider font-bold">ALL-IN-ONE NOTIFICATION MANAGER</span>
+</div>
+<h1 class="font-display-lg text-display-lg leading-[1.1] hero-title-text">
+                    Manage Users &amp; <span class="text-transparent bg-clip-text brand-gradient">Schedule Alerts</span> with Ease
+                </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant/80 max-w-lg leading-relaxed">
+                    The modern standard for automated customer notifications. Easily schedule alerts, manage recipients, and deliver via WhatsApp and Email from one intuitive dashboard.
+                </p>
+<div class="flex flex-col sm:flex-row gap-md pt-sm">
+<button class="brand-gradient text-white px-xl py-4 rounded-xl font-bold text-headline-md shadow-xl shadow-primary-container/30 hover:scale-[1.02] transition-all">
+                        Start Managing Now
+                    </button>
+<button class="bg-white/5 backdrop-blur-md border border-white/10 px-xl py-4 rounded-xl font-bold text-headline-md hover:bg-white/10 transition-all flex items-center justify-center gap-xs group">
+<span class="material-symbols-outlined group-hover:text-secondary transition-colors">dashboard</span>
+                        View Dashboard
+                    </button>
+</div>
+<div class="flex items-center gap-md pt-lg">
+<div class="font-label-md text-[12px] uppercase tracking-[0.2em] text-outline/60 font-bold">Trusted by Growing Brands</div>
+<div class="flex gap-lg items-center opacity-40 grayscale hover:grayscale-0 hover:opacity-80 transition-all cursor-default">
+<span class="material-symbols-outlined text-4xl">storefront</span>
+<span class="material-symbols-outlined text-4xl">groups</span>
+<span class="material-symbols-outlined text-4xl">schedule</span>
+</div>
+</div>
+</div>
+<!-- Enhanced Bento UI -->
+<div class="hidden lg:grid grid-cols-6 grid-rows-6 gap-sm h-[560px]">
+<div class="col-span-4 row-span-4 glass-panel rounded-3xl p-md flex flex-col justify-between overflow-hidden relative group">
+<div class="flex justify-between items-center z-10">
+<div class="flex items-center gap-xs">
+<div class="w-2 h-2 rounded-full bg-secondary animate-pulse"></div>
+<span class="font-label-md text-label-md text-secondary font-bold tracking-widest uppercase">Upcoming Scheduled Alerts</span>
+</div>
+<span class="material-symbols-outlined text-secondary bg-secondary/10 p-2 rounded-lg">event_note</span>
+</div>
+<div class="space-y-sm z-10">
+<div class="h-12 glass-panel rounded-xl flex items-center px-sm gap-sm border-white/5">
+<div class="w-8 h-8 rounded-lg bg-secondary/20 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-sm">mail</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-white/90 font-bold">Weekly Newsletter</span>
+<span class="text-[8px] text-white/50">Sept 24, 10:00 AM</span>
+</div>
+<span class="text-[10px] text-secondary font-mono ml-auto">READY</span>
+</div>
+<div class="h-12 glass-panel rounded-xl flex items-center px-sm gap-sm border-white/5">
+<div class="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-sm">chat</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-white/90 font-bold">Promotion Alert</span>
+<span class="text-[8px] text-white/50">Tomorrow, 2:00 PM</span>
+</div>
+<span class="text-[10px] text-primary font-mono ml-auto">SCHEDULED</span>
+</div>
+</div>
+<div class="absolute inset-0 opacity-40 group-hover:scale-110 transition-transform duration-700 pointer-events-none bg-cover bg-center" style="background-image: url(&quot;https://lh3.googleusercontent.com/aida-public/AB6AXuClbqxxsuzObjJWdvmwdS5n7CuMytRpLLOc99qnhC0J7fMRhelW_gAxIIDK0_vYBOmq-adkXpB1MUCcZN6zqdznsbzRycvCH_yk8AZWPKs60NSBjgyyQYfbLg2RgsQuaJcnTvG0erD4M_-1yHQkblz48VbPPZjgie7LC5hz9rO0vOOxAQfv6YBisRNTr8HHqF49HPnIKfH06oQA0iY0-lR-zGA5pn8Vypv6fOwDl5JsCzktg7viRrCP&quot;);"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-low to-transparent"></div>
+</div>
+<div class="col-span-2 row-span-3 brand-gradient rounded-3xl p-md flex flex-col items-center justify-center text-center gap-xs shadow-2xl shadow-primary/20">
+<span class="material-symbols-outlined text-5xl text-white mb-2">done_all</span>
+<div class="font-display-lg text-4xl text-white font-black">100%</div>
+<div class="font-label-md text-white/80 uppercase tracking-widest font-bold">Delivery Rate</div>
+</div>
+<div class="col-span-2 row-span-3 glass-panel rounded-3xl p-md border-white/10 flex flex-col justify-between items-center text-center py-8">
+<div class="p-3 bg-primary/10 rounded-2xl">
+<span class="material-symbols-outlined text-primary text-3xl">calendar_today</span>
+</div>
+<div class="font-label-md font-bold tracking-widest uppercase text-white/80">Smart Scheduling</div>
+</div>
+<div class="col-span-4 row-span-2 glass-panel rounded-3xl border-white/10 p-sm flex items-center justify-between px-md">
+<div class="flex items-center gap-sm">
+<div class="flex -space-x-3">
+<div class="w-10 h-10 rounded-full border-2 border-background bg-slate-700 ring-2 ring-white/5"></div>
+<div class="w-10 h-10 rounded-full border-2 border-background bg-slate-600 ring-2 ring-white/5"></div>
+<div class="w-10 h-10 rounded-full border-2 border-background bg-slate-500 ring-2 ring-white/5"></div>
+</div>
+<div class="font-label-md text-label-md text-on-surface-variant font-semibold">Join 4,500+ Active Users</div>
+</div>
+<span class="material-symbols-outlined text-outline-variant">arrow_forward</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Features Section -->
+<section class="py-xl px-margin-mobile md:px-margin-desktop bg-surface-container-lowest" id="features">
+<div class="max-w-screen-2xl mx-auto reveal active">
+<div class="text-center mb-xl">
+<h2 class="font-display-lg text-headline-lg mb-sm hero-title-text !-webkit-text-fill-color-inherit text-white">Full-Featured Management</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">Everything you need to automate your communications without touching a single line of code.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter lg:gap-lg">
+<!-- User Management -->
+<div class="p-8 rounded-[2.5rem] glass-panel border-white/5 hover:border-secondary/30 transition-all duration-500 group relative overflow-hidden flex flex-col h-full">
+<div class="absolute top-0 right-0 w-32 h-32 bg-secondary/5 blur-3xl rounded-full"></div>
+<div class="w-16 h-16 rounded-2xl bg-secondary/10 flex items-center justify-center text-secondary mb-md group-hover:scale-110 group-hover:bg-secondary/20 transition-all">
+<span class="material-symbols-outlined text-3xl">group</span>
+</div>
+<h3 class="font-headline-md text-headline-md mb-sm text-white font-bold">User Management</h3>
+<p class="font-body-md text-body-lg text-on-surface-variant leading-relaxed mb-md">Add and manage your notification recipients easily. Create custom segments and groups to ensure the right message always reaches the right people.</p>
+</div>
+<!-- Smart Scheduling -->
+<div class="p-8 rounded-[2.5rem] glass-panel border-white/5 hover:border-primary/30 transition-all duration-500 group relative overflow-hidden flex flex-col h-full">
+<div class="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full"></div>
+<div class="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-md group-hover:scale-110 group-hover:bg-primary/20 transition-all">
+<span class="material-symbols-outlined text-3xl">schedule_send</span>
+</div>
+<h3 class="font-headline-md text-headline-md mb-sm text-white font-bold">Smart Scheduling</h3>
+<p class="font-body-md text-body-lg text-on-surface-variant leading-relaxed mb-md">Set the exact time and date for automated alerts. Whether it's a one-time reminder or a recurring broadcast, we handle the timing perfectly.</p>
+</div>
+<!-- Multi-Channel Delivery -->
+<div class="p-8 rounded-[2.5rem] glass-panel border-white/5 hover:border-secondary/30 transition-all duration-500 group relative overflow-hidden flex flex-col h-full">
+<div class="absolute top-0 right-0 w-32 h-32 bg-secondary/5 blur-3xl rounded-full"></div>
+<div class="w-16 h-16 rounded-2xl bg-secondary/10 flex items-center justify-center text-secondary mb-md group-hover:scale-110 group-hover:bg-secondary/20 transition-all">
+<span class="material-symbols-outlined text-3xl">dynamic_feed</span>
+</div>
+<h3 class="font-headline-md text-headline-md mb-sm text-white font-bold">Multi-Channel Delivery</h3>
+<p class="font-body-md text-body-lg text-on-surface-variant leading-relaxed mb-md">Reliable delivery via WhatsApp and Email. Reach your customers where they are most active with high-performance cross-channel automation.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Social Proof Section -->
+<section class="py-xl px-margin-mobile md:px-margin-desktop">
+<div class="max-w-screen-2xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-lg reveal active">
+<!-- Stat Widget 1 -->
+<div class="stat-card rounded-3xl p-lg flex flex-col gap-md relative group hover:-translate-y-1 transition-transform">
+<div class="flex justify-between items-start">
+<div class="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined">send</span>
+</div>
+<div class="text-[10px] font-bold tracking-widest text-secondary uppercase bg-secondary/5 px-2 py-1 rounded">Volume</div>
+</div>
+<div>
+<div class="font-display-lg text-5xl font-black text-white mb-1">500M+</div>
+<div class="text-on-surface-variant font-bold text-label-md uppercase tracking-wider">Messages Delivered</div>
+</div>
+</div>
+<!-- Stat Widget 2 -->
+<div class="stat-card rounded-3xl p-lg flex flex-col gap-md relative group hover:-translate-y-1 transition-transform border-primary/20 bg-primary/5">
+<div class="flex justify-between items-start">
+<div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">bolt</span>
+</div>
+<div class="text-[10px] font-bold tracking-widest text-primary uppercase bg-primary/5 px-2 py-1 rounded">Automation</div>
+</div>
+<div>
+<div class="font-display-lg text-5xl font-black text-white mb-1">Instant</div>
+<div class="text-on-surface-variant font-bold text-label-md uppercase tracking-wider">Trigger Speed</div>
+</div>
+</div>
+<!-- Stat Widget 3 -->
+<div class="stat-card rounded-3xl p-lg flex flex-col gap-md relative group hover:-translate-y-1 transition-transform">
+<div class="flex justify-between items-start">
+<div class="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined">corporate_fare</span>
+</div>
+<div class="text-[10px] font-bold tracking-widest text-secondary uppercase bg-secondary/5 px-2 py-1 rounded">Scale</div>
+</div>
+<div>
+<div class="font-display-lg text-5xl font-black text-white mb-1">12k+</div>
+<div class="text-on-surface-variant font-bold text-label-md uppercase tracking-wider">Happy Organizations</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Visual Dashboard Section -->
+<section class="py-xl px-margin-mobile md:px-margin-desktop bg-surface-container-low/30" id="solutions">
+<div class="max-w-screen-2xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-xl items-center reveal active">
+<div class="relative group">
+<div class="absolute -top-10 -left-10 w-40 h-40 brand-gradient rounded-full blur-[100px] opacity-20"></div>
+<div class="glass-panel rounded-[2.5rem] p-4 border-white/10 shadow-2xl shadow-primary/10 overflow-hidden relative z-10">
+<img alt="Intuitive notification management dashboard mockup" class="w-full h-auto rounded-3xl shadow-2xl" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBF5YPDYQ_Yd6VPrgzuj9lSGmuEeJCMgB-6JvFkvyfmSwvh2K1BjK_eWygF8msR4uhJwiFDvuj1hbSTlKQo_bGKXG7sgviNMTYHWD2LdLPmXjyIc01_SN_ka4e59go49xsoHD2fxB9aGiQL4TBR-sP8yqkAKFgvPFBVc9j3w05YXgCxilfzjVr29DfhVXDCNZ0tb2aUjClL1dPn6A0CYIfmqamEbRJ355uDnSoMLJBVRJW8KgSkJM0c">
+</div></div>
+<div class="flex flex-col gap-md">
+<h2 class="font-display-lg text-4xl text-white font-extrabold leading-tight">Your Control Center for <br><span class="text-secondary">Customer Engagement</span></h2>
+<div class="space-y-lg pt-4 gap-md">
+<div class="flex gap-sm group gap-md"><div class="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary shrink-0 group-hover:bg-secondary group-hover:text-background transition-all duration-300 shadow-lg shadow-secondary/5">
+<span class="material-symbols-outlined text-[24px]">calendar_view_day</span>
+</div>
+<div class="flex flex-col gap-1">
+<h4 class="font-bold text-white text-headline-md">Visual Scheduler</h4>
+<p class="font-body-md text-on-surface-variant/80 leading-relaxed">Plan your entire month of communications in minutes with our drag-and-drop calendar interface.</p>
+</div></div>
+<div class="flex gap-sm group gap-md"><div class="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary shrink-0 group-hover:bg-secondary group-hover:text-background transition-all duration-300 shadow-lg shadow-secondary/5">
+<span class="material-symbols-outlined text-[24px]">person_search</span>
+</div>
+<div class="flex flex-col gap-1">
+<h4 class="font-bold text-white text-headline-md">Advanced User Filtering</h4>
+<p class="font-body-md text-on-surface-variant/80 leading-relaxed">Target specific segments based on behavior, location, or custom tags for maximum impact.</p>
+</div></div>
+<div class="flex gap-sm group gap-md"><div class="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary shrink-0 group-hover:bg-secondary group-hover:text-background transition-all duration-300 shadow-lg shadow-secondary/5">
+<span class="material-symbols-outlined text-[24px]">analytics</span>
+</div>
+<div class="flex flex-col gap-1">
+<h4 class="font-bold text-white text-headline-md">Real-time Insights</h4>
+<p class="font-body-md text-on-surface-variant/80 leading-relaxed">Track open rates, click-throughs, and delivery status live as your notifications go out.</p>
+</div></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Final CTA -->
+<section class="py-xl px-margin-mobile md:px-margin-desktop overflow-hidden relative">
+<div class="absolute inset-0 brand-gradient opacity-10 blur-[120px]"></div>
+<div class="max-w-4xl mx-auto text-center relative z-10 flex flex-col items-center gap-md py-lg reveal active">
+<h2 class="font-display-lg text-5xl text-white font-black leading-tight">Ready to streamline your <br>customer notifications?</h2>
+<p class="font-body-lg text-on-surface-variant max-w-xl text-lg font-medium">No hidden fees, no technical setup required. Experience the future of automated notification management.</p>
+<div class="flex flex-col sm:flex-row gap-md pt-md">
+<button class="bg-white text-background px-xl py-5 rounded-2xl font-black text-headline-md hover:shadow-2xl hover:shadow-white/20 hover:-translate-y-1 transition-all">Create Free Account</button>
+<button class="glass-panel text-white px-xl py-5 rounded-2xl font-black text-headline-md border-white/20 hover:bg-white/10 transition-all">Speak with an Expert</button>
+</div>
+</div>
+</section>
+</main>
+<footer class="bg-surface-container-lowest border-t border-white/5">
+<div class="w-full px-margin-desktop py-xl max-w-screen-2xl mx-auto flex flex-col md:flex-row justify-between items-center gap-md">
+<div class="flex flex-col items-center md:items-start gap-xs">
+<div class="h-8 w-24 mb-4 flex items-center justify-center overflow-hidden invert brightness-200">
+                {{DATA:DOCUMENT:DOCUMENT_3}}
+            </div>
+<p class="text-on-surface-variant font-medium text-body-md text-center md:text-left max-w-xs opacity-60">© 2024 NOTIFIN Platform. Precision notification management for modern brands.</p>
+</div>
+<div class="flex flex-wrap justify-center gap-xl">
+<a class="text-on-surface-variant/80 font-bold text-label-md hover:text-white transition-colors" href="#">Privacy</a>
+<a class="text-on-surface-variant/80 font-bold text-label-md hover:text-white transition-colors" href="#">Terms</a>
+<a class="text-on-surface-variant/80 font-bold text-label-md hover:text-white transition-colors" href="#">Contact</a>
+<a class="text-on-surface-variant font-bold text-label-md flex items-center gap-2" href="#">
+<div class="w-2 h-2 rounded-full bg-secondary animate-pulse"></div> All Systems Operational
+            </a>
+</div>
+<div class="flex gap-md">
+<a class="w-12 h-12 rounded-full glass-panel flex items-center justify-center text-white/60 hover:text-white hover:border-secondary transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]">public</span>
+</a>
+<a class="w-12 h-12 rounded-full glass-panel flex items-center justify-center text-white/60 hover:text-white hover:border-secondary transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]">campaign</span>
+</a>
+<a class="w-12 h-12 rounded-full glass-panel flex items-center justify-center text-white/60 hover:text-white hover:border-secondary transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]">forum</span>
+</a>
+</div>
+</div>
+</footer>
+<script>
+    // Reveal animation logic
+    const observerOptions = {
+        threshold: 0.1
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('active');
+            }
+        });
+    }, observerOptions);
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // Smooth scroll
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href');
+            if(targetId === '#') return;
+            const targetElement = document.querySelector(targetId);
+            if(targetElement) {
+                targetElement.scrollIntoView({
+                    behavior: 'smooth'
+                });
+            }
+        });
+    });
+
+    // Simple CTA micro-interactions
+    document.querySelectorAll('button').forEach(button => {
+        button.addEventListener('mousedown', () => {
+            button.style.transform = 'scale(0.97)';
+        });
+        button.addEventListener('mouseup', () => {
+            button.style.transform = '';
+        });
+        button.addEventListener('mouseleave', () => {
+            button.style.transform = '';
+        });
+    });
+</script>
+
+
+</body></html>
