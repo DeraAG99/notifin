@@ -28,6 +28,7 @@ export const metadata: Metadata = {
   title: "NOTIFIN | User-Facing Notification Management Platform",
   description:
     "The modern standard for automated customer notifications. Schedule alerts, manage recipients, and deliver via WhatsApp and Email from one intuitive dashboard.",
+  icons: { icon: "/icon.svg" },
 };
 
 export default function RootLayout({

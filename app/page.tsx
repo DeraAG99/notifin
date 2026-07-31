@@ -23,25 +23,30 @@ import {
   LineChart,
 } from "lucide-react";
 import { Reveal } from "@/components/landing/reveal";
+import { Tilt } from "@/components/landing/tilt";
+import { CountUp } from "@/components/landing/countup";
+import { CursorGlow } from "@/components/landing/cursor-glow";
+import { MobileNav } from "@/components/landing/mobile-nav";
 
 function Logo({ className = "" }: { className?: string }) {
   return (
-    <span
-      className={`font-display text-xl font-extrabold tracking-tight ${className}`}
-    >
-      <span className="brand-gradient bg-clip-text text-transparent">
-        NOTIFIN
-      </span>
-    </span>
+    <Image
+      src="/notofin-logo.svg"
+      alt="NOTIFIN"
+      width={800}
+      height={218}
+      priority
+      className={`h-10 w-auto rounded-lg ring-1 ring-white/10 ${className}`}
+    />
   );
 }
 
 export default function LandingPage() {
   return (
     <div className="overflow-x-hidden bg-nf-bg text-nf-on-surface font-display selection:bg-nf-secondary-container selection:text-nf-on-secondary-container">
-      <nav className="fixed top-0 left-0 right-0 z-50 nav-glass">
+      <nav className="fixed top-0 left-0 right-0 z-50 nav-glass relative">
         <div className="flex justify-between items-center w-full px-4 md:px-12 py-4 max-w-screen-2xl mx-auto h-20">
-          <Link href="/">
+          <Link href="/" aria-label="NOTIFIN Home">
             <Logo />
           </Link>
           <div className="hidden md:flex items-center gap-10">
@@ -58,7 +63,7 @@ export default function LandingPage() {
               Solutions
             </a>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-4">
             <Link
               href="/login"
               className="text-nf-on-surface font-semibold text-sm hover:text-nf-primary transition-colors px-4"
@@ -67,17 +72,19 @@ export default function LandingPage() {
             </Link>
             <Link
               href="/login"
-              className="brand-gradient text-white px-6 py-2.5 rounded-lg font-bold text-sm active:scale-95 transition-all shadow-lg shadow-nf-primary-container/20"
+              className="brand-gradient btn-shine text-white px-6 py-2.5 rounded-lg font-bold text-sm active:scale-95 transition-all shadow-lg shadow-nf-primary-container/20"
             >
               Get Started
             </Link>
           </div>
+          <MobileNav />
         </div>
       </nav>
 
       <main>
         {/* Hero Section */}
         <section className="relative min-h-screen flex items-center overflow-hidden px-4 md:px-12 pt-20">
+          <CursorGlow />
           <div className="ambient-orb orb-1 animate-pulse" />
           <div className="ambient-orb orb-2" />
           <div className="relative z-10 max-w-screen-2xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center py-16">
@@ -88,12 +95,10 @@ export default function LandingPage() {
                   ALL-IN-ONE NOTIFICATION MANAGER
                 </span>
               </div>
-              <h1 className="font-display text-5xl md:text-6xl leading-[1.1] hero-title-text">
+              <h1 className="font-display text-4xl sm:text-5xl md:text-6xl leading-[1.1] hero-title-text">
                 Manage Users &amp;{" "}
-                <span className="brand-gradient bg-clip-text text-transparent">
-                  Schedule Alerts
-                </span>{" "}
-                with Ease
+                <span className="gradient-text">Schedule Alerts</span> with
+                Ease
               </h1>
               <p className="text-lg text-nf-on-surface-variant/80 max-w-lg leading-relaxed">
                 The modern standard for automated customer notifications. Easily
@@ -103,13 +108,13 @@ export default function LandingPage() {
               <div className="flex flex-col sm:flex-row gap-6 pt-2">
                 <Link
                   href="/login"
-                  className="brand-gradient text-white px-16 py-4 rounded-xl font-bold text-2xl shadow-xl shadow-nf-primary-container/30 hover:scale-[1.02] transition-all text-center"
+                  className="brand-gradient btn-shine text-white px-10 md:px-16 py-4 rounded-xl font-bold text-2xl shadow-xl shadow-nf-primary-container/30 hover:scale-[1.02] transition-all text-center"
                 >
                   Start Managing Now
                 </Link>
                 <Link
                   href="/login"
-                  className="bg-white/5 backdrop-blur-md border border-white/10 px-16 py-4 rounded-xl font-bold text-2xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 group"
+                  className="bg-white/5 backdrop-blur-md border border-white/10 px-10 md:px-16 py-4 rounded-xl font-bold text-2xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 group"
                 >
                   <span className="group-hover:text-nf-secondary transition-colors">
                     <LineChart size={24} />
@@ -127,10 +132,52 @@ export default function LandingPage() {
                   <Clock size={36} />
                 </div>
               </div>
+
+              <div className="md:hidden mt-10 glass-panel rounded-3xl p-5 flex flex-col gap-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-2 h-2 rounded-full bg-nf-secondary animate-pulse" />
+                  <span className="text-xs text-nf-secondary font-bold tracking-widest uppercase">
+                    Upcoming Scheduled Alerts
+                  </span>
+                </div>
+                <div className="h-12 glass-panel rounded-xl flex items-center px-4 gap-3 border-white/5">
+                  <div className="w-8 h-8 rounded-lg bg-nf-secondary/20 flex items-center justify-center text-nf-secondary">
+                    <Mail size={14} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-white/90 font-bold">
+                      Weekly Newsletter
+                    </span>
+                    <span className="text-[8px] text-white/50">
+                      Sept 24, 10:00 AM
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-nf-secondary font-mono ml-auto">
+                    READY
+                  </span>
+                </div>
+                <div className="h-12 glass-panel rounded-xl flex items-center px-4 gap-3 border-white/5">
+                  <div className="w-8 h-8 rounded-lg bg-nf-primary/20 flex items-center justify-center text-nf-primary">
+                    <MessageSquare size={14} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-white/90 font-bold">
+                      Promotion Alert
+                    </span>
+                    <span className="text-[8px] text-white/50">
+                      Tomorrow, 2:00 PM
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-nf-primary font-mono ml-auto">
+                    SCHEDULED
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* Enhanced Bento UI */}
-            <div className="hidden lg:grid grid-cols-6 grid-rows-6 gap-4 h-[560px]">
+            <Tilt max={5} className="hidden md:block">
+              <div className="grid grid-cols-6 grid-rows-6 gap-4 h-[480px] lg:h-[560px]">
               <div className="col-span-4 row-span-4 glass-panel rounded-3xl p-6 flex flex-col justify-between overflow-hidden relative group">
                 <div className="flex justify-between items-center z-10">
                   <div className="flex items-center gap-2">
@@ -190,7 +237,9 @@ export default function LandingPage() {
 
               <div className="col-span-2 row-span-3 brand-gradient rounded-3xl p-6 flex flex-col items-center justify-center text-center gap-2 shadow-2xl shadow-nf-primary/20">
                 <CheckCheck size={48} className="text-white mb-2" />
-                <div className="text-4xl text-white font-black">100%</div>
+                <div className="text-4xl text-white font-black">
+                  <CountUp value={100} suffix="%" />
+                </div>
                 <div className="text-sm text-white/80 uppercase tracking-widest font-bold">
                   Delivery Rate
                 </div>
@@ -219,6 +268,7 @@ export default function LandingPage() {
                 <ArrowRight size={20} className="text-nf-outline-variant" />
               </div>
             </div>
+            </Tilt>
           </div>
         </section>
 
@@ -307,7 +357,7 @@ export default function LandingPage() {
                 </div>
                 <div>
                   <div className="text-5xl font-black text-white mb-1">
-                    500M+
+                    <CountUp value={500} suffix="M+" />
                   </div>
                   <div className="text-nf-on-surface-variant font-bold text-sm uppercase tracking-wider">
                     Messages Delivered
@@ -347,7 +397,7 @@ export default function LandingPage() {
                 </div>
                 <div>
                   <div className="text-5xl font-black text-white mb-1">
-                    12k+
+                    <CountUp value={12} suffix="k+" />
                   </div>
                   <div className="text-nf-on-surface-variant font-bold text-sm uppercase tracking-wider">
                     Happy Organizations
@@ -362,18 +412,20 @@ export default function LandingPage() {
         <section className="py-16 px-4 md:px-12 bg-nf-bg-low/30" id="solutions">
           <div className="max-w-screen-2xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <Reveal>
-              <div className="relative group">
-                <div className="absolute -top-10 -left-10 w-40 h-40 brand-gradient rounded-full blur-[100px] opacity-20" />
-                <div className="glass-panel rounded-[2.5rem] p-4 border-white/10 shadow-2xl shadow-nf-primary/10 overflow-hidden relative z-10">
-                  <Image
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuBF5YPDYQ_Yd6VPrgzuj9lSGmuEeJCMgB-6JvFkvyfmSwvh2K1BjK_eWygF8msR4uhJwiFDvuj1hbSTlKQo_bGKXG7sgviNMTYHWD2LdLPmXjyIc01_SN_ka4e59go49xsoHD2fxB9aGiQL4TBR-sP8yqkAKFgvPFBVc9j3w05YXgCxilfzjVr29DfhVXDCNZ0tb2aUjClL1dPn6A0CYIfmqamEbRJ355uDnSoMLJBVRJW8KgSkJM0c"
-                    alt="Intuitive notification management dashboard mockup"
-                    width={1600}
-                    height={1000}
-                    className="w-full h-auto rounded-3xl shadow-2xl"
-                  />
+              <Tilt max={6}>
+                <div className="relative group">
+                  <div className="absolute -top-10 -left-10 w-40 h-40 brand-gradient rounded-full blur-[100px] opacity-20" />
+                  <div className="glass-panel rounded-[2.5rem] p-4 border-white/10 shadow-2xl shadow-nf-primary/10 overflow-hidden relative z-10">
+                    <Image
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuBF5YPDYQ_Yd6VPrgzuj9lSGmuEeJCMgB-6JvFkvyfmSwvh2K1BjK_eWygF8msR4uhJwiFDvuj1hbSTlKQo_bGKXG7sgviNMTYHWD2LdLPmXjyIc01_SN_ka4e59go49xsoHD2fxB9aGiQL4TBR-sP8yqkAKFgvPFBVc9j3w05YXgCxilfzjVr29DfhVXDCNZ0tb2aUjClL1dPn6A0CYIfmqamEbRJ355uDnSoMLJBVRJW8KgSkJM0c"
+                      alt="Intuitive notification management dashboard mockup"
+                      width={1600}
+                      height={1000}
+                      className="w-full h-auto rounded-3xl shadow-2xl"
+                    />
+                  </div>
                 </div>
-              </div>
+              </Tilt>
             </Reveal>
             <div className="flex flex-col gap-6">
               <h2 className="text-4xl text-white font-extrabold leading-tight">
@@ -434,7 +486,7 @@ export default function LandingPage() {
           <div className="absolute inset-0 brand-gradient opacity-10 blur-[120px]" />
           <Reveal>
             <div className="max-w-4xl mx-auto text-center relative z-10 flex flex-col items-center gap-6 py-6">
-              <h2 className="text-5xl text-white font-black leading-tight">
+              <h2 className="text-4xl sm:text-5xl text-white font-black leading-tight">
                 Ready to streamline your <br />
                 customer notifications?
               </h2>
@@ -442,16 +494,16 @@ export default function LandingPage() {
                 No hidden fees, no technical setup required. Experience the
                 future of automated notification management.
               </p>
-              <div className="flex flex-col sm:flex-row gap-6 pt-4">
+              <div className="flex flex-col sm:flex-row gap-6 pt-4 w-full sm:w-auto">
                 <Link
                   href="/login"
-                  className="bg-white text-nf-bg px-16 py-5 rounded-2xl font-black text-2xl hover:shadow-2xl hover:shadow-white/20 hover:-translate-y-1 transition-all"
+                  className="bg-white text-nf-bg px-10 md:px-16 py-5 rounded-2xl font-black text-xl md:text-2xl hover:shadow-2xl hover:shadow-white/20 hover:-translate-y-1 transition-all btn-shine"
                 >
                   Create Free Account
                 </Link>
                 <a
                   href="/login"
-                  className="glass-panel text-white px-16 py-5 rounded-2xl font-black text-2xl border-white/20 hover:bg-white/10 transition-all"
+                  className="glass-panel text-white px-10 md:px-16 py-5 rounded-2xl font-black text-xl md:text-2xl border-white/20 hover:bg-white/10 transition-all"
                 >
                   Speak with an Expert
                 </a>
@@ -465,7 +517,7 @@ export default function LandingPage() {
         <div className="w-full px-4 md:px-12 py-16 max-w-screen-2xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex flex-col items-center md:items-start gap-2">
             <div className="mb-4">
-              <Logo />
+              <Logo className="h-12" />
             </div>
             <p className="text-nf-on-surface-variant font-medium text-base text-center md:text-left max-w-xs opacity-60">
               © 2026 NOTIFIN Platform. Precision notification management for
