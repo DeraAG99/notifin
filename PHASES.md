@@ -309,7 +309,7 @@ README.md (new)
 - [x] All CTAs link to `/login`; `next.config.ts` remotePatterns for `lh3.googleusercontent.com` images
 - [x] `bun run build` clean — `/` prerendered static
 - [x] Fix gradient text bug — `.brand-gradient` uses `background-image` (was `background:` shorthand resetting `background-clip` → invisible text)
-- [x] Add real logo/favicon from design assets: `public/notofin-logo.svg` (transparent banner: gradient bell icon + NOTIFIN wordmark + tagline, extracted from 15MB asset, chroma-keyed transparent) + `public/icon.svg` favicon (registered via `metadata.icons`)
+- [x] Add real logo/favicon from design assets: `public/notifin-logo.svg` (transparent banner: gradient bell icon + NOTIFIN wordmark + tagline, extracted from 15MB asset, chroma-keyed transparent) + `public/icon.svg` favicon (registered via `metadata.icons`)
 - [x] Interactivity: `tilt.tsx` (3D hover), `countup.tsx` (animated stats), `cursor-glow.tsx` (mouse spotlight), `mobile-nav.tsx` (hamburger menu), `.btn-shine` (button sweep), animated `.gradient-text`
 - [x] Responsive: bento shows from `md` breakpoint + compact mobile mockup, responsive title/CTA sizes
 
@@ -325,7 +325,7 @@ components/landing/tilt.tsx (new)
 components/landing/countup.tsx (new)
 components/landing/cursor-glow.tsx (new)
 components/landing/mobile-nav.tsx (new)
-public/notofin-logo.svg (new — brand logo, transparent bg)
+public/notifin-logo.svg (new — brand logo, transparent bg)
 public/icon.svg (new — favicon, from design asset)
 theme/landingpage.html (design source)
 ```
