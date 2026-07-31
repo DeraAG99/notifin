@@ -312,6 +312,7 @@ README.md (new)
 - [x] Add real logo/favicon from design assets: `public/notifin-logo.svg` (transparent banner: gradient bell icon + NOTIFIN wordmark + tagline, extracted from 15MB asset, chroma-keyed transparent) + `public/icon.svg` favicon (registered via `metadata.icons`)
 - [x] Interactivity: `tilt.tsx` (3D hover), `countup.tsx` (animated stats), `cursor-glow.tsx` (mouse spotlight), `mobile-nav.tsx` (hamburger menu), `.btn-shine` (button sweep), animated `.gradient-text`
 - [x] Responsive: bento shows from `md` breakpoint + compact mobile mockup, responsive title/CTA sizes
+- [x] Login page redesign to match `theme/loginpage.html`: glass card, brand-gradient CTA, `.form-input` focus glow, logo header, password toggle, ambient orbs, reveal animation (`app/(auth)/login/page.tsx` + layout)
 
 ### Files Modified/Created
 ```
