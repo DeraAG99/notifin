@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { admins } from "@/lib/db/schema";
 import { loginSchema } from "@/lib/validations";
 import { eq } from "drizzle-orm";
-import { type SessionPayload, verifyPassword, createToken, getCookieName } from "@/lib/auth/session";
+import { type SessionPayload, verifyPassword, createToken, getCookieName, getCookieOptions } from "@/lib/auth/session";
 
 export async function POST(request: Request) {
   try {
@@ -41,13 +41,7 @@ export async function POST(request: Request) {
     const token = await createToken(payload);
     const cookieName = getCookieName();
     const response = NextResponse.json({ success: true, data: payload });
-    response.cookies.set(cookieName, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
-    });
+    response.cookies.set(cookieName, token, getCookieOptions());
     return response;
   } catch (error) {
     if (error instanceof Error && error.name === "ZodError") {

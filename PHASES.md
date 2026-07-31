@@ -298,6 +298,23 @@ README.md (new)
 
 ---
 
+## Phase 9: Docker/VPS Deployment Fixes ✅
+
+### Completed
+- [x] Fix `REDIS_URL` port bug in docker-compose (was using `${REDIS_PORT}` as container port; internal Redis port is always 6379) — applied to web, worker, scheduler
+- [x] Add `COOKIE_SECURE` env toggle so session cookie can work over plain HTTP (VPS without HTTPS)
+- [x] Refactor login route to use `getCookieOptions()` from `lib/auth/session.ts` (single source of truth)
+
+### Files Modified
+```
+docker-compose.yml
+lib/auth/session.ts
+app/api/auth/login/route.ts
+.env.docker.example
+```
+
+---
+
 ## Scripts Reference
 
 | Command | Description |

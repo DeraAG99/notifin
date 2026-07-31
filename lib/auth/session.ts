@@ -6,9 +6,13 @@ const secret = new TextEncoder().encode(
 );
 
 const COOKIE_NAME = "session";
+const secureCookie = process.env.COOKIE_SECURE
+  ? process.env.COOKIE_SECURE === "true"
+  : process.env.NODE_ENV === "production";
+
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
+  secure: secureCookie,
   sameSite: "lax" as const,
   maxAge: 60 * 60 * 24 * 7,
   path: "/",
