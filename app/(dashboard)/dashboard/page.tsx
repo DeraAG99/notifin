@@ -52,8 +52,10 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">{t.dashboard.title}</h1>
-        <p className="text-muted-foreground">
+        <h1 className="font-display text-3xl font-bold tracking-tight hero-title-text">
+          {t.dashboard.title}
+        </h1>
+        <p className="text-nf-on-surface-variant/80 mt-1">
           {t.dashboard.description}
         </p>
       </div>

@@ -317,6 +317,12 @@ README.md (new)
 - [x] `POST /api/auth/register` — validates via `registerSchema`, checks email uniqueness (409), hashes password (bcrypt), creates admin with role `admin`, auto-login (sets session cookie, same as login)
 - [x] `register()` added to `lib/auth/context.tsx`; login footer links to `/register`; middleware allows `/register` publicly + redirects authed users away from it
 - [x] Login CTA renamed from "Secure Sign In" → "Sign In"
+- [x] Dashboard re-themed to match landing/login: shadcn `:root` tokens overridden to dark `nf` palette (`#061423` bg, `#0e1b2b` cards, `#41ddc2` primary/ring, translucent white borders) — all shadcn components across dashboard go dark automatically
+- [x] Dashboard layout: `bg-nf-bg` + fixed ambient orbs + `dashboard-bg` radial accents
+- [x] Sidebar: dark glass (`#081627`/90 + blur), logo image in header, teal accent for active/hover items, `font-label` uppercase group labels
+- [x] Header: glass bar, `font-label` uppercase page title, date in muted text
+- [x] Dashboard page: `hero-title-text` gradient heading; stat cards / chart / queue / recent-logs restyled with `nf-card` glass + dark translucent badges; recharts dark axes/tooltip/legend, bars `#25D366` + `#41ddc2`
+- [x] Fixed hardcoded light colors in feature pages (green/red translucent badges in templates preview, template form, template detail, CSV import, log error box)
 
 ### Files Modified/Created
 ```
@@ -336,6 +342,19 @@ theme/landingpage.html (design source)
 app/(auth)/register/page.tsx (new)
 app/api/auth/register/route.ts (new)
 lib/auth/context.tsx (register added)
+app/(dashboard)/layout.tsx (dark theme + orbs)
+components/layouts/sidebar.tsx (dark glass + logo)
+components/layouts/header.tsx (glass header)
+app/(dashboard)/dashboard/page.tsx (gradient title)
+components/dashboard/stat-cards.tsx (dark glass cards)
+components/dashboard/notification-chart.tsx (dark chart)
+components/dashboard/recent-logs.tsx (dark badges)
+components/dashboard/queue-health.tsx (dark theme)
+app/(dashboard)/templates/[id]/page.tsx (badge colors)
+app/(dashboard)/logs/page.tsx (error box colors)
+components/templates/template-form.tsx (badge colors)
+components/templates/template-preview.tsx (badge colors)
+components/users/csv-import.tsx (badge colors)
 ```
 
 ---

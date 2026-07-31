@@ -320,7 +320,7 @@ export default function LogsPage() {
               {selectedLog.error && (
                 <div>
                   <p className="text-sm text-destructive mb-1">{t.common.error}:</p>
-                  <div className="bg-red-50 text-red-800 p-3 rounded text-sm">
+                  <div className="bg-rose-400/10 text-rose-300 p-3 rounded text-sm">
                     {selectedLog.error}
                   </div>
                 </div>

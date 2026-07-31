@@ -24,7 +24,6 @@ import {
   Clock,
   ScrollText,
   Settings,
-  Bell,
   LogOut,
 } from "lucide-react";
 
@@ -47,17 +46,23 @@ export function AppSidebar() {
   ];
 
   return (
-    <Sidebar>
+    <Sidebar className="bg-[#081627]/90 backdrop-blur-xl border-r border-white/5">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Bell className="size-4" />
+              <div className="flex aspect-square size-10 items-center justify-center rounded-xl overflow-hidden border border-white/10 bg-white/5">
+                <img
+                  src="/notifin-logo.svg"
+                  alt="NOTIFIN"
+                  className="size-full object-cover"
+                />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">Notifin</span>
-                <span className="truncate text-xs text-muted-foreground">
+                <span className="truncate font-display text-base font-bold tracking-tight">
+                  Notifin
+                </span>
+                <span className="truncate text-xs text-nf-on-surface-variant/70">
                   Notification System
                 </span>
               </div>
@@ -70,7 +75,9 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+          <SidebarGroupLabel className="font-label uppercase tracking-wider text-xs">
+            Menu
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {mainNav.map((item) => (
@@ -95,7 +102,9 @@ export function AppSidebar() {
         <SidebarSeparator />
 
         <SidebarGroup>
-          <SidebarGroupLabel>Sistem</SidebarGroupLabel>
+          <SidebarGroupLabel className="font-label uppercase tracking-wider text-xs">
+            Sistem
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {systemNav.map((item) => (

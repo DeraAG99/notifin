@@ -129,7 +129,7 @@ export function CsvImport({ onSuccess }: CsvImportProps) {
       )}
 
       {result && (
-        <div className={`flex items-center gap-2 p-3 rounded-lg ${result.success ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"}`}>
+        <div className={`flex items-center gap-2 p-3 rounded-lg ${result.success ? "bg-emerald-400/10 text-emerald-300" : "bg-rose-400/10 text-rose-300"}`}>
           {result.success ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
           <span className="text-sm">{result.message}</span>
         </div>

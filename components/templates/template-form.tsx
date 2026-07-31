@@ -344,7 +344,7 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
             </CardHeader>
             <CardContent>
               {contentText ? (
-                <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                <div className="bg-emerald-400/10 border border-emerald-400/20 rounded-lg p-4">
                   <div className="whitespace-pre-wrap text-sm leading-relaxed">
                     {renderedPreview}
                   </div>

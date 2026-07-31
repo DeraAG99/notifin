@@ -18,46 +18,46 @@ interface RecentLogsProps {
 }
 
 const statusColors: Record<string, string> = {
-  pending: "bg-yellow-100 text-yellow-800",
-  sent: "bg-blue-100 text-blue-800",
-  delivered: "bg-green-100 text-green-800",
-  failed: "bg-red-100 text-red-800",
-  read: "bg-purple-100 text-purple-800",
+  pending: "bg-amber-400/10 text-amber-300 border border-amber-400/20",
+  sent: "bg-sky-400/10 text-sky-300 border border-sky-400/20",
+  delivered: "bg-emerald-400/10 text-emerald-300 border border-emerald-400/20",
+  failed: "bg-rose-400/10 text-rose-300 border border-rose-400/20",
+  read: "bg-purple-400/10 text-purple-300 border border-purple-400/20",
 };
 
 const channelColors: Record<string, string> = {
-  wa: "bg-emerald-100 text-emerald-800",
-  email: "bg-blue-100 text-blue-800",
+  wa: "bg-emerald-400/10 text-emerald-300 border border-emerald-400/20",
+  email: "bg-sky-400/10 text-sky-300 border border-sky-400/20",
 };
 
 export function RecentLogs({ logs }: RecentLogsProps) {
   const { t } = useI18n();
 
   return (
-    <Card>
+    <Card className="nf-card rounded-2xl shadow-xl shadow-black/20">
       <CardHeader>
-        <CardTitle>{t.dashboard.recentNotifications}</CardTitle>
+        <CardTitle className="text-nf-on-surface">{t.dashboard.recentNotifications}</CardTitle>
       </CardHeader>
       <CardContent>
         {logs.length === 0 ? (
-          <div className="flex items-center justify-center h-32 text-muted-foreground">
+          <div className="flex items-center justify-center h-32 text-nf-on-surface-variant/70">
             {t.dashboard.noNotifications}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>{t.common.channel}</TableHead>
-                  <TableHead>{t.common.status}</TableHead>
-                  <TableHead>{t.common.priority}</TableHead>
-                  <TableHead>{t.common.content}</TableHead>
-                  <TableHead className="text-right">{t.common.start}</TableHead>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="font-label uppercase tracking-wider text-xs text-nf-on-surface-variant/70">{t.common.channel}</TableHead>
+                  <TableHead className="font-label uppercase tracking-wider text-xs text-nf-on-surface-variant/70">{t.common.status}</TableHead>
+                  <TableHead className="font-label uppercase tracking-wider text-xs text-nf-on-surface-variant/70">{t.common.priority}</TableHead>
+                  <TableHead className="font-label uppercase tracking-wider text-xs text-nf-on-surface-variant/70">{t.common.content}</TableHead>
+                  <TableHead className="font-label uppercase tracking-wider text-xs text-nf-on-surface-variant/70 text-right">{t.common.start}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {logs.map((log) => (
-                  <TableRow key={log.id}>
+                  <TableRow key={log.id} className="hover:bg-white/[0.02]">
                     <TableCell>
                       <Badge className={channelColors[log.channel] || ""}>
                         {log.channel === "wa" ? "WhatsApp" : "Email"}
@@ -69,12 +69,12 @@ export function RecentLogs({ logs }: RecentLogsProps) {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{log.priority}</Badge>
+                      <Badge variant="outline" className="text-nf-on-surface-variant/80">{log.priority}</Badge>
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate">
                       {log.content?.text || "-"}
                     </TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground">
+                    <TableCell className="text-right text-sm text-nf-on-surface-variant/70">
                       {log.createdAt
                         ? new Date(log.createdAt).toLocaleString()
                         : "-"}

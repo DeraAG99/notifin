@@ -36,16 +36,16 @@ export function Header() {
   const dateLang = locale === "id" ? "id-ID" : "en-US";
 
   return (
-    <header className="flex items-center h-14 shrink-0 border-b px-4 lg:px-6">
+    <header className="flex items-center h-14 shrink-0 border-b border-white/5 bg-[#081627]/60 backdrop-blur-xl px-4 lg:px-6">
       <div className="flex items-center gap-2">
         <SidebarTrigger className="-ml-1 size-8" />
-        <span className="text-sm font-medium text-muted-foreground select-none">
+        <span className="font-label text-sm uppercase tracking-wider text-nf-on-surface-variant/80 select-none">
           {pageTitle}
         </span>
       </div>
 
       <div className="flex items-center gap-3 ml-auto">
-        <span className="text-xs text-muted-foreground hidden md:block">
+        <span className="text-xs text-nf-on-surface-variant/70 hidden md:block">
           {new Date().toLocaleDateString(dateLang, {
             weekday: "long",
             year: "numeric",
@@ -62,7 +62,7 @@ export function Header() {
               await logout();
               router.push("/login");
             }}
-            className="gap-2"
+            className="gap-2 hover:text-destructive"
           >
             <LogOut className="size-4" />
             <span className="hidden sm:inline">{user.name}</span>

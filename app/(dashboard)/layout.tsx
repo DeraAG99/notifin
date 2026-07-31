@@ -10,14 +10,18 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <Header />
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
-          {children}
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+    <div className="relative flex min-h-screen overflow-hidden bg-nf-bg text-nf-on-surface font-display">
+      <div className="ambient-orb orb-1 animate-pulse fixed" />
+      <div className="ambient-orb orb-2 fixed" />
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset className="relative z-10">
+          <Header />
+          <main className="flex-1 overflow-y-auto p-6 lg:p-8 dashboard-bg">
+            {children}
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </div>
   );
 }
