@@ -359,6 +359,43 @@ components/users/csv-import.tsx (badge colors)
 
 ---
 
+## Phase 11: Theme Toggle & Landing i18n ✅
+
+### Completed
+- [x] `lib/theme/provider.tsx` — new `ThemeProvider` (light / dark / system): persists choice to `localStorage("theme")`, resolves system preference via `matchMedia`, toggles `.dark` class + `color-scheme` on `<html>`, syncs `<meta name="theme-color">`; wraps whole app inside `Providers`
+- [x] FOUC-prevention inline script in `app/layout.tsx` `<head>` — applies saved/system dark class before first paint
+- [x] `app/globals.css`: light `:root` tokens (background `#f4f6fb`, teal primary, light `nf-*` palette, light sidebar) + existing dark palette moved to `.dark`; theme-aware variants for `.glass-panel`, `.nav-glass`, `.stat-card`, `.nf-card`, `.hero-title-text`, `.form-input` (focus glow), orbs opacity
+- [x] `components/layouts/theme-toggle.tsx` — Sun/Moon dropdown (Light/Dark/System), translated labels via i18n, current-mode icon adapts to resolved theme
+- [x] Toggle placed in: dashboard header (next to language switcher), auth layout (fixed top-right corner), landing navbar (desktop + mobile)
+- [x] Landing page converted to client component + full i18n: all strings now live in `lib/i18n/en.json` / `id.json` under `landing.*` (nav, hero, bento, features, stats, visual section, CTA, footer)
+- [x] Landing `text-white*` / `border-white*` hardcoded colors replaced with theme-aware `nf-*` tokens (light mode readable)
+- [x] `components/landing/mobile-nav.tsx` — translated labels + LanguageSwitcher/ThemeToggle row in menu
+- [x] Light-mode fixes in auth + dashboard: checkbox icons use `nf-on-secondary-container`, checkbox borders `nf-outline/30`, card shadows `black/20 dark:black/50`, sidebar/header use `bg-sidebar` / `bg-background` tokens, status badges + stat icons use `*-600 dark:*-400` variants
+- [x] `bunx tsc --noEmit` clean + `bun run build` clean; smoke-tested `/` (renders in ID by default), `/login` (200), `/dashboard` (307 auth redirect); CSS contains both light + dark token sets
+
+### Files Modified/Created
+```
+lib/theme/provider.tsx (new)
+components/layouts/theme-toggle.tsx (new)
+components/layouts/providers.tsx (ThemeProvider added)
+app/layout.tsx (FOUC script in head)
+app/globals.css (light/dark token variants)
+lib/i18n/en.json (landing.* + theme labels)
+lib/i18n/id.json (landing.* + theme labels)
+app/page.tsx (client + i18n + theme-aware)
+components/landing/mobile-nav.tsx (i18n + switchers)
+app/(auth)/layout.tsx (theme/lang switchers)
+components/layouts/header.tsx (ThemeToggle + token colors)
+components/layouts/sidebar.tsx (token colors)
+app/(auth)/login/page.tsx (light-mode fixes)
+app/(auth)/register/page.tsx (light-mode fixes)
+components/dashboard/recent-logs.tsx (badge variants)
+components/dashboard/queue-health.tsx (light-mode fixes)
+components/dashboard/stat-cards.tsx (icon variants)
+```
+
+---
+
 ## Phase 9: Docker/VPS Deployment Fixes ✅
 
 ### Completed

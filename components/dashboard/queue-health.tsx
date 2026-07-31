@@ -16,9 +16,9 @@ export function QueueHealth({ stats }: QueueHealthProps) {
   const { t, tx } = useI18n();
 
   const getHealthStatus = (queue: QueueHealthProps["stats"]["whatsapp"]) => {
-    if (queue.failed > 0) return { status: "warning", label: t.dashboard.issues, icon: AlertTriangle, color: "text-amber-400" };
-    if (queue.active > 0 || queue.waiting > 0) return { status: "active", label: t.common.active, icon: Activity, color: "text-sky-400" };
-    return { status: "healthy", label: t.dashboard.healthy, icon: CheckCircle, color: "text-emerald-400" };
+    if (queue.failed > 0) return { status: "warning", label: t.dashboard.issues, icon: AlertTriangle, color: "text-amber-600 dark:text-amber-400" };
+    if (queue.active > 0 || queue.waiting > 0) return { status: "active", label: t.common.active, icon: Activity, color: "text-sky-600 dark:text-sky-400" };
+    return { status: "healthy", label: t.dashboard.healthy, icon: CheckCircle, color: "text-emerald-600 dark:text-emerald-400" };
   };
 
   const waHealth = getHealthStatus(stats.whatsapp);
@@ -32,7 +32,7 @@ export function QueueHealth({ stats }: QueueHealthProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.02]">
+        <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-black/[0.02] dark:bg-white/[0.02]">
           <div className="flex items-center gap-3">
             <waHealth.icon className={`h-5 w-5 ${waHealth.color}`} />
             <div>
@@ -46,7 +46,7 @@ export function QueueHealth({ stats }: QueueHealthProps) {
             {waHealth.label}
           </Badge>
         </div>
-        <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.02]">
+        <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-black/[0.02] dark:bg-white/[0.02]">
           <div className="flex items-center gap-3">
             <emailHealth.icon className={`h-5 w-5 ${emailHealth.color}`} />
             <div>

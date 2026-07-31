@@ -5,6 +5,7 @@ import { useI18n } from "@/lib/i18n/context";
 import { useAuth } from "@/lib/auth/context";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { LanguageSwitcher } from "@/components/layouts/language-switcher";
+import { ThemeToggle } from "@/components/layouts/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 
@@ -36,7 +37,7 @@ export function Header() {
   const dateLang = locale === "id" ? "id-ID" : "en-US";
 
   return (
-    <header className="flex items-center h-14 shrink-0 border-b border-white/5 bg-[#081627]/60 backdrop-blur-xl px-4 lg:px-6">
+    <header className="flex items-center h-14 shrink-0 border-b border-border bg-background/60 backdrop-blur-xl px-4 lg:px-6">
       <div className="flex items-center gap-2">
         <SidebarTrigger className="-ml-1 size-8" />
         <span className="font-label text-sm uppercase tracking-wider text-nf-on-surface-variant/80 select-none">
@@ -54,6 +55,7 @@ export function Header() {
           })}
         </span>
         <LanguageSwitcher />
+        <ThemeToggle />
         {user && (
           <Button
             variant="ghost"

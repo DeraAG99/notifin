@@ -46,12 +46,12 @@ export function AppSidebar() {
   ];
 
   return (
-    <Sidebar className="bg-[#081627]/90 backdrop-blur-xl border-r border-white/5">
+    <Sidebar className="bg-sidebar/90 backdrop-blur-xl border-r border-sidebar-border">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
-              <div className="flex aspect-square size-10 items-center justify-center rounded-xl overflow-hidden border border-white/10 bg-white/5">
+              <div className="flex aspect-square size-10 items-center justify-center rounded-xl overflow-hidden border border-sidebar-border bg-muted">
                 <img
                   src="/icon.svg"
                   alt="NOTIFIN"

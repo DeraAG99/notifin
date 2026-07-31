@@ -32,7 +32,7 @@ export default function LoginPage() {
 
   return (
     <main className="login-reveal relative z-10 w-full max-w-[460px]">
-      <div className="glass-panel rounded-3xl p-6 md:p-16 flex flex-col gap-6 shadow-2xl shadow-black/50">
+      <div className="glass-panel rounded-3xl p-6 md:p-16 flex flex-col gap-6 shadow-2xl shadow-black/20 dark:shadow-black/50">
         {/* Logo Section */}
         <header className="flex flex-col items-center gap-4">
           <div className="w-40 hover:scale-105 transition-transform duration-500">
@@ -136,11 +136,11 @@ export default function LoginPage() {
                   type="checkbox"
                   checked={remember}
                   onChange={(e) => setRemember(e.target.checked)}
-                  className="peer appearance-none size-5 border border-white/10 rounded-lg bg-white/5 checked:bg-nf-secondary checked:border-nf-secondary transition-all cursor-pointer"
+                  className="peer appearance-none size-5 border border-nf-outline/30 rounded-lg bg-black/5 dark:bg-white/5 checked:bg-nf-secondary checked:border-nf-secondary transition-all cursor-pointer"
                 />
                 <Check
                   size={16}
-                  className="absolute text-nf-bg opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none"
+                  className="absolute text-nf-on-secondary-container opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none"
                 />
               </div>
               <span className="text-base text-nf-on-surface-variant/80 group-hover:text-nf-on-surface transition-colors">

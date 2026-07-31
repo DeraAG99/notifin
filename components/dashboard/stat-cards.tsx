@@ -22,28 +22,28 @@ export function StatCards({ stats }: StatCardsProps) {
       title: t.dashboard.totalSent,
       value: stats.totalSent,
       icon: Send,
-      color: "text-sky-400",
+      color: "text-sky-600 dark:text-sky-400",
       bg: "bg-sky-500/10",
     },
     {
       title: t.dashboard.delivered,
       value: stats.totalDelivered,
       icon: CheckCircle,
-      color: "text-emerald-400",
+      color: "text-emerald-600 dark:text-emerald-400",
       bg: "bg-emerald-500/10",
     },
     {
       title: t.dashboard.failed,
       value: stats.totalFailed,
       icon: XCircle,
-      color: "text-rose-400",
+      color: "text-rose-600 dark:text-rose-400",
       bg: "bg-rose-500/10",
     },
     {
       title: t.dashboard.pending,
       value: stats.totalPending,
       icon: Clock,
-      color: "text-amber-400",
+      color: "text-amber-600 dark:text-amber-400",
       bg: "bg-amber-500/10",
     },
   ];
@@ -56,7 +56,7 @@ export function StatCards({ stats }: StatCardsProps) {
             <CardTitle className="text-sm font-medium text-nf-on-surface-variant/80">
               {card.title}
             </CardTitle>
-            <div className={`p-2.5 rounded-xl border border-white/10 ${card.bg}`}>
+            <div className={`p-2.5 rounded-xl border border-border ${card.bg}`}>
               <card.icon className={`h-4 w-4 ${card.color}`} />
             </div>
           </CardHeader>

@@ -18,16 +18,16 @@ interface RecentLogsProps {
 }
 
 const statusColors: Record<string, string> = {
-  pending: "bg-amber-400/10 text-amber-300 border border-amber-400/20",
-  sent: "bg-sky-400/10 text-sky-300 border border-sky-400/20",
-  delivered: "bg-emerald-400/10 text-emerald-300 border border-emerald-400/20",
-  failed: "bg-rose-400/10 text-rose-300 border border-rose-400/20",
-  read: "bg-purple-400/10 text-purple-300 border border-purple-400/20",
+  pending: "bg-amber-400/10 text-amber-700 dark:text-amber-300 border border-amber-400/20",
+  sent: "bg-sky-400/10 text-sky-700 dark:text-sky-300 border border-sky-400/20",
+  delivered: "bg-emerald-400/10 text-emerald-700 dark:text-emerald-300 border border-emerald-400/20",
+  failed: "bg-rose-400/10 text-rose-700 dark:text-rose-300 border border-rose-400/20",
+  read: "bg-purple-400/10 text-purple-700 dark:text-purple-300 border border-purple-400/20",
 };
 
 const channelColors: Record<string, string> = {
-  wa: "bg-emerald-400/10 text-emerald-300 border border-emerald-400/20",
-  email: "bg-sky-400/10 text-sky-300 border border-sky-400/20",
+  wa: "bg-emerald-400/10 text-emerald-700 dark:text-emerald-300 border border-emerald-400/20",
+  email: "bg-sky-400/10 text-sky-700 dark:text-sky-300 border border-sky-400/20",
 };
 
 export function RecentLogs({ logs }: RecentLogsProps) {
@@ -57,7 +57,7 @@ export function RecentLogs({ logs }: RecentLogsProps) {
               </TableHeader>
               <TableBody>
                 {logs.map((log) => (
-                  <TableRow key={log.id} className="hover:bg-white/[0.02]">
+                  <TableRow key={log.id} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
                     <TableCell>
                       <Badge className={channelColors[log.channel] || ""}>
                         {log.channel === "wa" ? "WhatsApp" : "Email"}
