@@ -396,6 +396,27 @@ components/dashboard/stat-cards.tsx (icon variants)
 
 ---
 
+## Phase 12: Theme Default + Logo Readability Fixes ✅
+
+### Completed
+- [x] **Dark is default again** — `ThemeProvider` now initializes to `dark` (not `system`); saved `light`/`dark`/`system` preferences still respected. FOUC script in `app/layout.tsx` defaults to dark when no theme is saved, so the site no longer flashes/applies the default shadcn light palette on light-OS machines
+- [x] `app/globals.css` — new `.nf-logo` class: `filter: brightness(0.3)` in light mode, `filter: none` in `.dark`; makes the light-blue banner `notifin-logo.svg` readable on white/near-white backgrounds while keeping the original bright logo on dark
+- [x] `nf-logo` applied to logo `<img>` in landing (`app/page.tsx`), login, and register
+- [x] Verified end-to-end via headless Edge + CDP (Bun WebSocket client): no saved theme + light `prefers-color-scheme` → `.dark` applied; saved `light` → light palette + logo `brightness(0.3)`; saved `dark` → original dark palette + logo un-filtered. Root cause of the "dark uses default colors" report: theme followed OS (`system` default) + hardcoded-dark legacy classes, plus a stale production server squatted on port 3000 during testing
+- [x] `bunx tsc --noEmit` clean + `bun run build` clean; `.nf-logo` + `.dark .nf-logo` present in compiled CSS
+
+### Files Modified
+```
+lib/theme/provider.tsx (default theme dark)
+app/layout.tsx (FOUC script defaults to dark)
+app/globals.css (.nf-logo light/dark variants)
+app/page.tsx (logo nf-logo class)
+app/(auth)/login/page.tsx (logo nf-logo class)
+app/(auth)/register/page.tsx (logo nf-logo class)
+```
+
+---
+
 ## Phase 9: Docker/VPS Deployment Fixes ✅
 
 ### Completed

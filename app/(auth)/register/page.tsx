@@ -50,7 +50,7 @@ export default function RegisterPage() {
             <img
               src="/notifin-logo.svg"
               alt="NOTIFIN"
-              className="w-full h-auto rounded-lg"
+              className="nf-logo w-full h-auto rounded-lg"
             />
           </div>
           <div className="text-center">

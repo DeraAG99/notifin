@@ -230,6 +230,14 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.nf-logo {
+  filter: brightness(0.3);
+}
+
+.dark .nf-logo {
+  filter: none;
+}
+
 .ambient-orb {
   position: absolute;
   border-radius: 50%;

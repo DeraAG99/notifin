@@ -40,7 +40,7 @@ function Logo({ className = "" }: { className?: string }) {
       alt="NOTIFIN"
       width={800}
       height={218}
-      className={`h-10 w-auto rounded-lg ring-1 ring-nf-outline/20 ${className}`}
+      className={`nf-logo h-10 w-auto rounded-lg ring-1 ring-nf-outline/20 ${className}`}
     />
   );
 }
