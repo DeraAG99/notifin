@@ -53,9 +53,9 @@ export function AppSidebar() {
             <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
               <div className="flex aspect-square size-10 items-center justify-center rounded-xl overflow-hidden border border-white/10 bg-white/5">
                 <img
-                  src="/notifin-logo.svg"
+                  src="/icon.svg"
                   alt="NOTIFIN"
-                  className="size-full object-cover"
+                  className="size-full object-contain"
                 />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
