@@ -8,7 +8,10 @@ const authApiPaths = ["/api/auth/login", "/api/auth/logout"];
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const isStatic = pathname.startsWith("/_next") || pathname === "/favicon.ico";
+  const isStatic =
+    pathname.startsWith("/_next") ||
+    pathname === "/favicon.ico" ||
+    /\.[a-z0-9]+$/i.test(pathname);
   if (isStatic) return NextResponse.next();
 
   const isPublic = publicPaths.some((p) => pathname === p);
