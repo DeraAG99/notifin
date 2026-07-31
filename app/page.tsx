@@ -30,12 +30,11 @@ import { MobileNav } from "@/components/landing/mobile-nav";
 
 function Logo({ className = "" }: { className?: string }) {
   return (
-    <Image
+    <img
       src="/notofin-logo.svg"
       alt="NOTIFIN"
       width={800}
       height={218}
-      priority
       className={`h-10 w-auto rounded-lg ring-1 ring-white/10 ${className}`}
     />
   );
