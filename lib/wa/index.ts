@@ -8,6 +8,8 @@ import { OpenWAProvider } from "./openwa-provider";
 
 let cachedProvider: WaProvider | null = null;
 let cachedProviderType: WaProviderType | null = null;
+let cachedAt = 0;
+const CACHE_TTL_MS = 60_000;
 
 async function getSetting(key: string): Promise<string | number | boolean | null> {
   try {
@@ -38,12 +40,17 @@ async function makeBaileysProvider(): Promise<WaProvider> {
 export function resetWaProvider(): void {
   cachedProvider = null;
   cachedProviderType = null;
+  cachedAt = 0;
 }
 
 export async function getWaProvider(): Promise<WaProvider> {
   const providerType = ((await getSetting("waProvider")) as WaProviderType) || "fonnte";
 
-  if (cachedProvider && cachedProviderType === providerType) {
+  if (
+    cachedProvider &&
+    cachedProviderType === providerType &&
+    Date.now() - cachedAt < CACHE_TTL_MS
+  ) {
     return cachedProvider;
   }
 
@@ -56,6 +63,7 @@ export async function getWaProvider(): Promise<WaProvider> {
       const rateLimit = Number((await getSetting("fonnteRateLimit")) || process.env.FONNTE_RATE_LIMIT || 100);
       cachedProvider = makeFonnteProvider(token || process.env.FONNTE_TOKEN!, rateLimit);
       cachedProviderType = "fonnte";
+      cachedAt = Date.now();
       return cachedProvider;
     }
 
@@ -68,12 +76,14 @@ export async function getWaProvider(): Promise<WaProvider> {
       }
       cachedProvider = makeEvolutionProvider(baseUrl, apiKey, instance);
       cachedProviderType = "evolution";
+      cachedAt = Date.now();
       return cachedProvider;
     }
 
     case "baileys": {
       cachedProvider = await makeBaileysProvider();
       cachedProviderType = "baileys";
+      cachedAt = Date.now();
       return cachedProvider;
     }
 
@@ -86,6 +96,7 @@ export async function getWaProvider(): Promise<WaProvider> {
       }
       cachedProvider = makeOpenWAProvider(baseUrl, apiKey, session);
       cachedProviderType = "openwa";
+      cachedAt = Date.now();
       return cachedProvider;
     }
 

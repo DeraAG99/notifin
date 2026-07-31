@@ -304,11 +304,13 @@ README.md (new)
 - [x] Fix `REDIS_URL` port bug in docker-compose (was using `${REDIS_PORT}` as container port; internal Redis port is always 6379) — applied to web, worker, scheduler
 - [x] Add `COOKIE_SECURE` env toggle so session cookie can work over plain HTTP (VPS without HTTPS)
 - [x] Refactor login route to use `getCookieOptions()` from `lib/auth/session.ts` (single source of truth)
+- [x] Add 60s TTL to WA provider cache (`lib/wa/index.ts`) so API key/config changes propagate to worker/scheduler without restart (was cached forever → stale key caused OpenWA 403 "Insufficient permissions")
 
 ### Files Modified
 ```
 docker-compose.yml
 lib/auth/session.ts
+lib/wa/index.ts
 app/api/auth/login/route.ts
 .env.docker.example
 ```
