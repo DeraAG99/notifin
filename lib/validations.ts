@@ -110,6 +110,7 @@ export const settingsSchema = z.object({
   smtpPort: z.number().int().positive().optional(),
   smtpUser: z.string().optional(),
   smtpPass: z.string().optional(),
+  smtpSecure: z.enum(["ssl", "starttls", "none"]).optional(),
   emailFrom: z.string().email().optional(),
   defaultTimezone: z.string().optional(),
   waConcurrency: z.number().int().positive().optional(),

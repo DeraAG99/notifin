@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { settings } from "@/lib/db/schema";
 import { settingsSchema } from "@/lib/validations";
 import { getWaHealth, resetWaProvider } from "@/lib/wa";
-import { checkEmailHealth } from "@/lib/email";
+import { checkEmailHealth, resetEmailTransporter } from "@/lib/email";
 
 const SETTING_KEYS = [
   "waProvider",
@@ -19,6 +19,7 @@ const SETTING_KEYS = [
   "smtpPort",
   "smtpUser",
   "smtpPass",
+  "smtpSecure",
   "emailFrom",
   "defaultTimezone",
   "waConcurrency",
@@ -39,6 +40,7 @@ const STRING_SETTINGS: SettingKey[] = [
   "smtpHost",
   "smtpUser",
   "smtpPass",
+  "smtpSecure",
   "emailFrom",
   "defaultTimezone",
 ];
@@ -87,6 +89,7 @@ export async function GET() {
         smtpPort: Number(stored.smtpPort) || 587,
         smtpUser: stored.smtpUser || null,
         smtpPass: stored.smtpPass ? "****" : null,
+        smtpSecure: (stored.smtpSecure as string) || null,
         emailFrom: stored.emailFrom || null,
         defaultTimezone: stored.defaultTimezone || "Asia/Jakarta",
         health: {
@@ -146,6 +149,17 @@ export async function PUT(request: Request) {
         e.key === "openwaSession"
     );
     if (hasWaUpdate) resetWaProvider();
+
+    const hasSmtpUpdate = entries.some(
+      (e) =>
+        e.key === "smtpHost" ||
+        e.key === "smtpPort" ||
+        e.key === "smtpUser" ||
+        e.key === "smtpPass" ||
+        e.key === "smtpSecure" ||
+        e.key === "emailFrom"
+    );
+    if (hasSmtpUpdate) resetEmailTransporter();
 
     const updatedKeys = entries.map((e) => e.key);
 

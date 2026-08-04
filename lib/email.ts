@@ -1,4 +1,7 @@
 import nodemailer from "nodemailer";
+import { db } from "@/lib/db";
+import { settings as settingsTable } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { renderWelcomeEmail, renderNotificationEmail } from "./email-templates";
 
 interface SendEmailParams {
@@ -17,42 +20,119 @@ interface EmailResponse {
   error?: string;
 }
 
+export type SmtpSecure = "ssl" | "starttls" | "none";
+
+interface SmtpConfig {
+  host: string;
+  port: number;
+  secure: SmtpSecure;
+  user?: string;
+  pass?: string;
+  from?: string;
+}
+
 let transporter: nodemailer.Transporter | null = null;
+let cachedConfig: SmtpConfig | null = null;
+let cachedAt = 0;
+const CACHE_TTL_MS = 60_000;
 
-function getTransporter(): nodemailer.Transporter {
+async function getSetting(key: string): Promise<string | number | boolean | null> {
+  try {
+    const rows = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
+    return rows.length > 0 ? rows[0].value : null;
+  } catch {
+    return null;
+  }
+}
+
+async function getSmtpConfig(): Promise<SmtpConfig | null> {
+  if (cachedConfig && Date.now() - cachedAt < CACHE_TTL_MS) {
+    return cachedConfig;
+  }
+
+  const [dbHost, dbPort, dbUser, dbPass, dbSecure, dbFrom] = await Promise.all([
+    getSetting("smtpHost"),
+    getSetting("smtpPort"),
+    getSetting("smtpUser"),
+    getSetting("smtpPass"),
+    getSetting("smtpSecure"),
+    getSetting("emailFrom"),
+  ]);
+
+  const host = (dbHost as string) || process.env.SMTP_HOST;
+  if (!host) {
+    cachedConfig = null;
+    return null;
+  }
+
+  const port = Number(dbPort) || parseInt(process.env.SMTP_PORT || "587", 10);
+  const secure = (dbSecure as SmtpSecure) || (port === 465 ? "ssl" : "starttls");
+  const user = (dbUser as string) || process.env.SMTP_USER;
+  const pass = (dbPass as string) || process.env.SMTP_PASS;
+
+  cachedConfig = {
+    host,
+    port,
+    secure,
+    user: user || undefined,
+    pass: pass || undefined,
+    from: (dbFrom as string) || process.env.EMAIL_FROM,
+  };
+  cachedAt = Date.now();
+  return cachedConfig;
+}
+
+export function resetEmailTransporter(): void {
+  transporter = null;
+  cachedConfig = null;
+  cachedAt = 0;
+}
+
+function buildTransporter(config: SmtpConfig): nodemailer.Transporter {
+  const secure = config.secure === "ssl";
+  const tlsOptions =
+    config.secure === "ssl"
+      ? { rejectUnauthorized: false }
+      : { rejectUnauthorized: false, requireTLS: config.secure === "starttls" };
+
+  return nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure,
+    auth: config.user && config.pass ? { user: config.user, pass: config.pass } : undefined,
+    tls: tlsOptions,
+  });
+}
+
+async function getTransporter(): Promise<nodemailer.Transporter | null> {
+  const config = await getSmtpConfig();
+  if (!config) return null;
+
   if (!transporter) {
-    const host = process.env.SMTP_HOST;
-    const port = parseInt(process.env.SMTP_PORT || "587", 10);
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-
-    if (!host) {
-      throw new Error("SMTP_HOST environment variable is required");
-    }
-
-    transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: user && pass ? { user, pass } : undefined,
-      tls: {
-        rejectUnauthorized: false,
-      },
-    });
+    transporter = buildTransporter(config);
   }
   return transporter;
 }
 
-function getFromAddress(): string {
-  return process.env.EMAIL_FROM || process.env.SMTP_USER || "notifications@notifin.app";
+function getFromAddress(config: SmtpConfig): string {
+  return config.from || config.user || "notifications@notifin.app";
 }
 
 export async function sendEmail(params: SendEmailParams): Promise<EmailResponse> {
-  const transport = getTransporter();
+  const transport = await getTransporter();
+  if (!transport) {
+    return {
+      id: "",
+      success: false,
+      error: "SMTP not configured",
+    };
+  }
+
+  const config = await getSmtpConfig();
 
   try {
     const info = await transport.sendMail({
-      from: params.from || getFromAddress(),
+      from: params.from || (config ? getFromAddress(config) : "notifications@notifin.app"),
       to: Array.isArray(params.to) ? params.to.join(", ") : params.to,
       subject: params.subject,
       html: params.html,
@@ -96,7 +176,8 @@ export async function sendBulkEmail(
 
 export async function checkEmailHealth(): Promise<boolean> {
   try {
-    const transport = getTransporter();
+    const transport = await getTransporter();
+    if (!transport) return false;
     await transport.verify();
     return true;
   } catch {

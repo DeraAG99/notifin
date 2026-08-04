@@ -469,6 +469,28 @@ bun.lock
 
 ---
 
+## Phase 14: SMTP Config from DB + Connection Security Option
+
+### Completed
+- [x] Make `lib/email.ts` read SMTP config from DB settings (`smtpHost`, `smtpPort`, `smtpUser`, `smtpPass`, `smtpSecure`, `emailFrom`) with env fallback — previously it only read `process.env.SMTP_*` so SMTP saved via Settings UI was never used by sending or the health check
+- [x] Add `smtpSecure` setting (`ssl` | `starttls` | `none`) persisted via `/api/settings` + Zod validation
+- [x] Add Connection Security dropdown to Settings > Email UI (SSL/TLS implicit, STARTTLS, None) with EN/ID i18n labels
+- [x] Nodemailer transport maps `ssl` → `secure: true`, `starttls` → `requireTLS`, `none` → plain
+- [x] Add `resetEmailTransporter()` + call it from the settings PUT route when SMTP config changes (cache TTL 60s)
+- [x] Reset stale admin password hash in local DB (was no longer verifiable) back to bcryptjs hash so login works
+
+### Files Modified
+```
+app/(dashboard)/settings/page.tsx
+app/api/settings/route.ts
+lib/email.ts
+lib/i18n/en.json
+lib/i18n/id.json
+lib/validations.ts
+```
+
+---
+
 ## Scripts Reference
 
 | Command | Description |

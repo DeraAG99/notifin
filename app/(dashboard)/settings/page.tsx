@@ -4,6 +4,13 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, XCircle, Save, MessageSquare, Globe, AlertTriangle, Lock } from "lucide-react";
 import { useI18n } from "@/lib/i18n/context";
@@ -28,6 +35,7 @@ export default function SettingsPage() {
     smtpPort: 587,
     smtpUser: "",
     smtpPass: "",
+    smtpSecure: "starttls" as "ssl" | "starttls" | "none",
     emailFrom: "",
     defaultTimezone: "Asia/Jakarta",
   });
@@ -61,6 +69,9 @@ export default function SettingsPage() {
           smtpPort: data.data.smtpPort || 587,
           smtpUser: data.data.smtpUser || "",
           smtpPass: "",
+          smtpSecure:
+            (data.data.smtpSecure as "ssl" | "starttls" | "none") ||
+            (data.data.smtpPort === 465 ? "ssl" : "starttls"),
           emailFrom: data.data.emailFrom || "",
           defaultTimezone: data.data.defaultTimezone || "Asia/Jakarta",
         });
@@ -99,6 +110,7 @@ export default function SettingsPage() {
       if (settings.smtpPort) body.smtpPort = settings.smtpPort;
       if (settings.smtpUser) body.smtpUser = settings.smtpUser;
       if (settings.smtpPass) body.smtpPass = settings.smtpPass;
+      body.smtpSecure = settings.smtpSecure;
       if (settings.emailFrom) body.emailFrom = settings.emailFrom;
       if (settings.defaultTimezone) body.defaultTimezone = settings.defaultTimezone;
 
@@ -326,13 +338,36 @@ export default function SettingsPage() {
               />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>{t.settings.fromAddress}</Label>
-            <Input
-              value={settings.emailFrom}
-              onChange={(e) => setSettings({ ...settings, emailFrom: e.target.value })}
-              placeholder={t.settings.fromAddressPlaceholder}
-            />
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>{t.settings.smtpSecure}</Label>
+              <Select
+                value={settings.smtpSecure}
+                onValueChange={(v) =>
+                  setSettings({
+                    ...settings,
+                    smtpSecure: (v || "starttls") as "ssl" | "starttls" | "none",
+                  })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ssl">{t.settings.smtpSecureSsl}</SelectItem>
+                  <SelectItem value="starttls">{t.settings.smtpSecureStarttls}</SelectItem>
+                  <SelectItem value="none">{t.settings.smtpSecureNone}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t.settings.fromAddress}</Label>
+              <Input
+                value={settings.emailFrom}
+                onChange={(e) => setSettings({ ...settings, emailFrom: e.target.value })}
+                placeholder={t.settings.fromAddressPlaceholder}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
