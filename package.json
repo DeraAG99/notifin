@@ -13,7 +13,7 @@
     "db:push": "drizzle-kit push",
     "db:migrate": "npx tsx lib/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "npx tsx lib/db/seed.ts",
+    "db:seed": "bun run lib/db/seed.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run worker\" \"npm run scheduler\""
   },
   "dependencies": {
@@ -33,6 +33,7 @@
     "@tiptap/starter-kit": "^3.29.1",
     "@types/nodemailer": "^8.0.1",
     "@whiskeysockets/baileys": "^7.0.0-rc14",
+    "bcryptjs": "^3.0.3",
     "bullmq": "^5.81.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -57,13 +58,14 @@
     "react-dom": "19.2.4",
     "recharts": "^3.10.1",
     "shadcn": "^4.16.0",
-    "tailwindcss": "^4",
     "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4",
     "tw-animate-css": "^1.4.0",
     "uuid": "^14.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
     "@types/bun": "^1.3.14",
     "@types/node": "^20",
     "@types/node-cron": "^3.0.11",

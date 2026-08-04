@@ -1,4 +1,9 @@
+import "dotenv/config";
+import { config as loadEnv } from "dotenv";
+import path from "node:path";
 import { db } from "./index";
+
+loadEnv({ path: path.resolve(process.cwd(), ".env.local"), override: true });
 import {
   admins,
   users,

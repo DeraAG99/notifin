@@ -436,6 +436,39 @@ app/api/auth/login/route.ts
 
 ---
 
+## Phase 13: Theme Alignment, Auth Fixes & DB Tooling
+
+### Completed
+- [x] Align dark theme tokens (`globals.css` `.dark`) with `theme/landingpage.html` palette (background, surface containers, primary/secondary, outline, error)
+- [x] Align light theme `:root` tokens with the brand palette (primary `#2563eb`, secondary `#00a58f`, ring, sidebar, charts)
+- [x] Add `.dark` overrides for `nf-*` tokens so dashboard/login/landing match the landing page in dark mode
+- [x] Make `migrate.ts`, `seed.ts`, `drizzle.config.ts`, `lib/db/index.ts` load `.env.local` (previously fell back to system user causing auth failures)
+- [x] Sync local DB schema via `drizzle-kit push` (created missing `admins` table + `admin_role` enum)
+- [x] Fix seed to run under Bun runtime (`db:seed` now `bun run lib/db/seed.ts`) so `Bun.password` works
+- [x] Fix 500 on `POST /api/auth/login`: replace `Bun.password` (Node-incompatible) with `bcryptjs` in `lib/auth/session.ts`
+- [x] Seed default admin: `admin@notifin.com` / `admin123` (superadmin)
+- [x] Light-theme logo: generate `public/notifin-logo-dark.svg` (navy text variant), add theme-aware `NotifinLogo` component, remove `brightness(0.3)` hack
+
+### Files Modified
+```
+app/globals.css
+app/page.tsx
+app/(auth)/login/page.tsx
+app/(auth)/register/page.tsx
+app/(dashboard)/settings/page.tsx
+components/layouts/notifin-logo.tsx  (new)
+public/notifin-logo-dark.svg  (new)
+lib/auth/session.ts
+lib/db/index.ts
+lib/db/migrate.ts
+lib/db/seed.ts
+drizzle.config.ts
+package.json
+bun.lock
+```
+
+---
+
 ## Scripts Reference
 
 | Command | Description |

@@ -31,17 +31,12 @@ import { CursorGlow } from "@/components/landing/cursor-glow";
 import { MobileNav } from "@/components/landing/mobile-nav";
 import { LanguageSwitcher } from "@/components/layouts/language-switcher";
 import { ThemeToggle } from "@/components/layouts/theme-toggle";
+import { NotifinLogo } from "@/components/layouts/notifin-logo";
 import { useI18n } from "@/lib/i18n/context";
 
 function Logo({ className = "" }: { className?: string }) {
   return (
-    <img
-      src="/notifin-logo.svg"
-      alt="NOTIFIN"
-      width={800}
-      height={218}
-      className={`nf-logo h-10 w-auto rounded-lg ring-1 ring-nf-outline/20 ${className}`}
-    />
+    <NotifinLogo className={`nf-logo h-10 w-auto rounded-lg ring-1 ring-nf-outline/20 ${className}`} />
   );
 }
 
@@ -265,9 +260,9 @@ export default function LandingPage() {
               <div className="col-span-4 row-span-2 glass-panel rounded-3xl border-nf-outline/20 p-4 flex items-center justify-between px-6">
                 <div className="flex items-center gap-4">
                   <div className="flex -space-x-3">
-                    <div className="w-10 h-10 rounded-full border-2 border-nf-bg bg-slate-700 ring-2 ring-nf-outline/20" />
-                    <div className="w-10 h-10 rounded-full border-2 border-nf-bg bg-slate-600 ring-2 ring-nf-outline/20" />
-                    <div className="w-10 h-10 rounded-full border-2 border-nf-bg bg-slate-500 ring-2 ring-nf-outline/20" />
+                    <div className="w-10 h-10 rounded-full border-2 border-nf-bg bg-nf-secondary ring-2 ring-nf-outline/20" />
+                    <div className="w-10 h-10 rounded-full border-2 border-nf-bg bg-nf-accent ring-2 ring-nf-outline/20" />
+                    <div className="w-10 h-10 rounded-full border-2 border-nf-bg bg-nf-primary/30 ring-2 ring-nf-outline/20" />
                   </div>
                   <div className="text-sm text-nf-on-surface-variant font-semibold">
                     {t.landing.activeUsers}

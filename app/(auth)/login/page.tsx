@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/context";
+import { NotifinLogo } from "@/components/layouts/notifin-logo";
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Check } from "lucide-react";
 
 export default function LoginPage() {
@@ -36,11 +37,7 @@ export default function LoginPage() {
         {/* Logo Section */}
         <header className="flex flex-col items-center gap-4">
           <div className="w-40 hover:scale-105 transition-transform duration-500">
-            <img
-              src="/notifin-logo.svg"
-              alt="NOTIFIN"
-              className="nf-logo w-full h-auto rounded-lg"
-            />
+            <NotifinLogo className="nf-logo w-full h-auto rounded-lg" />
           </div>
           <div className="text-center">
             <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight hero-title-text">

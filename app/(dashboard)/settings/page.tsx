@@ -150,9 +150,9 @@ export default function SettingsPage() {
             ].map((item) => (
               <div key={item.label} className="flex items-start gap-2">
                 {item.ok ? (
-                  <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                  <CheckCircle className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                 ) : (
-                  <XCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                  <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                 )}
                 <div className="min-w-0">
                   <div className="text-sm">{item.label}</div>
@@ -409,7 +409,7 @@ export default function SettingsPage() {
               {passwordSaving ? "Menyimpan..." : "Ubah Password"}
             </Button>
             {passwordMessage && (
-              <span className={`text-sm ${passwordMessage.includes("berhasil") ? "text-green-600" : "text-destructive"}`}>
+              <span className={`text-sm ${passwordMessage.includes("berhasil") ? "text-primary" : "text-destructive"}`}>
                 {passwordMessage}
               </span>
             )}

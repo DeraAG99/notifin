@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import bcrypt from "bcryptjs";
 
 const secret = new TextEncoder().encode(
   process.env.JWT_SECRET || "notifin-dev-secret-change-in-production"
@@ -62,15 +63,12 @@ export function getCookieOptions(): typeof COOKIE_OPTIONS {
 }
 
 export async function hashPassword(password: string): Promise<string> {
-  return Bun.password.hash(password, {
-    algorithm: "bcrypt",
-    cost: 10,
-  });
+  return bcrypt.hash(password, 10);
 }
 
 export async function verifyPassword(
   password: string,
   hash: string
 ): Promise<boolean> {
-  return Bun.password.verify(password, hash);
+  return bcrypt.compare(password, hash);
 }
