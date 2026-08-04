@@ -2,24 +2,34 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { createUserSchema, bulkImportSchema } from "@/lib/validations";
-import { eq, or, ilike, sql } from "drizzle-orm";
+import { and, eq, or, ilike, sql } from "drizzle-orm";
 import type { ApiResponse, User, PaginatedResponse } from "@/types";
+import { getSession, unauthorizedResponse } from "@/lib/auth/api";
+import { isSuperadmin } from "@/lib/auth/api";
 
 export async function GET(request: Request) {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
     const page = parseInt(searchParams.get("page") || "1");
     const pageSize = parseInt(searchParams.get("pageSize") || "20");
     const offset = (page - 1) * pageSize;
 
+    const adminFilter = isSuperadmin(session) ? undefined : eq(users.adminId, session.adminId);
+
     const where = search
-      ? or(
-          ilike(users.name, `%${search}%`),
-          ilike(users.phone, `%${search}%`),
-          ilike(users.email, `%${search}%`)
+      ? and(
+          adminFilter,
+          or(
+            ilike(users.name, `%${search}%`),
+            ilike(users.phone, `%${search}%`),
+            ilike(users.email, `%${search}%`)
+          )
         )
-      : undefined;
+      : adminFilter;
 
     const [countResult] = await db
       .select({ count: sql<number>`count(*)` })
@@ -52,6 +62,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const body = await request.json();
 
     if (Array.isArray(body)) {
@@ -59,7 +72,12 @@ export async function POST(request: Request) {
 
       const inserted = await db
         .insert(users)
-        .values(validated)
+        .values(
+          validated.map((u) => ({
+            ...u,
+            adminId: session.adminId,
+          }))
+        )
         .returning();
 
       return NextResponse.json(
@@ -73,7 +91,10 @@ export async function POST(request: Request) {
     }
 
     const validated = createUserSchema.parse(body);
-    const [user] = await db.insert(users).values(validated).returning();
+    const [user] = await db
+      .insert(users)
+      .values({ ...validated, adminId: session.adminId })
+      .returning();
 
     return NextResponse.json(
       { success: true, data: user, message: "User created" },

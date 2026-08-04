@@ -1,7 +1,7 @@
-import { createWorker, QUEUE_NAMES, type NotificationJobData } from "../lib/queue";
+import { createWorker, QUEUE_NAMES, type NotificationJobData, type BaileysConnectData } from "../lib/queue";
 import { db } from "../lib/db";
-import { notificationLogs, settings } from "../lib/db/schema";
-import { eq } from "drizzle-orm";
+import { notificationLogs, admins, settings } from "../lib/db/schema";
+import { and, eq } from "drizzle-orm";
 import { getWaProvider } from "../lib/wa";
 import { sendEmail } from "../lib/email";
 
@@ -43,9 +43,12 @@ function buildDefaultHtml(title: string, message: string, recipientName?: string
 </html>`;
 }
 
-async function getSetting(key: string): Promise<string | number | boolean | null> {
+async function getSetting(adminId: string, key: string): Promise<string | number | boolean | null> {
   try {
-    const rows = await db.select().from(settings).where(eq(settings.key, key));
+    const rows = await db
+      .select()
+      .from(settings)
+      .where(and(eq(settings.adminId, adminId), eq(settings.key, key)));
     return rows.length > 0 ? rows[0].value : null;
   } catch {
     return null;
@@ -54,29 +57,33 @@ async function getSetting(key: string): Promise<string | number | boolean | null
 
 async function autoConnectBaileys() {
   try {
-    const providerType = await getSetting("waProvider");
-    if (providerType !== "baileys") return;
+    const adminRows = await db.select({ id: admins.id }).from(admins);
+    for (const admin of adminRows) {
+      const providerType = await getSetting(admin.id, "waProvider");
+      if (providerType !== "baileys") continue;
 
-    console.log("[Worker] Auto-connecting Baileys...");
-    const mod = await import("../lib/wa/baileys-manager");
-    const manager = mod.BaileysManager.getInstance();
-    manager.connect().catch((err: Error) => {
-      console.error("[Worker] Baileys auto-connect failed:", err.message);
-    });
+      console.log(`[Worker] Auto-connecting Baileys for admin ${admin.id}...`);
+      const mod = await import("../lib/wa/baileys-manager");
+      const manager = mod.BaileysManager.getInstance(admin.id);
+      manager.connect().catch((err: Error) => {
+        console.error(`[Worker] Baileys auto-connect failed for admin ${admin.id}:`, err.message);
+      });
+    }
   } catch {
     // silent
   }
 }
 
-async function handleBaileysConnect() {
-  console.log("[Worker] Baileys connect job received, initiating connection...");
+async function handleBaileysConnect(job: { id?: string | number; data: BaileysConnectData }) {
+  const { adminId } = job.data;
+  console.log(`[Worker] Baileys connect job received for admin ${adminId}, initiating connection...`);
   try {
     const mod = await import("../lib/wa/baileys-manager");
-    const manager = mod.BaileysManager.getInstance();
+    const manager = mod.BaileysManager.getInstance(adminId);
     await manager.connect();
-    console.log("[Worker] Baileys connect completed, connected:", manager.isConnected());
+    console.log(`[Worker] Baileys connect completed for admin ${adminId}, connected:`, manager.isConnected());
   } catch (err) {
-    console.error("[Worker] Baileys connect failed:", err instanceof Error ? err.message : "Unknown error");
+    console.error(`[Worker] Baileys connect failed for admin ${adminId}:`, err instanceof Error ? err.message : "Unknown error");
   }
 }
 
@@ -125,7 +132,7 @@ async function processWhatsApp(data: NotificationJobData) {
     throw new Error("No phone number for WhatsApp notification");
   }
 
-  const provider = await getWaProvider();
+  const provider = await getWaProvider(data.adminId);
   const result = await provider.sendText(data.recipientPhone, data.content.text);
 
   if (!result.success) {
@@ -152,7 +159,7 @@ async function processEmail(data: NotificationJobData) {
 
   const html = data.content.html || buildDefaultHtml(data.subject || "Notifikasi", data.content.text, data.recipientName);
 
-  const result = await sendEmail({
+  const result = await sendEmail(data.adminId, {
     to: data.recipientEmail,
     subject: data.subject || "Notification",
     html,
@@ -184,8 +191,8 @@ async function main() {
 
   const baileysWorker = createWorker(
     QUEUE_NAMES.baileys,
-    async () => {
-      await handleBaileysConnect();
+    async (job) => {
+      await handleBaileysConnect(job as unknown as { id?: string | number; data: BaileysConnectData });
     }
   );
 

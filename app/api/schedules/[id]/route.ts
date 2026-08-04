@@ -3,20 +3,25 @@ import { db } from "@/lib/db";
 import { notificationSchedules } from "@/lib/db/schema";
 import { updateScheduleSchema } from "@/lib/validations";
 import { scheduler } from "@/lib/scheduler";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { ApiResponse, NotificationSchedule } from "@/types";
+import { getSession, unauthorizedResponse, isSuperadmin } from "@/lib/auth/api";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const { id } = await params;
+    const scoped = isSuperadmin(session) ? undefined : eq(notificationSchedules.adminId, session.adminId);
 
     const [schedule] = await db
       .select()
       .from(notificationSchedules)
-      .where(eq(notificationSchedules.id, id))
+      .where(and(eq(notificationSchedules.id, id), scoped))
       .limit(1);
 
     if (!schedule) {
@@ -43,6 +48,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const { id } = await params;
     const body = await request.json();
     const validated = updateScheduleSchema.parse(body);
@@ -72,6 +80,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const { id } = await params;
 
     await scheduler.deleteSchedule(id);

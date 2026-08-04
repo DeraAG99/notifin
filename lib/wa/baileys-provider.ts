@@ -2,7 +2,7 @@ import type { SendResult, WaProvider } from "./provider";
 import type { DeviceStatus } from "@/types";
 import { db } from "@/lib/db";
 import { settings } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 const MIN_DELAY_MS = 2500;
 const MAX_DELAY_MS = 5000;
@@ -10,9 +10,14 @@ const MAX_DELAY_MS = 5000;
 export class BaileysProvider implements WaProvider {
   readonly name = "baileys" as const;
 
+  private adminId: string;
   private manager: import("./baileys-manager").BaileysManager | null = null;
   private initPromise: Promise<void> | null = null;
   private lastSendTime = 0;
+
+  constructor(adminId: string) {
+    this.adminId = adminId;
+  }
 
   async ensureReady(): Promise<void> {
     if (this.manager) return;
@@ -23,7 +28,7 @@ export class BaileysProvider implements WaProvider {
 
   private async init(): Promise<void> {
     const mod = await import("./baileys-manager");
-    this.manager = mod.BaileysManager.getInstance();
+    this.manager = mod.BaileysManager.getInstance(this.adminId);
     await this.manager.connect();
   }
 
@@ -67,7 +72,10 @@ export class BaileysProvider implements WaProvider {
     }
 
     try {
-      const rows = await db.select().from(settings).where(eq(settings.key, "baileys_connected"));
+      const rows = await db
+        .select()
+        .from(settings)
+        .where(and(eq(settings.adminId, this.adminId), eq(settings.key, "baileys_connected")));
       const connected = rows.length > 0 && rows[0].value === true;
       return { status: connected, data: { device: "Baileys", battery: "", platform: "web", connected } };
     } catch {

@@ -6,6 +6,7 @@ import { addNotificationJob, type NotificationJobData } from "./queue";
 import { templateEngine } from "./template-engine";
 
 interface ScheduleConfig {
+  adminId: string;
   templateId: string;
   userId: string;
   cronExpression: string;
@@ -108,6 +109,7 @@ class SchedulerService {
     const [schedule] = await db
       .insert(notificationSchedules)
       .values({
+        adminId: config.adminId,
         templateId: config.templateId,
         userId: config.userId,
         cronExpression: config.cronExpression,
@@ -199,6 +201,7 @@ class SchedulerService {
 
       const jobData: NotificationJobData = {
         type: template.channel === "wa" ? "send-wa" : "send-email",
+        adminId: schedule.adminId,
         logId: scheduleId,
         templateId: template.id,
         userId: user.id,

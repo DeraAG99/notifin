@@ -5,18 +5,22 @@ import { sendNotificationSchema } from "@/lib/validations";
 import { addNotificationJob } from "@/lib/queue";
 import { templateEngine } from "@/lib/template-engine";
 import { mergeVariables } from "@/lib/variables";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { ApiResponse } from "@/types";
+import { getSession, unauthorizedResponse } from "@/lib/auth/api";
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const body = await request.json();
     const validated = sendNotificationSchema.parse(body);
 
     const [template] = await db
       .select()
       .from(notificationTemplates)
-      .where(eq(notificationTemplates.id, validated.templateId))
+      .where(and(eq(notificationTemplates.id, validated.templateId), eq(notificationTemplates.adminId, session.adminId)))
       .limit(1);
 
     if (!template) {
@@ -29,7 +33,7 @@ export async function POST(request: Request) {
     const [user] = await db
       .select()
       .from(users)
-      .where(eq(users.id, validated.userId))
+      .where(and(eq(users.id, validated.userId), eq(users.adminId, session.adminId)))
       .limit(1);
 
     if (!user) {
@@ -56,6 +60,7 @@ export async function POST(request: Request) {
       const [log] = await db
         .insert(notificationLogs)
         .values({
+          adminId: session.adminId,
           templateId: template.id,
           userId: user.id,
           channel: ch,
@@ -69,6 +74,7 @@ export async function POST(request: Request) {
 
       await addNotificationJob({
         type: ch === "wa" ? "send-wa" : "send-email",
+        adminId: session.adminId,
         logId: log.id,
         templateId: template.id,
         userId: user.id,

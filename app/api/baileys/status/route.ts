@@ -1,16 +1,21 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { settings } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { getSession, unauthorizedResponse } from "@/lib/auth/api";
 
 const GRACE_PERIOD_MS = 60_000;
 
 export async function GET() {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
+    const scope = eq(settings.adminId, session.adminId);
     const [connectedRows, qrRows, lastSeenRows] = await Promise.all([
-      db.select().from(settings).where(eq(settings.key, "baileys_connected")),
-      db.select().from(settings).where(eq(settings.key, "baileys_qr")),
-      db.select().from(settings).where(eq(settings.key, "baileys_last_seen")),
+      db.select().from(settings).where(and(scope, eq(settings.key, "baileys_connected"))),
+      db.select().from(settings).where(and(scope, eq(settings.key, "baileys_qr"))),
+      db.select().from(settings).where(and(scope, eq(settings.key, "baileys_last_seen"))),
     ]);
 
     const connected = connectedRows.length > 0 && connectedRows[0].value === true;

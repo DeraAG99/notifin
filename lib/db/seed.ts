@@ -25,15 +25,17 @@ async function seed() {
 
   if (!existingAdmin) {
     const passwordHash = await hashPassword("admin123");
-    await db.insert(admins).values({
+    const [created] = await db.insert(admins).values({
       email: "admin@notifin.com",
       passwordHash,
       name: "Admin Notifin",
       role: "superadmin",
-    });
+    }).returning();
     console.log("Default admin created: admin@notifin.com / admin123");
+    var adminId = created.id;
   } else {
     console.log("Admin already exists, skipping...");
+    var adminId = existingAdmin.id;
   }
 
   const insertedUsers = await db
@@ -44,30 +46,35 @@ async function seed() {
         phone: "6281234567890",
         email: "ahmad@example.com",
         timezone: "Asia/Jakarta",
+        adminId,
       },
       {
         name: "Sari Dewi",
         phone: "6281234567891",
         email: "sari@example.com",
         timezone: "Asia/Jakarta",
+        adminId,
       },
       {
         name: "Budi Santoso",
         phone: "6281234567892",
         email: "budi@example.com",
         timezone: "Asia/Makassar",
+        adminId,
       },
       {
         name: "Maya Putri",
         phone: "6281234567893",
         email: "maya@example.com",
         timezone: "Asia/Jayapura",
+        adminId,
       },
       {
         name: "Andi Pratama",
         phone: null,
         email: "andi@example.com",
         timezone: "Asia/Jakarta",
+        adminId,
       },
     ])
     .returning();
@@ -80,6 +87,7 @@ async function seed() {
       {
         name: "Welcome Message",
         channel: "wa",
+        adminId,
         content: {
           text: "Selamat datang {{name}}! Akun Anda telah aktif. Hubungi kami jika butuh bantuan.",
         },
@@ -89,6 +97,7 @@ async function seed() {
         name: "Invoice Reminder",
         channel: "email",
         subject: "Tagihan Anda - {{amount}}",
+        adminId,
         content: {
           text: "Halo {{name}}, tagihan sebesar {{amount}} akan jatuh tempo pada {{date}}. Silakan lakukan pembayaran.",
           html: "<h2>Halo {{name}}</h2><p>Tagihan sebesar <strong>{{amount}}</strong> akan jatuh tempo pada {{date}}.</p><p>Silakan lakukan pembayaran.</p>",
@@ -98,6 +107,7 @@ async function seed() {
       {
         name: "Urgent Alert",
         channel: "wa",
+        adminId,
         content: {
           text: "⚠️ URGENT: {{message}} - Segera ditindak!",
         },
@@ -115,11 +125,13 @@ async function seed() {
         templateId: insertedTemplates[0].id,
         userId: insertedUsers[0].id,
         cronExpression: "0 9 * * *",
+        adminId,
       },
       {
         templateId: insertedTemplates[1].id,
         userId: insertedUsers[1].id,
         cronExpression: "0 10 1 * *",
+        adminId,
       },
     ])
     .returning();
@@ -128,6 +140,7 @@ async function seed() {
 
   const statuses = ["pending", "sent", "failed", "delivered", "read"] as const;
   const logEntries = Array.from({ length: 10 }, (_, i) => ({
+    adminId,
     templateId: insertedTemplates[i % insertedTemplates.length].id,
     userId: insertedUsers[i % insertedUsers.length].id,
     channel: (i % 2 === 0 ? "wa" : "email") as "wa" | "email",

@@ -18,13 +18,13 @@ async function ensureBaileys() {
   }
 }
 
-async function writeDbSetting(key: string, value: string | number | boolean) {
+async function writeDbSetting(adminId: string, key: string, value: string | number | boolean) {
   try {
     await db
       .insert(settings)
-      .values({ key, value })
+      .values({ adminId, key, value })
       .onConflictDoUpdate({
-        target: settings.key,
+        target: [settings.adminId, settings.key],
         set: { value, updatedAt: new Date() },
       });
   } catch {
@@ -33,18 +33,33 @@ async function writeDbSetting(key: string, value: string | number | boolean) {
 }
 
 export class BaileysManager {
-  private static instance: BaileysManager;
+  private static instances = new Map<string, BaileysManager>();
+  private adminId: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private sock: any = null;
   private _connected = false;
   private connecting = false;
   private latestQr: string | null = null;
+  private authDir: string;
 
-  static getInstance(): BaileysManager {
-    if (!BaileysManager.instance) {
-      BaileysManager.instance = new BaileysManager();
+  private constructor(adminId: string) {
+    this.adminId = adminId;
+    this.authDir = path.join(AUTH_DIR, adminId);
+  }
+
+  static getInstance(adminId: string): BaileysManager {
+    let instance = BaileysManager.instances.get(adminId);
+    if (!instance) {
+      instance = new BaileysManager(adminId);
+      BaileysManager.instances.set(adminId, instance);
     }
-    return BaileysManager.instance;
+    return instance;
+  }
+
+  static disconnectAll(): void {
+    for (const instance of BaileysManager.instances.values()) {
+      instance.disconnect();
+    }
   }
 
   isConnected(): boolean {
@@ -57,7 +72,7 @@ export class BaileysManager {
 
     const hasModule = await ensureBaileys();
     if (!hasModule) {
-      await writeDbSetting("baileys_connected", false);
+      await writeDbSetting(this.adminId, "baileys_connected", false);
       this.connecting = false;
       return;
     }
@@ -65,7 +80,7 @@ export class BaileysManager {
     try {
       const { makeWASocket, useMultiFileAuthState, DisconnectReason } = baileysModule;
 
-      const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+      const { state, saveCreds } = await useMultiFileAuthState(this.authDir);
 
       this.sock = makeWASocket({
         auth: state,
@@ -95,29 +110,29 @@ export class BaileysManager {
           try {
             const qrcode = await import("qrcode");
             const base64 = await qrcode.toDataURL(qr, { margin: 1, width: 300 });
-            await writeDbSetting("baileys_qr", base64);
+            await writeDbSetting(this.adminId, "baileys_qr", base64);
           } catch {
-            await writeDbSetting("baileys_qr", qr);
+            await writeDbSetting(this.adminId, "baileys_qr", qr);
           }
         }
 
         if (connection === "close") {
           this._connected = false;
-          writeDbSetting("baileys_connected", false);
-          writeDbSetting("baileys_last_seen", new Date().toISOString());
+          writeDbSetting(this.adminId, "baileys_connected", false);
+          writeDbSetting(this.adminId, "baileys_last_seen", new Date().toISOString());
           const statusCode = lastDisconnect?.error?.output?.statusCode;
           const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
           if (shouldReconnect) {
-            console.log("[Baileys] Connection closed, reconnecting...");
+            console.log(`[Baileys:${this.adminId}] Connection closed, reconnecting...`);
             setTimeout(() => this.connect(), 5000);
           }
         } else if (connection === "open") {
           this._connected = true;
           this.latestQr = null;
-          writeDbSetting("baileys_connected", true);
-          writeDbSetting("baileys_last_seen", new Date().toISOString());
-          writeDbSetting("baileys_qr", "");
-          console.log("[Baileys] Connected successfully");
+          writeDbSetting(this.adminId, "baileys_connected", true);
+          writeDbSetting(this.adminId, "baileys_last_seen", new Date().toISOString());
+          writeDbSetting(this.adminId, "baileys_qr", "");
+          console.log(`[Baileys:${this.adminId}] Connected successfully`);
         }
       });
 
@@ -131,8 +146,8 @@ export class BaileysManager {
         });
       });
     } catch (err) {
-      console.error("[Baileys] Failed to connect:", err);
-      await writeDbSetting("baileys_connected", false);
+      console.error(`[Baileys:${this.adminId}] Failed to connect:`, err);
+      await writeDbSetting(this.adminId, "baileys_connected", false);
     } finally {
       this.connecting = false;
     }
@@ -181,6 +196,6 @@ export class BaileysManager {
       this.sock = null;
     }
     this._connected = false;
-    writeDbSetting("baileys_connected", false);
+    writeDbSetting(this.adminId, "baileys_connected", false);
   }
 }

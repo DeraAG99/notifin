@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAllQueueStats } from "@/lib/queue";
+import { getSession, unauthorizedResponse } from "@/lib/auth/api";
 
 const FALLBACK_STATS = {
   whatsapp: { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 },
@@ -10,6 +11,9 @@ const FALLBACK_STATS = {
 
 export async function GET() {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const stats = await Promise.race([
       getAllQueueStats(),
       new Promise<null>((_, reject) =>

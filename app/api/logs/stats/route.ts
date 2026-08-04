@@ -3,9 +3,16 @@ import { db } from "@/lib/db";
 import { notificationLogs } from "@/lib/db/schema";
 import { sql, eq, gte, and } from "drizzle-orm";
 import type { ApiResponse, DashboardStats } from "@/types";
+import { getSession, unauthorizedResponse, isSuperadmin } from "@/lib/auth/api";
 
 export async function GET() {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
+    const scoped = isSuperadmin(session) ? undefined : eq(notificationLogs.adminId, session.adminId);
+    const baseConditions = scoped ? [scoped] : [];
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -19,14 +26,15 @@ export async function GET() {
         totalFailed: sql<number>`count(*) filter (where ${notificationLogs.status} = 'failed')`,
         totalPending: sql<number>`count(*) filter (where ${notificationLogs.status} = 'pending')`,
       })
-      .from(notificationLogs);
+      .from(notificationLogs)
+      .where(baseConditions.length > 0 ? and(...baseConditions) : undefined);
 
     const [todayStats] = await db
       .select({
         sentToday: sql<number>`count(*)`,
       })
       .from(notificationLogs)
-      .where(gte(notificationLogs.createdAt, today));
+      .where(and(...baseConditions, gte(notificationLogs.createdAt, today)));
 
     const dailyStats = await db
       .select({
@@ -35,7 +43,7 @@ export async function GET() {
         email: sql<number>`count(*) filter (where ${notificationLogs.channel} = 'email')`,
       })
       .from(notificationLogs)
-      .where(gte(notificationLogs.createdAt, thirtyDaysAgo))
+      .where(and(...baseConditions, gte(notificationLogs.createdAt, thirtyDaysAgo)))
       .groupBy(sql`to_char(${notificationLogs.createdAt}, 'YYYY-MM-DD')`)
       .orderBy(sql`to_char(${notificationLogs.createdAt}, 'YYYY-MM-DD')`);
 

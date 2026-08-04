@@ -2,20 +2,25 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { updateUserSchema } from "@/lib/validations";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { ApiResponse, User } from "@/types";
+import { getSession, unauthorizedResponse, isSuperadmin } from "@/lib/auth/api";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const { id } = await params;
+    const scoped = isSuperadmin(session) ? undefined : eq(users.adminId, session.adminId);
 
     const [user] = await db
       .select()
       .from(users)
-      .where(eq(users.id, id))
+      .where(and(eq(users.id, id), scoped))
       .limit(1);
 
     if (!user) {
@@ -42,14 +47,18 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const { id } = await params;
     const body = await request.json();
     const validated = updateUserSchema.parse(body);
+    const scoped = isSuperadmin(session) ? undefined : eq(users.adminId, session.adminId);
 
     const [user] = await db
       .update(users)
       .set({ ...validated, updatedAt: new Date() })
-      .where(eq(users.id, id))
+      .where(and(eq(users.id, id), scoped))
       .returning();
 
     if (!user) {
@@ -83,11 +92,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const { id } = await params;
+    const scoped = isSuperadmin(session) ? undefined : eq(users.adminId, session.adminId);
 
     const [user] = await db
       .delete(users)
-      .where(eq(users.id, id))
+      .where(and(eq(users.id, id), scoped))
       .returning();
 
     if (!user) {

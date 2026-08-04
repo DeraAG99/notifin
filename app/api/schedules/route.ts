@@ -3,11 +3,19 @@ import { db } from "@/lib/db";
 import { notificationSchedules } from "@/lib/db/schema";
 import { createScheduleSchema } from "@/lib/validations";
 import { scheduler } from "@/lib/scheduler";
+import { eq } from "drizzle-orm";
 import type { ApiResponse, NotificationSchedule } from "@/types";
+import { getSession, unauthorizedResponse, isSuperadmin } from "@/lib/auth/api";
 
 export async function GET() {
   try {
-    const schedules = await db.select().from(notificationSchedules);
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
+    const scoped = isSuperadmin(session) ? undefined : eq(notificationSchedules.adminId, session.adminId);
+    const schedules = scoped
+      ? await db.select().from(notificationSchedules).where(scoped)
+      : await db.select().from(notificationSchedules);
 
     return NextResponse.json({
       success: true,
@@ -23,10 +31,13 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const body = await request.json();
     const validated = createScheduleSchema.parse(body);
 
-    await scheduler.createSchedule(validated);
+    await scheduler.createSchedule({ ...validated, adminId: session.adminId });
 
     return NextResponse.json(
       { success: true, message: "Schedule created" },

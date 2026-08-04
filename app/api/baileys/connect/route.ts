@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { addBaileysConnectJob } from "@/lib/queue";
+import { getSession, unauthorizedResponse } from "@/lib/auth/api";
 
 export async function POST() {
   try {
-    await addBaileysConnectJob();
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
+    await addBaileysConnectJob(session.adminId);
 
     return NextResponse.json({
       success: true,

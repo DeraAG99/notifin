@@ -2,20 +2,25 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { notificationTemplates } from "@/lib/db/schema";
 import { updateTemplateSchema } from "@/lib/validations";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { ApiResponse, NotificationTemplate } from "@/types";
+import { getSession, unauthorizedResponse, isSuperadmin } from "@/lib/auth/api";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const { id } = await params;
+    const scoped = isSuperadmin(session) ? undefined : eq(notificationTemplates.adminId, session.adminId);
 
     const [template] = await db
       .select()
       .from(notificationTemplates)
-      .where(eq(notificationTemplates.id, id))
+      .where(and(eq(notificationTemplates.id, id), scoped))
       .limit(1);
 
     if (!template) {
@@ -42,14 +47,18 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const { id } = await params;
     const body = await request.json();
     const validated = updateTemplateSchema.parse(body);
+    const scoped = isSuperadmin(session) ? undefined : eq(notificationTemplates.adminId, session.adminId);
 
     const [template] = await db
       .update(notificationTemplates)
       .set({ ...validated, updatedAt: new Date() })
-      .where(eq(notificationTemplates.id, id))
+      .where(and(eq(notificationTemplates.id, id), scoped))
       .returning();
 
     if (!template) {
@@ -83,11 +92,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const { id } = await params;
+    const scoped = isSuperadmin(session) ? undefined : eq(notificationTemplates.adminId, session.adminId);
 
     const [template] = await db
       .delete(notificationTemplates)
-      .where(eq(notificationTemplates.id, id))
+      .where(and(eq(notificationTemplates.id, id), scoped))
       .returning();
 
     if (!template) {

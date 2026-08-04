@@ -4,9 +4,13 @@ import { notificationLogs } from "@/lib/db/schema";
 import { logFilterSchema } from "@/lib/validations";
 import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
 import type { ApiResponse, NotificationLog, PaginatedResponse } from "@/types";
+import { getSession, unauthorizedResponse, isSuperadmin } from "@/lib/auth/api";
 
 export async function GET(request: Request) {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const { searchParams } = new URL(request.url);
 
     const filters = logFilterSchema.parse({
@@ -19,7 +23,9 @@ export async function GET(request: Request) {
       pageSize: searchParams.get("pageSize") || "20",
     });
 
-    const conditions = [];
+    const scoped = isSuperadmin(session) ? undefined : eq(notificationLogs.adminId, session.adminId);
+    const conditions = [scoped].filter(Boolean);
+
     if (filters.channel) conditions.push(eq(notificationLogs.channel, filters.channel));
     if (filters.status) conditions.push(eq(notificationLogs.status, filters.status));
     if (filters.userId) conditions.push(eq(notificationLogs.userId, filters.userId));

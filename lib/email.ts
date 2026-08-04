@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import { db } from "@/lib/db";
 import { settings as settingsTable } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { renderWelcomeEmail, renderNotificationEmail } from "./email-templates";
 
 interface SendEmailParams {
@@ -31,37 +31,40 @@ interface SmtpConfig {
   from?: string;
 }
 
-let transporter: nodemailer.Transporter | null = null;
-let cachedConfig: SmtpConfig | null = null;
-let cachedAt = 0;
+const transporters = new Map<string, nodemailer.Transporter>();
+const cachedConfigs = new Map<string, { config: SmtpConfig | null; at: number }>();
 const CACHE_TTL_MS = 60_000;
 
-async function getSetting(key: string): Promise<string | number | boolean | null> {
+async function getSetting(adminId: string, key: string): Promise<string | number | boolean | null> {
   try {
-    const rows = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
+    const rows = await db
+      .select()
+      .from(settingsTable)
+      .where(and(eq(settingsTable.adminId, adminId), eq(settingsTable.key, key)));
     return rows.length > 0 ? rows[0].value : null;
   } catch {
     return null;
   }
 }
 
-async function getSmtpConfig(): Promise<SmtpConfig | null> {
-  if (cachedConfig && Date.now() - cachedAt < CACHE_TTL_MS) {
-    return cachedConfig;
+async function getSmtpConfig(adminId: string): Promise<SmtpConfig | null> {
+  const cached = cachedConfigs.get(adminId);
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
+    return cached.config;
   }
 
   const [dbHost, dbPort, dbUser, dbPass, dbSecure, dbFrom] = await Promise.all([
-    getSetting("smtpHost"),
-    getSetting("smtpPort"),
-    getSetting("smtpUser"),
-    getSetting("smtpPass"),
-    getSetting("smtpSecure"),
-    getSetting("emailFrom"),
+    getSetting(adminId, "smtpHost"),
+    getSetting(adminId, "smtpPort"),
+    getSetting(adminId, "smtpUser"),
+    getSetting(adminId, "smtpPass"),
+    getSetting(adminId, "smtpSecure"),
+    getSetting(adminId, "emailFrom"),
   ]);
 
   const host = (dbHost as string) || process.env.SMTP_HOST;
   if (!host) {
-    cachedConfig = null;
+    cachedConfigs.set(adminId, { config: null, at: Date.now() });
     return null;
   }
 
@@ -70,7 +73,7 @@ async function getSmtpConfig(): Promise<SmtpConfig | null> {
   const user = (dbUser as string) || process.env.SMTP_USER;
   const pass = (dbPass as string) || process.env.SMTP_PASS;
 
-  cachedConfig = {
+  const config: SmtpConfig = {
     host,
     port,
     secure,
@@ -78,14 +81,18 @@ async function getSmtpConfig(): Promise<SmtpConfig | null> {
     pass: pass || undefined,
     from: (dbFrom as string) || process.env.EMAIL_FROM,
   };
-  cachedAt = Date.now();
-  return cachedConfig;
+  cachedConfigs.set(adminId, { config, at: Date.now() });
+  return config;
 }
 
-export function resetEmailTransporter(): void {
-  transporter = null;
-  cachedConfig = null;
-  cachedAt = 0;
+export function resetEmailTransporter(adminId?: string): void {
+  if (adminId) {
+    transporters.delete(adminId);
+    cachedConfigs.delete(adminId);
+  } else {
+    transporters.clear();
+    cachedConfigs.clear();
+  }
 }
 
 function buildTransporter(config: SmtpConfig): nodemailer.Transporter {
@@ -104,22 +111,24 @@ function buildTransporter(config: SmtpConfig): nodemailer.Transporter {
   });
 }
 
-async function getTransporter(): Promise<nodemailer.Transporter | null> {
-  const config = await getSmtpConfig();
+async function getTransporter(adminId: string): Promise<nodemailer.Transporter | null> {
+  const config = await getSmtpConfig(adminId);
   if (!config) return null;
 
-  if (!transporter) {
-    transporter = buildTransporter(config);
+  let transport = transporters.get(adminId);
+  if (!transport) {
+    transport = buildTransporter(config);
+    transporters.set(adminId, transport);
   }
-  return transporter;
+  return transport;
 }
 
 function getFromAddress(config: SmtpConfig): string {
   return config.from || config.user || "notifications@notifin.app";
 }
 
-export async function sendEmail(params: SendEmailParams): Promise<EmailResponse> {
-  const transport = await getTransporter();
+export async function sendEmail(adminId: string, params: SendEmailParams): Promise<EmailResponse> {
+  const transport = await getTransporter(adminId);
   if (!transport) {
     return {
       id: "",
@@ -128,7 +137,7 @@ export async function sendEmail(params: SendEmailParams): Promise<EmailResponse>
     };
   }
 
-  const config = await getSmtpConfig();
+  const config = await getSmtpConfig(adminId);
 
   try {
     const info = await transport.sendMail({
@@ -156,10 +165,11 @@ export async function sendEmail(params: SendEmailParams): Promise<EmailResponse>
 }
 
 export async function sendBulkEmail(
+  adminId: string,
   emails: SendEmailParams[]
 ): Promise<EmailResponse[]> {
   const results = await Promise.allSettled(
-    emails.map((params) => sendEmail(params))
+    emails.map((params) => sendEmail(adminId, params))
   );
 
   return results.map((result) => {
@@ -174,9 +184,9 @@ export async function sendBulkEmail(
   });
 }
 
-export async function checkEmailHealth(): Promise<boolean> {
+export async function checkEmailHealth(adminId: string): Promise<boolean> {
   try {
-    const transport = await getTransporter();
+    const transport = await getTransporter(adminId);
     if (!transport) return false;
     await transport.verify();
     return true;
@@ -185,9 +195,9 @@ export async function checkEmailHealth(): Promise<boolean> {
   }
 }
 
-export async function sendWelcomeEmail(to: string, name: string): Promise<EmailResponse> {
+export async function sendWelcomeEmail(adminId: string, to: string, name: string): Promise<EmailResponse> {
   const html = await renderWelcomeEmail(name);
-  return sendEmail({
+  return sendEmail(adminId, {
     to,
     subject: "Welcome to Notifin",
     html,
@@ -195,13 +205,14 @@ export async function sendWelcomeEmail(to: string, name: string): Promise<EmailR
 }
 
 export async function sendNotificationEmail(
+  adminId: string,
   to: string,
   title: string,
   message: string,
   recipientName?: string
 ): Promise<EmailResponse> {
   const html = await renderNotificationEmail(title, message, recipientName);
-  return sendEmail({
+  return sendEmail(adminId, {
     to,
     subject: title,
     html,

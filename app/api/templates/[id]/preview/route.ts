@@ -3,22 +3,27 @@ import { db } from "@/lib/db";
 import { notificationTemplates } from "@/lib/db/schema";
 import { templatePreviewSchema } from "@/lib/validations";
 import { templateEngine } from "@/lib/template-engine";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { ApiResponse } from "@/types";
+import { getSession, unauthorizedResponse, isSuperadmin } from "@/lib/auth/api";
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const { id } = await params;
     const body = await request.json();
     const { sampleData } = templatePreviewSchema.parse(body);
+    const scoped = isSuperadmin(session) ? undefined : eq(notificationTemplates.adminId, session.adminId);
 
     const [template] = await db
       .select()
       .from(notificationTemplates)
-      .where(eq(notificationTemplates.id, id))
+      .where(and(eq(notificationTemplates.id, id), scoped))
       .limit(1);
 
     if (!template) {

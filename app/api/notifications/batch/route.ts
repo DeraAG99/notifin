@@ -5,18 +5,22 @@ import { batchSendSchema } from "@/lib/validations";
 import { addNotificationJob } from "@/lib/queue";
 import { templateEngine } from "@/lib/template-engine";
 import { mergeVariables } from "@/lib/variables";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { ApiResponse } from "@/types";
+import { getSession, unauthorizedResponse } from "@/lib/auth/api";
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const body = await request.json();
     const validated = batchSendSchema.parse(body);
 
     const [template] = await db
       .select()
       .from(notificationTemplates)
-      .where(eq(notificationTemplates.id, validated.templateId))
+      .where(and(eq(notificationTemplates.id, validated.templateId), eq(notificationTemplates.adminId, session.adminId)))
       .limit(1);
 
     if (!template) {
@@ -29,7 +33,7 @@ export async function POST(request: Request) {
     const userList = await db
       .select()
       .from(users)
-      .where(inArray(users.id, validated.userIds));
+      .where(and(inArray(users.id, validated.userIds), eq(users.adminId, session.adminId)));
 
     if (userList.length === 0) {
       return NextResponse.json(
@@ -52,6 +56,7 @@ export async function POST(request: Request) {
               ? templateEngine.render(template.content.html, vars)
               : undefined;
             return {
+              adminId: session.adminId,
               templateId: template.id,
               userId: user.id,
               channel: ch,
@@ -71,6 +76,7 @@ export async function POST(request: Request) {
 
       await addNotificationJob({
         type: log.channel === "wa" ? "send-wa" : "send-email",
+        adminId: session.adminId,
         logId: log.id,
         templateId: template.id,
         userId: user.id,

@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { settings } from "@/lib/db/schema";
 import { settingsSchema } from "@/lib/validations";
+import { and, eq } from "drizzle-orm";
 import { getWaHealth, resetWaProvider } from "@/lib/wa";
 import { checkEmailHealth, resetEmailTransporter } from "@/lib/email";
+import { getSession, unauthorizedResponse } from "@/lib/auth/api";
 
 const SETTING_KEYS = [
   "waProvider",
@@ -52,8 +54,11 @@ const NUMBER_SETTINGS: SettingKey[] = [
   "emailConcurrency",
 ];
 
-async function getSettingsMap(): Promise<Record<string, string | number | boolean | null>> {
-  const rows = await db.select().from(settings);
+async function getSettingsMap(adminId: string): Promise<Record<string, string | number | boolean | null>> {
+  const rows = await db
+    .select()
+    .from(settings)
+    .where(eq(settings.adminId, adminId));
   const map: Record<string, string | number | boolean | null> = {};
   for (const row of rows) {
     map[row.key] = row.value;
@@ -70,10 +75,13 @@ function mask(value: string | number | boolean | null): string | null {
 
 export async function GET() {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const [waHealth, emailHealth, stored] = await Promise.all([
-      getWaHealth(),
-      checkEmailHealth(),
-      getSettingsMap(),
+      getWaHealth(session.adminId),
+      checkEmailHealth(session.adminId),
+      getSettingsMap(session.adminId),
     ]);
 
     return NextResponse.json({
@@ -110,6 +118,9 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
+    const session = await getSession();
+    if (!session) return unauthorizedResponse();
+
     const body = await request.json();
     const validated = settingsSchema.parse(body);
 
@@ -128,14 +139,13 @@ export async function PUT(request: Request) {
     for (const entry of entries) {
       await db
         .insert(settings)
-        .values({ key: entry.key, value: entry.value })
+        .values({ adminId: session.adminId, key: entry.key, value: entry.value })
         .onConflictDoUpdate({
-          target: settings.key,
+          target: [settings.adminId, settings.key],
           set: { value: entry.value, updatedAt: new Date() },
         });
     }
 
-    // Reset cached provider if WA settings changed
     const hasWaUpdate = entries.some(
       (e) =>
         e.key === "waProvider" ||
@@ -148,7 +158,7 @@ export async function PUT(request: Request) {
         e.key === "openwaApiKey" ||
         e.key === "openwaSession"
     );
-    if (hasWaUpdate) resetWaProvider();
+    if (hasWaUpdate) resetWaProvider(session.adminId);
 
     const hasSmtpUpdate = entries.some(
       (e) =>
@@ -159,7 +169,7 @@ export async function PUT(request: Request) {
         e.key === "smtpSecure" ||
         e.key === "emailFrom"
     );
-    if (hasSmtpUpdate) resetEmailTransporter();
+    if (hasSmtpUpdate) resetEmailTransporter(session.adminId);
 
     const updatedKeys = entries.map((e) => e.key);
 

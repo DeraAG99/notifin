@@ -510,6 +510,47 @@ lib/validations.ts
 
 ---
 
+## Phase 15: Multi-Tenant SaaS ✅
+
+### Scope
+Every admin sees only their own data; superadmin sees all.
+
+### Changes
+- [x] Add `adminId` (FK→admins, NOT NULL) to `users`, `notificationTemplates`,
+      `notificationSchedules`, `notificationLogs`, `settings`
+- [x] Settings PK changed to composite `(adminId, key)` — per-admin settings store
+- [x] Per-admin unique indexes `(adminId, phone)` + `(adminId, email)` on users
+- [x] Blindshell migration: add column → backfill to first admin → set NOT NULL → add FK
+- [x] `lib/email.ts` — per-admin SMTP: `getSetting(adminId, key)`, `getSmtpConfig(adminId)`,
+      `Map<string, Transporter>` cache, `sendEmail(adminId, params)`, `resetEmailTransporter(adminId?)`
+- [x] `lib/wa/index.ts` — `Map<string, CachedEntry>` per-admin provider cache,
+      `getWaProvider(adminId)`, `getWaHealth(adminId)`, `resetWaProvider(adminId?)`
+- [x] `lib/wa/baileys-manager.ts` — `Map<string, BaileysManager>` per-admin singletons,
+      settings writes include `adminId`, per-admin auth dir (`.baileys-auth/<adminId>`)
+- [x] `lib/wa/baileys-provider.ts` — constructor takes `adminId`, per-admin DB settings read
+- [x] `lib/queue.ts` — `adminId: string` in `NotificationJobData` + `BaileysConnectData`
+- [x] `lib/scheduler.ts` — `adminId` in `ScheduleConfig`, jobs carry `adminId`
+- [x] `workers/notification-worker.ts` — `getWaProvider(adminId)`, `sendEmail(adminId, ...)`,
+      `autoConnectBaileys()` loops all admins with `waProvider=baileys`,
+      `handleBaileysConnect(job)` reads `job.data.adminId`
+- [x] `lib/auth/api.ts` — `getSession`, `unauthorizedResponse`, `isSuperadmin` helpers
+- [x] `lib/db/seed.ts` — all inserts include `adminId` from first admin
+- [x] Isolation test: `admin2` logs in → 0 users / templates / logs
+
+### API Changes
+| Route | Before | After |
+|-------|--------|-------|
+| `GET /api/*` | return all tenant data | filter by `session.adminId` unless superadmin |
+| `POST /api/*` | tenant insert w/o FK | always include `session.adminId` |
+| `PUT/DELETE /api/*/id` | no ownership check | `where id = ? AND adminId = ?` (superadmin bypass) |
+| `GET/PUT /api/settings` | global | per-admin |
+| `POST /api/baileys/connect` | no arg | passes `adminId` to queue job |
+| `GET /api/baileys/status` | global | per-admin |
+| `GET /api/baileys/qr` | global | per-admin |
+| All API routes | no auth | 401 if no session cookie |
+
+---
+
 ## Environment Variables
 
 ```bash

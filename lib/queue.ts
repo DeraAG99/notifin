@@ -15,6 +15,7 @@ function createConnection() {
 
 export type NotificationJobData = {
   type: "send-wa" | "send-email" | "batch-send";
+  adminId: string;
   logId: string;
   templateId: string;
   userId: string;
@@ -29,6 +30,7 @@ export type NotificationJobData = {
 
 export type BaileysConnectData = {
   type: "baileys-connect";
+  adminId: string;
 };
 
 const QUEUE_NAMES = {
@@ -206,10 +208,10 @@ export async function getAllQueueStats() {
   return { whatsapp, email, scheduled, baileys };
 }
 
-export function addBaileysConnectJob(): Promise<Job<BaileysConnectData>> {
+export function addBaileysConnectJob(adminId: string): Promise<Job<BaileysConnectData>> {
   return baileysQueue.add(
     "baileys-connect",
-    { type: "baileys-connect" },
+    { type: "baileys-connect", adminId },
     { priority: 1 }
   );
 }
