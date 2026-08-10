@@ -79,7 +79,15 @@ bunx tsc --noEmit    # Type check (ALWAYS run after changes)
 ## Docker Notes
 - `evolutionBaseUrl` must use Docker internal DNS: `http://evolution-api:8080`
 - `docker compose build web && docker compose up -d web` for code changes
-- Six services: postgres, redis, evolution-api, web, worker, scheduler
+- Six services: postgres, redis, web, worker, scheduler, openwa
+
+## Migration & Redeploy Rules
+- JANGAN pernah mengedit migration yang sudah ter-apply (0001-0007). Perubahan schema = selalu buat migration BARU: `bun run db:generate`, commit file `.sql` + snapshot `meta/*`.
+- `lib/db/migrate.ts` idempotent — mencatat migration yang sudah jalan di tabel `__drizzle_migrations`, hanya menjalankan yang BARU. Redeploy TIDAK menghapus data.
+- Data hanya hilang jika: (a) migration sengaja DROP tabel/kolom, atau (b) `docker compose down -v` menghapus volume postgres. `docker compose down` biasa TIDAK menghapus data.
+- Alur deploy: `docker compose build web worker scheduler && docker compose up -d` — migration baru otomatis jalan saat container `web` start (`bun lib/db/migrate.ts && bun run start`).
+- Cek status migration: `docker compose logs web | grep -i migrat`.
+- Lokal: gunakan `bun run db:push`; file migration tetap di-commit untuk Docker.
 
 ## Before Making Changes
 1. Always run `npx tsc --noEmit` to verify types
