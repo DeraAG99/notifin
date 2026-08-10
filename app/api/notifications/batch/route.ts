@@ -4,15 +4,18 @@ import { notificationLogs, notificationTemplates, users } from "@/lib/db/schema"
 import { batchSendSchema } from "@/lib/validations";
 import { addNotificationJob } from "@/lib/queue";
 import { templateEngine } from "@/lib/template-engine";
-import { mergeVariables } from "@/lib/variables";
+import { resolveImportVars } from "@/lib/imports/variables";
 import { and, eq, inArray } from "drizzle-orm";
 import type { ApiResponse } from "@/types";
-import { getSession, unauthorizedResponse } from "@/lib/auth/api";
+import { getSession, unauthorizedResponse, forbiddenResponse } from "@/lib/auth/api";
+import { isAdminActive } from "@/lib/admin-status";
 
 export async function POST(request: Request) {
   try {
     const session = await getSession();
     if (!session) return unauthorizedResponse();
+
+    if (!(await isAdminActive(session.adminId))) return forbiddenResponse();
 
     const body = await request.json();
     const validated = batchSendSchema.parse(body);
@@ -45,28 +48,41 @@ export async function POST(request: Request) {
     const channels: ("wa" | "email")[] =
       validated.channel === "both" ? ["wa", "email"] : [validated.channel];
 
+    const entries: {
+      adminId: string;
+      templateId: string;
+      userId: string;
+      channel: "wa" | "email";
+      priority: "urgent" | "normal" | "low";
+      content: { text: string; html?: string };
+      status: "pending";
+    }[] = [];
+
+    for (const user of userList) {
+      const vars = await resolveImportVars(
+        user,
+        validated.variables as Record<string, unknown> | undefined
+      );
+      const renderedText = templateEngine.render(template.content.text, vars);
+      const renderedHtml = template.content.html
+        ? templateEngine.render(template.content.html, vars)
+        : undefined;
+      for (const ch of channels) {
+        entries.push({
+          adminId: session.adminId,
+          templateId: template.id,
+          userId: user.id,
+          channel: ch,
+          priority: validated.priority,
+          content: { text: renderedText, html: renderedHtml },
+          status: "pending",
+        });
+      }
+    }
+
     const logEntries = await db
       .insert(notificationLogs)
-      .values(
-        userList.flatMap((user) =>
-          channels.map((ch) => {
-            const vars = mergeVariables(user, validated.variables as Record<string, unknown> | undefined);
-            const renderedText = templateEngine.render(template.content.text, vars);
-            const renderedHtml = template.content.html
-              ? templateEngine.render(template.content.html, vars)
-              : undefined;
-            return {
-              adminId: session.adminId,
-              templateId: template.id,
-              userId: user.id,
-              channel: ch,
-              priority: validated.priority,
-              content: { text: renderedText, html: renderedHtml },
-              status: "pending" as const,
-            };
-          })
-        )
-      )
+      .values(entries)
       .returning();
 
     let queuedCount = 0;

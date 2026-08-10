@@ -6,6 +6,30 @@ export type NotificationStatus =
   | "delivered"
   | "read";
 export type Priority = "urgent" | "normal" | "low";
+export type AdminRole = "superadmin" | "admin";
+
+export interface Admin {
+  id: string;
+  email: string;
+  name: string;
+  role: AdminRole | null;
+  isActive: boolean | null;
+  expiresAt: Date | null;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}
+
+export interface AdminSummary extends Admin {
+  userCount: number;
+}
+
+export interface AdminFormInput {
+  name: string;
+  email: string;
+  password?: string;
+  isActive?: boolean;
+  expiresAt?: string | null;
+}
 
 export interface User {
   id: string;

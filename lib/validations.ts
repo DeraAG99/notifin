@@ -117,6 +117,22 @@ export const settingsSchema = z.object({
   emailConcurrency: z.number().int().positive().optional(),
 });
 
+export const createAdminSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  isActive: z.boolean().default(true),
+  expiresAt: z.string().datetime({ offset: true }).nullable().optional(),
+});
+
+export const updateAdminSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100).optional(),
+  email: z.string().email("Invalid email address").optional(),
+  password: z.string().min(6, "Password must be at least 6 characters").optional(),
+  isActive: z.boolean().optional(),
+  expiresAt: z.string().datetime({ offset: true }).nullable().optional(),
+});
+
 export const loginSchema = z.object({
   email: z.string().email("Email tidak valid"),
   password: z.string().min(6, "Kata sandi minimal 6 karakter"),
@@ -125,12 +141,6 @@ export const loginSchema = z.object({
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Password saat ini harus diisi"),
   newPassword: z.string().min(6, "Password baru minimal 6 karakter"),
-});
-
-export const registerSchema = z.object({
-  email: z.string().email("Email tidak valid"),
-  password: z.string().min(6, "Kata sandi minimal 6 karakter"),
-  name: z.string().min(1, "Nama harus diisi"),
 });
 
 export const bulkImportSchema = z.array(
@@ -142,7 +152,90 @@ export const bulkImportSchema = z.array(
   })
 );
 
+export const importItemSchema = z.object({
+  intervensi: z.string(),
+  rencanaHasilKerja: z.string(),
+  indikator: z.string(),
+  kodeSumber: z.string().nullable(),
+  target: z.string().nullable(),
+  rencanaAksi: z.string(),
+  kriteriaKeberhasilan: z.string(),
+  output: z.string(),
+  triwulan: z.number().int().min(1).max(4),
+  satuan: z.string(),
+  targetValue: z.string(),
+  realisasi: z.string().nullable(),
+  validasi: z.string().nullable(),
+  konsolidasi: z.string().nullable().optional(),
+  polarisasi: z.string().nullable().optional(),
+  capaian: z.string().nullable().optional(),
+  keterangan: z.string().nullable().optional(),
+  keteranganValidasi: z.string().nullable().optional(),
+});
+
+export const createImportSchema = z.object({
+  importTypeId: z.string().uuid("Tipe import tidak valid"),
+  name: z.string().min(1, "Nama wajib diisi").max(100),
+  fileName: z.string().min(1, "Nama file wajib diisi"),
+  period: z.string().nullable().optional(),
+  items: z.array(importItemSchema).min(1, "Tidak ada data untuk diimpor"),
+});
+
+export const updateImportSchema = z.object({
+  name: z.string().min(1, "Nama wajib diisi").max(100).optional(),
+  period: z.string().nullable().optional(),
+});
+
+export const columnRuleSchema = z.object({
+  field: z.enum([
+    "kegiatan",
+    "indikator",
+    "satuan",
+    "konsolidasi",
+    "polarisasi",
+    "targetTahunan",
+    "triwulan",
+    "target",
+    "realisasi",
+    "capaian",
+    "keterangan",
+    "validasi",
+    "keteranganValidasi",
+  ]),
+  match: z.string().min(1, "Pola header wajib diisi"),
+  mode: z.enum(["exact", "contains", "contains-exclude"]),
+  exclude: z.string().optional(),
+});
+
+export const tableMappingSchema = z.object({
+  headerRow: z.array(z.string().min(1)).min(1, "Minimal 1 kata kunci baris header"),
+  columns: z.array(columnRuleSchema).min(1, "Minimal 1 mapping kolom"),
+  triwulanRegex: z.string().min(1, "Regex triwulan wajib diisi"),
+});
+
+export const createImportTypeSchema = z.object({
+  key: z
+    .string()
+    .regex(/^[a-z0-9_]+$/, "Key hanya huruf kecil, angka, dan underscore")
+    .min(1)
+    .max(40),
+  name: z.string().min(1, "Nama wajib diisi").max(100),
+  engine: z.enum(["table", "ekinerja-json"]).default("table"),
+  format: z.enum(["html", "xlsx"]).default("html"),
+  detectRules: z.array(z.string().min(1)).default([]),
+  columnMapping: tableMappingSchema.nullable().optional(),
+  isActive: z.boolean().default(true),
+});
+
+export const updateImportTypeSchema = createImportTypeSchema.partial();
+
 export type CreateUserInput = z.infer<typeof createUserSchema>;
+export type CreateAdminInput = z.infer<typeof createAdminSchema>;
+export type UpdateAdminInput = z.infer<typeof updateAdminSchema>;
+export type CreateImportInput = z.infer<typeof createImportSchema>;
+export type UpdateImportInput = z.infer<typeof updateImportSchema>;
+export type CreateImportTypeInput = z.infer<typeof createImportTypeSchema>;
+export type UpdateImportTypeInput = z.infer<typeof updateImportTypeSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type CreateTemplateInput = z.infer<typeof createTemplateSchema>;
 export type UpdateTemplateInput = z.infer<typeof updateTemplateSchema>;
@@ -152,5 +245,4 @@ export type SendNotificationInput = z.infer<typeof sendNotificationSchema>;
 export type BatchSendInput = z.infer<typeof batchSendSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
-export type RegisterInput = z.infer<typeof registerSchema>;
 export type LogFilterInput = z.infer<typeof logFilterSchema>;

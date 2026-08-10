@@ -1,9 +1,10 @@
-import { createWorker, QUEUE_NAMES, type NotificationJobData, type BaileysConnectData } from "../lib/queue";
+import { createWorker, QUEUE_NAMES, type NotificationJobData, type BaileysJobData } from "../lib/queue";
 import { db } from "../lib/db";
 import { notificationLogs, admins, settings } from "../lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getWaProvider } from "../lib/wa";
 import { sendEmail } from "../lib/email";
+import { isAdminActive } from "../lib/admin-status";
 
 function buildDefaultHtml(title: string, message: string, recipientName?: string): string {
   return `<!DOCTYPE html>
@@ -57,8 +58,13 @@ async function getSetting(adminId: string, key: string): Promise<string | number
 
 async function autoConnectBaileys() {
   try {
-    const adminRows = await db.select({ id: admins.id }).from(admins);
+    const adminRows = await db
+      .select({ id: admins.id, isActive: admins.isActive, expiresAt: admins.expiresAt })
+      .from(admins);
     for (const admin of adminRows) {
+      if (!admin.isActive) continue;
+      if (admin.expiresAt && new Date(admin.expiresAt).getTime() < Date.now()) continue;
+
       const providerType = await getSetting(admin.id, "waProvider");
       if (providerType !== "baileys") continue;
 
@@ -74,8 +80,24 @@ async function autoConnectBaileys() {
   }
 }
 
-async function handleBaileysConnect(job: { id?: string | number; data: BaileysConnectData }) {
-  const { adminId } = job.data;
+async function handleBaileysJob(job: { id?: string | number; data: BaileysJobData }) {
+  const { adminId, type } = job.data;
+
+  if (type === "baileys-disconnect") {
+    console.log(`[Worker] Baileys disconnect job received for admin ${adminId}`);
+    try {
+      const mod = await import("../lib/wa/baileys-manager");
+      mod.BaileysManager.disconnect(adminId);
+    } catch (err) {
+      console.error(`[Worker] Baileys disconnect failed for admin ${adminId}:`, err instanceof Error ? err.message : "Unknown error");
+    }
+    return;
+  }
+
+  if (!(await isAdminActive(adminId))) {
+    console.log(`Baileys connect job skipped: admin ${adminId} is inactive or expired`);
+    return;
+  }
   console.log(`[Worker] Baileys connect job received for admin ${adminId}, initiating connection...`);
   try {
     const mod = await import("../lib/wa/baileys-manager");
@@ -92,6 +114,20 @@ async function processNotification(job: { id?: string | number; data: Notificati
   console.log(`Processing job ${job.id}: ${data.type} for user ${data.userId}`);
 
   try {
+    if (!(await isAdminActive(data.adminId))) {
+      console.log(`Job ${job.id} skipped: admin ${data.adminId} is inactive or expired`);
+      if (data.logId) {
+        await db
+          .update(notificationLogs)
+          .set({
+            status: "failed",
+            error: "Admin tidak aktif atau kedaluwarsa",
+          })
+          .where(eq(notificationLogs.id, data.logId));
+      }
+      return;
+    }
+
     if (data.channel === "wa") {
       await processWhatsApp(data);
     } else {
@@ -192,7 +228,7 @@ async function main() {
   const baileysWorker = createWorker(
     QUEUE_NAMES.baileys,
     async (job) => {
-      await handleBaileysConnect(job as unknown as { id?: string | number; data: BaileysConnectData });
+      await handleBaileysJob(job as unknown as { id?: string | number; data: BaileysJobData });
     }
   );
 

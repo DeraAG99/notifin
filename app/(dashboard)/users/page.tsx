@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n/context";
-import { Plus, Search, Pencil, Trash2, Upload, MessageSquare, Mail, UserIcon } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Upload, MessageSquare, Mail, UserIcon, ClipboardList } from "lucide-react";
 import { UserForm } from "@/components/users/user-form";
 import { CsvImport } from "@/components/users/csv-import";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -30,6 +31,7 @@ import type { User, PaginatedResponse } from "@/types";
 
 export default function UsersPage() {
   const { t, tx } = useI18n();
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [search, setSearch] = useState("");
@@ -172,6 +174,15 @@ export default function UsersPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => router.push(`/users/${user.id}/imports`)}
+                        title={t.imports.button}
+                      >
+                        <ClipboardList className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"

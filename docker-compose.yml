@@ -56,6 +56,7 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
+      TZ: ${TZ:-Asia/Jakarta}
       DATABASE_URL: *db-url
       REDIS_URL: redis://redis:6379
       NEXT_PUBLIC_APP_URL: ${APP_URL:-http://localhost:3000}
@@ -80,6 +81,7 @@ services:
       redis:
         condition: service_healthy
     environment:
+      TZ: ${TZ:-Asia/Jakarta}
       DATABASE_URL: *db-url
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-notifin-docker-secret-change-me}
@@ -99,6 +101,7 @@ services:
       redis:
         condition: service_healthy
     environment:
+      TZ: ${TZ:-Asia/Jakarta}
       DATABASE_URL: *db-url
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-notifin-docker-secret-change-me}

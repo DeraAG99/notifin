@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import { addBaileysConnectJob } from "@/lib/queue";
-import { getSession, unauthorizedResponse } from "@/lib/auth/api";
+import {
+  getSession,
+  unauthorizedResponse,
+  forbiddenResponse,
+} from "@/lib/auth/api";
+import { isAdminActive } from "@/lib/admin-status";
 
 export async function POST() {
   try {
     const session = await getSession();
     if (!session) return unauthorizedResponse();
+
+    if (!(await isAdminActive(session.adminId))) return forbiddenResponse();
 
     await addBaileysConnectJob(session.adminId);
 

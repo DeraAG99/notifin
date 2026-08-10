@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/context";
 import { NotifinLogo } from "@/components/layouts/notifin-logo";
@@ -160,13 +159,7 @@ export default function LoginPage() {
         {/* Footer Meta */}
         <footer className="text-center">
           <p className="text-base text-nf-on-surface-variant/70">
-            Don&apos;t have an account?{" "}
-            <Link
-              href="/register"
-              className="text-nf-secondary font-bold hover:text-nf-primary transition-colors ml-1"
-            >
-              Get Started
-            </Link>
+            Account managed by your organization admin.
           </p>
         </footer>
       </div>

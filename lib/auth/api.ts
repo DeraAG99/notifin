@@ -22,3 +22,10 @@ export function unauthorizedResponse(): NextResponse {
     { status: 401 }
   );
 }
+
+export function forbiddenResponse(): NextResponse {
+  return NextResponse.json(
+    { success: false, error: "Forbidden: superadmin only" },
+    { status: 403 }
+  );
+}

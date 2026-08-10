@@ -4,15 +4,18 @@ import { notificationLogs, notificationTemplates, users } from "@/lib/db/schema"
 import { sendNotificationSchema } from "@/lib/validations";
 import { addNotificationJob } from "@/lib/queue";
 import { templateEngine } from "@/lib/template-engine";
-import { mergeVariables } from "@/lib/variables";
+import { resolveImportVars } from "@/lib/imports/variables";
 import { and, eq } from "drizzle-orm";
 import type { ApiResponse } from "@/types";
-import { getSession, unauthorizedResponse } from "@/lib/auth/api";
+import { getSession, unauthorizedResponse, forbiddenResponse } from "@/lib/auth/api";
+import { isAdminActive } from "@/lib/admin-status";
 
 export async function POST(request: Request) {
   try {
     const session = await getSession();
     if (!session) return unauthorizedResponse();
+
+    if (!(await isAdminActive(session.adminId))) return forbiddenResponse();
 
     const body = await request.json();
     const validated = sendNotificationSchema.parse(body);
@@ -43,7 +46,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const variables = mergeVariables(user, validated.variables as Record<string, unknown> | undefined);
+    const variables = await resolveImportVars(
+      user,
+      validated.variables as Record<string, unknown> | undefined
+    );
 
     const renderedText = templateEngine.render(template.content.text, variables);
 

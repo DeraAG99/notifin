@@ -44,3 +44,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# sample import files (not part of the app)
+/Data Kinerja Saya _ e-TPP.html
+/Data Kinerja Saya _ e-TPP_files/
+/Data Kinerja.pdf
+/Monev 2026 _ Kegiatan Renstra.html
+/Monev 2026 _ Sub Kegiatan Renstra.html
+/copy_table.html

@@ -62,6 +62,14 @@ export class BaileysManager {
     }
   }
 
+  static disconnect(adminId: string): void {
+    const instance = BaileysManager.instances.get(adminId);
+    if (instance) {
+      instance.disconnect();
+      BaileysManager.instances.delete(adminId);
+    }
+  }
+
   isConnected(): boolean {
     return this._connected && this.sock !== null;
   }

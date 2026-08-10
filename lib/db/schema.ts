@@ -28,6 +28,7 @@ export const admins = pgTable("admins", {
   name: text("name").notNull(),
   role: adminRoleEnum("role").default("admin"),
   isActive: boolean("is_active").default(true),
+  expiresAt: timestamp("expires_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -121,3 +122,55 @@ export const notificationLogs = pgTable("notification_logs", {
   deliveredAt: timestamp("delivered_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const dataImports = pgTable(
+  "data_imports",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    adminId: uuid("admin_id")
+      .references(() => admins.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    name: text("name").notNull(),
+    source: text("source").default("ekinerja").notNull(),
+    engine: text("engine").default("table").notNull(),
+    key: text("key"),
+    fileName: text("file_name").notNull(),
+    period: text("period"),
+    data: jsonb("data").$type<Record<string, unknown>[]>().notNull(),
+    summary: jsonb("summary").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("data_imports_admin_user_key_unique").on(
+      table.adminId,
+      table.userId,
+      table.key
+    ),
+  ]
+);
+
+export const importTypes = pgTable(
+  "import_types",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    adminId: uuid("admin_id")
+      .references(() => admins.id, { onDelete: "cascade" })
+      .notNull(),
+    key: text("key").notNull(),
+    name: text("name").notNull(),
+    engine: text("engine").default("table").notNull(),
+    format: text("format").default("html").notNull(),
+    detectRules: jsonb("detect_rules").$type<string[]>().default([]).notNull(),
+    columnMapping: jsonb("column_mapping").$type<Record<string, unknown>>(),
+    isActive: boolean("is_active").default(true),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("import_types_admin_key_unique").on(table.adminId, table.key),
+  ]
+);

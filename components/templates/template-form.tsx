@@ -281,6 +281,9 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
             <p className="text-xs text-muted-foreground">
               {t.templates.form.variableHint}
             </p>
+            <p className="text-xs text-muted-foreground bg-muted/50 border rounded-lg p-2">
+              {t.templates.form.importHint}
+            </p>
           </div>
 
           {channel !== "wa" && (

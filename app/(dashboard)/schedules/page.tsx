@@ -28,12 +28,13 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n/context";
+import { describeCron } from "@/lib/cron-utils";
 import { Plus, Play, Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import type { NotificationSchedule } from "@/types";
 
 export default function SchedulesPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [schedules, setSchedules] = useState<NotificationSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
@@ -48,7 +49,9 @@ export default function SchedulesPage() {
     { label: t.schedules.presets.everyHour, value: "0 * * * *" },
     { label: t.schedules.presets.daily9am, value: "0 9 * * *" },
     { label: t.schedules.presets.weeklyMonday, value: "0 9 * * 1" },
-    { label: t.schedules.presets.monthly1st, value: "0 9 1 * *" },
+    { label: t.schedules.presets.startOfMonth, value: "0 9 1 * *" },
+    { label: t.schedules.presets.endOfMonth, value: "0 9 L * *" },
+    { label: t.schedules.presets.startEndOfMonth, value: "0 9 1,L * *" },
   ];
 
   const fetchSchedules = async () => {
@@ -153,45 +156,61 @@ export default function SchedulesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {schedules.map((schedule) => (
-                <TableRow key={schedule.id}>
-                  <TableCell>
-                    <code className="text-sm bg-muted px-2 py-1 rounded">
-                      {schedule.cronExpression}
-                    </code>
-                  </TableCell>
-                  <TableCell className="text-sm">{schedule.templateId.slice(0, 8)}...</TableCell>
-                  <TableCell className="text-sm">{schedule.userId.slice(0, 8)}...</TableCell>
-                  <TableCell className="text-sm">
-                    {schedule.nextRunAt
-                      ? new Date(schedule.nextRunAt).toLocaleString()
-                      : "-"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={schedule.isActive ? "default" : "secondary"}>
-                      {schedule.isActive ? t.common.active : t.common.inactive}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleToggle(schedule.id, schedule.isActive || false)}
-                      >
-                        <Play className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(schedule.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {schedules.map((schedule) => {
+                const templateName = templates.find(
+                  (tmpl) => tmpl.id === schedule.templateId
+                )?.name;
+                const userName = users.find(
+                  (u) => u.id === schedule.userId
+                )?.name;
+
+                return (
+                  <TableRow key={schedule.id}>
+                    <TableCell>
+                      <div title={schedule.cronExpression} className="text-sm">
+                        {describeCron(schedule.cronExpression, locale)}
+                      </div>
+                      <code className="text-xs text-muted-foreground">
+                        {schedule.cronExpression}
+                      </code>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {templateName || schedule.templateId.slice(0, 8) + "..."}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {userName || schedule.userId.slice(0, 8) + "..."}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {schedule.nextRunAt
+                        ? new Date(schedule.nextRunAt).toLocaleString()
+                        : "-"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={schedule.isActive ? "default" : "secondary"}>
+                        {schedule.isActive ? t.common.active : t.common.inactive}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleToggle(schedule.id, schedule.isActive || false)}
+                        >
+                          <Play className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(schedule.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>

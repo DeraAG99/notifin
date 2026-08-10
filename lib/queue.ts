@@ -28,8 +28,8 @@ export type NotificationJobData = {
   recipientName?: string;
 };
 
-export type BaileysConnectData = {
-  type: "baileys-connect";
+export type BaileysJobData = {
+  type: "baileys-connect" | "baileys-disconnect";
   adminId: string;
 };
 
@@ -83,7 +83,7 @@ export const scheduledQueue = new Queue<NotificationJobData>(
   QUEUE_OPTIONS
 );
 
-export const baileysQueue = new Queue<BaileysConnectData>(
+export const baileysQueue = new Queue<BaileysJobData>(
   QUEUE_NAMES.baileys,
   {
     ...QUEUE_OPTIONS,
@@ -208,10 +208,18 @@ export async function getAllQueueStats() {
   return { whatsapp, email, scheduled, baileys };
 }
 
-export function addBaileysConnectJob(adminId: string): Promise<Job<BaileysConnectData>> {
+export function addBaileysConnectJob(adminId: string): Promise<Job<BaileysJobData>> {
   return baileysQueue.add(
     "baileys-connect",
     { type: "baileys-connect", adminId },
+    { priority: 1 }
+  );
+}
+
+export function addBaileysDisconnectJob(adminId: string): Promise<Job<BaileysJobData>> {
+  return baileysQueue.add(
+    "baileys-disconnect",
+    { type: "baileys-disconnect", adminId },
     { priority: 1 }
   );
 }

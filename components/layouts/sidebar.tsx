@@ -25,6 +25,8 @@ import {
   ScrollText,
   Settings,
   LogOut,
+  Building2,
+  Boxes,
 } from "lucide-react";
 
 export function AppSidebar() {
@@ -40,6 +42,10 @@ export function AppSidebar() {
   ];
 
   const systemNav = [
+    ...(user?.role === "superadmin"
+      ? [{ href: "/admins", label: t.nav.admins, icon: Building2 }]
+      : []),
+    { href: "/import-types", label: t.nav.importTypes, icon: Boxes },
     { href: "/schedules", label: t.nav.schedules, icon: Clock },
     { href: "/logs", label: t.nav.logs, icon: ScrollText },
     { href: "/settings", label: t.nav.settings, icon: Settings },

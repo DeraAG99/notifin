@@ -23,6 +23,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (admin.expiresAt && new Date(admin.expiresAt).getTime() < Date.now()) {
+      return NextResponse.json(
+        { success: false, error: "Akun telah kedaluwarsa. Hubungi super admin." },
+        { status: 401 }
+      );
+    }
+
     const match = await verifyPassword(validated.password, admin.passwordHash);
     if (!match) {
       return NextResponse.json(

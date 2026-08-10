@@ -1,0 +1,1 @@
+ALTER TABLE "admins" ADD COLUMN "expires_at" timestamp;

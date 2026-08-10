@@ -551,6 +551,445 @@ Every admin sees only their own data; superadmin sees all.
 
 ---
 
+## Phase 16: Superadmin Admin Management (SaaS) ✅
+
+### Scope
+Superadmin CRUD admin (tenant organization) accounts. Open registration locked — admin accounts are only created by superadmin.
+
+### Changes
+- [x] Validations: `createAdminSchema` + `updateAdminSchema` (name, email, password, isActive) in `lib/validations.ts`
+- [x] Types: `AdminRole`, `Admin`, `AdminSummary` (incl. `userCount`), `AdminFormInput` in `types/index.ts`
+- [x] `forbiddenResponse()` helper (403) in `lib/auth/api.ts`
+- [x] `GET /api/admins` — superadmin only; search (name/email) + pagination + per-admin `userCount` subquery
+- [x] `POST /api/admins` — superadmin only; role fixed to `admin`, bcrypt hash, 409 on duplicate email
+- [x] `PATCH /api/admins/[id]` — superadmin only; update name/email/isActive + optional password reset; guards: cannot edit a superadmin account, 409 on duplicate email
+- [x] `DELETE /api/admins/[id]` — superadmin only; guards: cannot delete self, cannot delete superadmin account (cascades users/templates/schedules/logs)
+- [x] Registration locked: `POST /api/auth/register` → 403; `app/(auth)/register/page.tsx` removed; login footer link removed; `/register` dropped from middleware public paths; `register()` removed from `lib/auth/context.tsx`; dead `registerSchema` removed
+- [x] `app/(dashboard)/admins/page.tsx` — table (name, email, role badge, user count, status, created date) + create/edit dialog + delete dialog + role-guard redirect; `loading.tsx`
+- [x] `components/admins/admin-form.tsx` — create/edit form with optional password reset + isActive switch
+- [x] Sidebar — "Admin" menu item rendered only when `user.role === "superadmin"`
+- [x] i18n keys: `nav.admins` + `admins.*` in `lib/i18n/en.json` & `id.json`
+- [x] `bunx tsc --noEmit` clean (lint baseline pre-existing errors unchanged)
+
+### Files Created/Modified
+```
+lib/validations.ts (admin schemas)
+types/index.ts (Admin types)
+lib/auth/api.ts (forbiddenResponse)
+app/api/admins/route.ts (new)
+app/api/admins/[id]/route.ts (new)
+app/api/auth/register/route.ts (locked → 403)
+app/(dashboard)/admins/page.tsx (new)
+app/(dashboard)/admins/loading.tsx (new)
+components/admins/admin-form.tsx (new)
+components/layouts/sidebar.tsx (superadmin nav)
+app/(auth)/register/page.tsx (removed)
+app/(auth)/login/page.tsx (footer link removed)
+lib/auth/context.tsx (register removed)
+middleware.ts (/register removed from public paths)
+lib/i18n/en.json (admins.* keys)
+lib/i18n/id.json (admins.* keys)
+PHASES.md (this update)
+```
+
+### API Changes
+| Route | Access | Notes |
+|-------|--------|-------|
+| `GET /api/admins` | superadmin | list + search + pagination + userCount |
+| `POST /api/admins` | superadmin | create admin (role admin) |
+| `PATCH /api/admins/[id]` | superadmin | update / reset password (not superadmin) |
+| `DELETE /api/admins/[id]` | superadmin | delete (not self, not superadmin) |
+| `POST /api/auth/register` | closed | always 403 |
+
+---
+
+## Phase 17: Schedules UX - Human-readable Cron & Month Presets ✅
+
+### Scope
+Make the schedules list easy to read: no raw UUIDs, cron shown as plain language, plus "start of month" / "end of month" presets.
+
+### Changes
+- [x] `lib/cron-utils.ts` (new) — `describeCron(expression, locale)`: converts 5-field cron into human-readable ID/EN text (every minute/hour, daily/weekly at time, weekday ranges, day-of-month lists, `L` = end of month); falls back to raw expression
+- [x] Schedules table — template & user columns now show **names** (looked up from fetched options) instead of UUID slices; cron column shows readable description + raw cron as small caption
+- [x] New presets in schedule form: **Start of month** (`0 9 1 * *`) and **End of month** (`0 9 L * *`); removed redundant `monthly1st` (same as start of month)
+- [x] `lib/scheduler.ts` — `calculateNextRun` rewritten: correctly resolves day-of-month (numeric/lists/ranges/`L`), month, and day-of-week so "Next Run" is accurate (e.g. next Monday, last day of month)
+- [x] Verified node-cron v4 supports `L` in day-of-month (`cron.validate` + `getNextRun`)
+- [x] i18n keys `startOfMonth` / `endOfMonth` in `schedules.presets` (en/id); `monthly1st` removed
+- [x] `bunx tsc --noEmit` clean
+
+### Files Created/Modified
+```
+lib/cron-utils.ts (new)
+app/(dashboard)/schedules/page.tsx (names + readable cron + presets)
+lib/scheduler.ts (calculateNextRun day/month/dow handling)
+lib/i18n/en.json (presets)
+lib/i18n/id.json (presets)
+PHASES.md (this update)
+```
+
+---
+
+## Phase 18: Server Timezone Alignment ✅
+
+### Scope
+Ensure cron schedules & "next run" are computed against the correct timezone (Asia/Jakarta default), not the container's UTC clock.
+
+### Changes
+- [x] `docker-compose.yml` — set `TZ: ${TZ:-Asia/Jakarta}` on `web`, `worker`, `scheduler` services (containers previously ran UTC, so `0 9 * * *` fired at 09:00 UTC = 16:00 WIB)
+- [x] `lib/scheduler.ts` — timezone-aware scheduling:
+  - `cron.schedule(expr, fn, { timezone })` now passes each admin's `defaultTimezone` setting (from `settings` table), falling back to `DEFAULT_TIMEZONE` env → `Asia/Jakarta`
+  - `getAdminTimezone(adminId)` reads per-admin setting; `isValidTimezone()` validates via `Intl`; invalid values fall back safely
+  - `calculateNextRun(expr, timezone)` rewritten to compute in the target timezone via UTC-based virtual clock (fixed-offset; correct for Asia/* non-DST zones) — matches node-cron's `getNextRun` for Jakarta/Jayapura/Makassar, incl. `1,L` & `L`
+  - `loadSchedules` now selects `adminId` so each schedule is scheduled in its admin's timezone
+- [x] `app/api/settings/route.ts` — GET returns `serverTime` (ISO) + `serverTimezone` (IANA) so admins can verify the server clock from the UI
+- [x] `app/(dashboard)/settings/page.tsx` — System Health card shows Server Time (in server timezone), Server Timezone, and the configured Default Timezone
+- [x] i18n keys `serverTime` / `serverTimezone` in en.json & id.json
+- [x] Verified: dev machine is `SE Asia Standard Time` (WIB, +07:00); node-cron v4 timezone option works and throws on invalid zones; `bunx tsc --noEmit` clean; `docker compose config` valid
+
+### Files Created/Modified
+```
+docker-compose.yml (TZ on web/worker/scheduler)
+lib/scheduler.ts (timezone-aware cron + next-run)
+app/api/settings/route.ts (serverTime/serverTimezone)
+app/(dashboard)/settings/page.tsx (server clock display)
+lib/i18n/en.json (settings.serverTime/timezone)
+lib/i18n/id.json (settings.serverTime/timezone)
+PHASES.md (this update)
+```
+
+---
+
+## Phase 19: Admin Account Expiry Date ✅
+
+### Scope
+Regular admin accounts can have an expiry date — login is blocked automatically after that date. Superadmin has no expiry.
+
+### Changes
+- [x] Schema: `admins.expiresAt` (`expires_at` timestamp, nullable) + migration `0003_sudden_angel.sql` (via `drizzle-kit push`)
+- [x] Validations: `expiresAt` (nullable ISO datetime) added to `createAdminSchema` & `updateAdminSchema`
+- [x] Types: `Admin.expiresAt`, `AdminFormInput.expiresAt`
+- [x] `POST /api/admins` & `PATCH /api/admins/[id]` — accept & persist `expiresAt` (empty → `null` removes expiry); superadmin accounts remain uneditable
+- [x] `GET /api/admins` — includes `expiresAt` in list response
+- [x] `POST /api/auth/login` — rejects expired admins: `expiresAt < now` → 401 "Akun telah kedaluwarsa"
+- [x] Admin form (`components/admins/admin-form.tsx`) — date input "Expiry Date" (min = today); empty = no expiry; shown for admin create/edit only
+- [x] Admins table — "Expires" column: date badge, or red "Expired" badge when past; `—` for superadmin/none
+- [x] i18n keys `admins.expires`, `admins.expired`, `admins.form.expiresAt`, `admins.form.expiresAtHint` (en/id)
+- [x] `bunx tsc --noEmit` clean
+
+### Notes
+- Dev DB had leaked 97 idle connections (postgres.js pool re-created on Next hot reload without closing) blocking migrations — cleaned via `pg_terminate_backend` before pushing.
+
+### Files Created/Modified
+```
+lib/db/schema.ts (expiresAt)
+lib/db/migrations/0003_sudden_angel.sql (new)
+lib/validations.ts (expiresAt)
+types/index.ts (expiresAt)
+app/api/admins/route.ts (expiresAt in list/create)
+app/api/admins/[id]/route.ts (expiresAt in update)
+app/api/auth/login/route.ts (expiry check)
+components/admins/admin-form.tsx (date field)
+app/(dashboard)/admins/page.tsx (expires column + expired badge)
+lib/i18n/en.json (admins keys)
+lib/i18n/id.json (admins keys)
+PHASES.md (this update)
+```
+
+---
+
+## Phase 20: Enforce Inactive/Expired Admin Blocking ✅
+
+### Scope
+An inactive or expired admin must not trigger any notifications: schedules don't fire, queued jobs don't send, WhatsApp doesn't auto-connect. Enforcement-only (no data mutation).
+
+### Changes
+- [x] `lib/admin-status.ts` (new) — `isAdminActive(adminId)`: `isActive === true` AND (`expiresAt` IS NULL OR `expiresAt > now`); false on lookup error
+- [x] `lib/scheduler.ts` — `loadSchedules` now `innerJoin(admins)` filtered to active & non-expired admins; `processSchedule` guards with `isAdminActive(schedule.adminId)`
+- [x] `workers/notification-worker.ts` —
+  - `processNotification`: skips job for inactive/expired admin, marks log `failed` ("Admin tidak aktif atau kedaluwarsa"), returns **without throwing** (no BullMQ retry)
+  - `autoConnectBaileys`: only connects admins that are active & non-expired
+  - `handleBaileysConnect`: rejects connect jobs for inactive/expired admins
+- [x] `POST /api/notifications/send` & `/api/notifications/batch` — 403 via `forbiddenResponse()` when admin inactive/expired (covers still-live session cookies)
+- [x] Verified against local DB: active superadmin → `true`; expired admin → `false`; `bunx tsc --noEmit` clean
+
+### Notes
+- Admin/user data is untouched; reactivation simply re-enables sending. Time-based expiry is handled naturally at processing time (no background job needed).
+
+### Files Created/Modified
+```
+lib/admin-status.ts (new)
+lib/scheduler.ts (loadSchedules join + processSchedule guard)
+workers/notification-worker.ts (guards + autoConnect filter)
+app/api/notifications/send/route.ts (403 guard)
+app/api/notifications/batch/route.ts (403 guard)
+PHASES.md (this update)
+```
+
+---
+
+## Phase 21: Baileys Provider in Settings UI ✅
+
+### Scope
+Expose Baileys (WhatsApp Web) as a selectable provider in the Settings UI, with per-admin QR connect flow. Each admin keeps its own independent session.
+
+### Background (already existed)
+- Per-admin instances: `BaileysManager` `Map<adminId, ...>`, own auth dir `.baileys-auth/<adminId>`, per-admin QR/status in `settings` table
+- Worker `autoConnectBaileys` connects only admins with `waProvider = baileys`
+- API endpoints `/api/baileys/connect`, `/api/baileys/qr`, `/api/baileys/status` (all scoped to `session.adminId`)
+
+### Changes
+- [x] `app/(dashboard)/settings/page.tsx`:
+  - `WaProvider` type + provider card + icon (`Smartphone`) for **Baileys (WhatsApp Web)**
+  - Baileys panel: connection status (Connected / Reconnecting / Not connected), **Connect WhatsApp** button (`POST /api/baileys/connect`), QR image from `/api/baileys/status` with auto-poll every 4s, last-seen, per-admin session note, and ban-risk warning box (parity with Fonnte/OpenWA panels)
+  - Health card provider label now handles `baileys`
+  - Saving settings while Baileys selected auto-triggers connect
+- [x] `app/api/baileys/connect/route.ts` — guard with `isAdminActive` (403 if inactive/expired), consistent with Phase 20
+- [x] i18n keys `settings.providerBaileys*`, `settings.baileys*` (en/id)
+- [x] Verified: login + `/api/baileys/status` + `/api/baileys/qr` return clean responses; `bunx tsc --noEmit` clean; JSON valid
+
+### Resource note
+1 Baileys session ≈ 20–50MB RAM + 1 persistent WebSocket. Fine for tens of admins on a standard VPS; the real limit is WhatsApp's per-IP connection/ban policy — one admin = one WhatsApp number. Hundreds of admins would need worker sharding.
+
+### Files Created/Modified
+```
+app/(dashboard)/settings/page.tsx (provider + Baileys panel + polling)
+app/api/baileys/connect/route.ts (isAdminActive guard)
+lib/i18n/en.json (baileys keys)
+lib/i18n/id.json (baileys keys)
+PHASES.md (this update)
+```
+
+---
+
+## Phase 22: Disconnect Baileys on Provider Switch ✅
+
+### Scope
+When an admin switches their WhatsApp provider away from Baileys, the worker must actually close the Baileys socket (the manager lives in the worker process, so a direct call from the web process would be a no-op).
+
+### Changes
+- [x] `lib/queue.ts` — `BaileysConnectData` → `BaileysJobData` with `type: "baileys-connect" | "baileys-disconnect"`; added `addBaileysDisconnectJob(adminId)`
+- [x] `workers/notification-worker.ts` — `handleBaileysJob` handles both types: `baileys-disconnect` → `BaileysManager.disconnect(adminId)` (closes socket, removes instance, writes `baileys_connected=false`); `baileys-connect` keeps existing guard/flow
+- [x] `lib/wa/baileys-manager.ts` — new static `BaileysManager.disconnect(adminId)` (close + remove from instance map)
+- [x] `app/api/settings/route.ts` — on `PUT`, when `waProvider` changes from `baileys` to another value, queues a `baileys-disconnect` job (worker does the actual close); removed web-process direct call
+- [x] Removed now-unused `disconnectBaileys` from `lib/wa/index.ts`
+- [x] `bunx tsc --noEmit` clean
+
+### Files Created/Modified
+```
+lib/queue.ts (BaileysJobData + disconnect job)
+workers/notification-worker.ts (handleBaileysJob)
+lib/wa/baileys-manager.ts (static disconnect)
+app/api/settings/route.ts (queue disconnect on provider switch)
+lib/wa/index.ts (removed dead helper)
+PHASES.md (this update)
+```
+
+---
+
+## Phase 23: Per-User Data Import → Metadata (generic "imports") ✅
+
+### Scope (final)
+Per-user data import (HTML + Excel) with a **generic SaaS-friendly name** — "Data Import" (`imports`) — stored as **user metadata** so it's available as template variables. No domain-specific naming, no reminder engine. Notifications reuse the existing Schedule feature.
+
+### Naming (generic, no "renaksi" anywhere in source)
+| Item | Value |
+|------|-------|
+| Page route | `app/(dashboard)/users/[id]/imports/page.tsx` (stacked: Import + Data) |
+| API | `POST/GET/DELETE /api/users/[id]/imports` |
+| Metadata | `users.metadata.imports` |
+| Template vars | `{{imports.summary.itemCount}}`, `{{imports.summary.pendingPerTriwulan.3}}` |
+| Canonical type | `ImportItem` |
+| Parser source id | `ekinerja` (internal) |
+| i18n | `imports.*` ("Data Import") |
+
+### Changes
+- **Halaman** `users/[id]/imports` — header (Kembali → /users, nama user), **Panel Import** (dropzone .html/.xlsx → client parse → preview + warnings → submit), **Panel Data** (fileName, itemCount, badge pending per TW1–4, tree intervensi → RHK → indikator → outputs + TW/realisasi badge, tombol Hapus; empty state). `loading.tsx`.
+- **API** `app/api/users/[id]/imports/route.ts` — writes `users.metadata.imports` (merge, never clobbers other metadata): `{ fileName, period, importedAt, items[], summary {itemCount, pendingPerTriwulan} }`; guards session + admin scope + `isAdminActive`.
+- **Users page** — per-row **Data Import** button navigates to `/users/{id}/imports` (dialog removed).
+- **Parser** — `lib/imports/` generic: `ImportItem` type, `ekinerja` source, HTML parser (validated on real e-TPP file: 12 items, 0 errors) + XLSX (SheetJS, best-effort, lazy-loaded; needs a real sample to finalize columns).
+- **Scheduler fix** — `processSchedule` uses `mergeVariables(user)` so scheduled templates can use `{{imports...}}`.
+- Removed: `renaksi-dialog.tsx`, all "renaksi" naming (routes, types, i18n).
+
+### Verified
+- `bunx tsc --noEmit` clean; JSON valid.
+- E2E live: login → create user → parse (source `ekinerja`, 12 items/0 errors) → `POST /imports` → `metadata.imports` has items+summary → template renders `{{imports.summary.itemCount}}`=12, `{{imports.summary.pendingPerTriwulan.3}}`=3, `{{imports.fileName}}` → DELETE → cleanup.
+- PDF intentionally skipped (scanned images → OCR unreliable).
+
+### Files Created/Modified
+```
+app/(dashboard)/users/[id]/imports/page.tsx (new)
+app/(dashboard)/users/[id]/imports/loading.tsx (new)
+app/api/users/[id]/imports/route.ts (renamed from .../renaksi)
+lib/imports/types.ts (ImportItem, source 'ekinerja')
+lib/imports/registry.ts (source 'ekinerja')
+lib/imports/parsers/ekinerja/html.ts (renamed from .../ekinerja-renaksi)
+lib/imports/parsers/ekinerja/xlsx.ts (renamed)
+lib/validations.ts (importItemSchema, createImportSchema)
+lib/i18n/en.json (imports.*)
+lib/i18n/id.json (imports.*)
+app/(dashboard)/users/page.tsx (navigate to imports page)
+components/users/renaksi-dialog.tsx (removed)
+lib/scheduler.ts (mergeVariables)
+PHASES.md (this update)
+```
+
+---
+
+## Phase 24: Data Import View as e-TPP Pivot Table ✅
+
+### Scope
+Render the imported data as a table that mirrors the original e-TPP pivot layout (merged cells / rowSpan) instead of the grouped tree.
+
+### Changes
+- `buildPivot(items)` in `app/(dashboard)/users/[id]/imports/page.tsx`:
+  - Groups by **full indicator context** (`intervensi + rencanaHasilKerja + indikator`) — critical because the same intervensi text can belong to different indicator groups (sample: 2× "Terselenggaranya Administrasi Keuangan Perangkat Daerah" with different RHK)
+  - Outputs grouped per indicator; consecutive outputs sharing RA+KK merged via rowSpan
+  - Each output = one row; the Target column renders a per-triwulan block (Triwulan N / Target / Realisasi / Validasi), emerald-tinted when realisasi filled
+- Columns: `#` (per-indicator counter), Intervensi, RHK, Indikator (+ `IKU`/`Lainnya` badge from kodeSumber), Target, Rencana Aksi, Kriteria Keberhasilan, Output, Target (TW) — "Aksi" column intentionally skipped
+- Table wrapped in `overflow-x-auto`; header row kept with file info + pending TW badges + delete
+- i18n `imports.table.*` (en/id)
+
+### Verified
+- `bunx tsc --noEmit` clean; JSON valid.
+- Real e-TPP file → **3 pivot blocks × 4 rows**, RA rowSpan 2/2, 2/2, 3/1 — identical to the source HTML.
+
+### Files Modified
+```
+app/(dashboard)/users/[id]/imports/page.tsx (pivot table view)
+lib/i18n/en.json (imports.table.*)
+lib/i18n/id.json (imports.table.*)
+PHASES.md (this update)
+```
+
+---
+
+## Phase 25: Multi Data Import per User (Named, Stored in DB) ✅
+
+### Scope
+A user can now have **more than one** data import. Each import is **named**, stored in the `data_imports` DB table, and the imports page shows a **list** with per-import pivot view. (Template multi-reference & bulk schedule deferred to next phase.)
+
+### Changes
+- **Schema** — `data_imports` table: id, adminId, userId, `name` (required), `source` (default `ekinerja`), `key` (nullable, slug of name, unique per admin+user), fileName, period, `data` jsonb (items), `summary` jsonb, timestamps. **No** unique on (userId, source) → multiple allowed. Migration `0006_curved_senator_kelly.sql` pushed.
+- **`lib/imports/utils.ts`** (new) — `buildSummary(items)` (itemCount + pendingPerTriwulan), `slugifyKey(name)`, `isEmptyRealisasi`.
+- **Validations** — `createImportSchema` now requires `name`; added `updateImportSchema` (name/period).
+- **APIs**
+  - `GET /api/users/[id]/imports` — list all imports (name, key, fileName, period, data, summary, createdAt) ordered newest first
+  - `POST /api/users/[id]/imports` — `{ name, fileName, period?, items[] }` → insert; `key` auto-slugged with dedup (`tw2_2026`, `tw1_2026_revisi` …)
+  - `PATCH /api/users/[id]/imports/[importId]` — rename (key re-slugged)
+  - `DELETE /api/users/[id]/imports/[importId]`
+  - Guards: session + user ownership + `isAdminActive`
+- **UI** (`app/(dashboard)/users/[id]/imports/page.tsx`)
+  - Import panel: **Name** input (required) + file dropzone + preview → submit
+  - Data panel: **list of imports** (name, key badge, fileName, itemCount, pending TW1–4 badges, rename/delete) → click one → **pivot table** below (reuses `buildPivot`; keyed by full indicator context)
+- **Backfill** — existing `users.metadata.imports` migrated to a `data_imports` row (name = fileName), then `metadata.imports` cleared (1 row migrated).
+
+### Verified
+- `bunx tsc --noEmit` clean; JSON valid.
+- E2E live: create user → import "TW1-2026" (key `tw1_2026`, 12 items) + "TW2-2026" (key `tw2_2026`) → list shows 2 → summary correct → rename → key becomes `tw2_2026_revisi` → delete one → list shows 1 → cleanup.
+
+### Files Created/Modified
+```
+lib/db/schema.ts (data_imports)
+lib/db/migrations/0006_curved_senator_kelly.sql (new)
+lib/imports/utils.ts (new)
+lib/validations.ts (createImportSchema name + updateImportSchema)
+app/api/users/[id]/imports/route.ts (DB list/create)
+app/api/users/[id]/imports/[importId]/route.ts (new — rename/delete)
+app/(dashboard)/users/[id]/imports/page.tsx (name input + list + per-import pivot)
+lib/i18n/en.json (imports.name)
+lib/i18n/id.json (imports.name)
+PHASES.md (this update)
+```
+
+---
+
+## Phase 26: Import Types per Tenant (SaaS configurable formats) ✅
+
+### Scope
+File formats are no longer hardcoded in code. Each tenant defines their own **Import Types** stored in DB — a generic table-mapping engine parses any tabular HTML using the type's column mapping. New formats = configure via UI, no deploy.
+
+### Changes
+- **Schema** — `import_types` table (adminId, key unique per admin, name, `engine` (`table`|`ekinerja-json`), `format`, `detectRules` jsonb, `columnMapping` jsonb, isActive) + `data_imports.engine` column (snapshot for view). Migration `0007_strange_slayback.sql` pushed.
+- **Engines** (`lib/imports/engines/`)
+  - `table.ts` — generic tabular HTML parser driven by `TableMapping` (header-row keywords, column rules `{field, match, mode}` with exact/contains/contains-exclude, triwulan regex; handles merged rowSpan via relative TW-cell detection).
+  - ekinerja-json (existing e-TPP JSON-embedded parser, kept as special engine).
+- **`lib/imports/engine.ts`** (pure, client-safe) — `parseWithType(type, content)`, `detectImportType(types, content)` (detectRules all-includes).
+- **`lib/imports/seed.ts`** (server) — `monevTableMapping` config + `ensureSeedImportTypes(adminId)` seeds `ekinerja` + `monev` per tenant on first fetch. Per-tenant ownership → admin can edit/disable/add freely.
+- **APIs** — `GET/POST /api/imports/types`, `PATCH/DELETE /api/imports/types/[id]`; import POST now takes `importTypeId` (stores `source`=type.key + `engine`).
+- **UI**
+  - New **Import Types** page (`/import-types`, sidebar nav) — CRUD + form: key/name/engine/format/isActive, detection keywords, and for `table` engine a **manual column mapping form** (field → header pattern, mode, exclude, header-row keywords, triwulan regex) with a "fill Monev template" helper.
+  - Imports page: auto-detect type from file → badge type name → parse via engine → submit; view branches by engine (`table` → Monev-style columns incl. Capaian/Keterangan/Validasi; `ekinerja-json` → pivot).
+- **Backfill** — existing `data_imports` engine corrected by source (ekinerja→ekinerja-json, monev→table).
+- Removed dead code: `lib/imports/registry.ts`, `lib/imports/parsers/monev/`.
+
+### Verified
+- `bunx tsc --noEmit` clean; JSON valid.
+- E2E live: seeded types `ekinerja(ekinerja-json)`, `monev(table)` → auto-detect e-TPP/Monev files → parse via DB config (12 / 66 / 36 items, 0 errors) → import → engine+source stored → list correct → cleanup. Types CRUD (create/patch/duplicate-key-rejected/delete) pass.
+
+### Files Created/Modified
+```
+lib/db/schema.ts (import_types, data_imports.engine)
+lib/db/migrations/0007_strange_slayback.sql (new)
+lib/imports/engines/table.ts (new)
+lib/imports/engine.ts (new)
+lib/imports/seed.ts (new)
+lib/imports/registry.ts (removed)
+lib/imports/parsers/monev/index.ts (removed)
+lib/imports/utils.ts (cleanCellText, trimStr, nullableStr)
+lib/validations.ts (createImportSchema importTypeId, import type schemas)
+app/api/imports/types/route.ts (new)
+app/api/imports/types/[id]/route.ts (new)
+app/api/users/[id]/imports/route.ts (importTypeId + engine)
+components/imports/import-types-manager.tsx (new)
+app/(dashboard)/import-types/page.tsx (new) + loading.tsx (new)
+app/(dashboard)/users/[id]/imports/page.tsx (detect via types + engine views)
+components/layouts/sidebar.tsx (Import Types nav)
+lib/i18n/en.json (importTypes.*, imports.*)
+lib/i18n/id.json (importTypes.*, imports.*)
+PHASES.md (this update)
+```
+
+---
+
+## Phase 27: Imported Data as Template Variables ✅
+
+### Scope
+Templates can now reference a user's imported data via `{{imports.<key>.<field>}}`, resolved **at render time per user** with engine-aware formatting (e-TPP vs Monev).
+
+### Changes
+- **`lib/imports/variables.ts`** (new) — `resolveImportVars(user, custom?)` (async):
+  - Base = `mergeVariables(user, custom)`
+  - Loads the user's `data_imports` → `imports[<key>] = { name, key, fileName, period, summary, currentTw, pendingCount, pendingList, currentTwCount, currentTwList }`
+  - `currentTw` from today's date; pending/current lists computed at render time (not snapshot)
+  - **Engine-aware line format**:
+    - `ekinerja-json` → `1. T/O2.1.1. Dokumen... (Dokumen: 1)`
+    - `table` (Monev) → `1. Kegiatan - Indikator: Target 3 · Realisasi 3 · Capaian 100% · Validasi VALID` (only non-empty fields)
+  - `pendingList` = unrealized items of current TW; `currentTwList` = all items of current TW (full monitoring report)
+  - `items` array not exposed (template engine can't loop)
+- **Render wiring** (3 call sites now use `await resolveImportVars`):
+  - `lib/scheduler.ts` `processSchedule`
+  - `POST /api/notifications/send`
+  - `POST /api/notifications/batch` (restructured to async per-user render before insert)
+- **Template form** — added `importHint` helper text listing available import variables (en/id).
+
+### Verified
+- `bunx tsc --noEmit` clean; JSON valid.
+- E2E live: user with `data_kinerja_saya_e_tpp` + `monev_2026_sub_kegiatan_renstra` imports → `resolveImportVars` returns per-key vars (currentTw=3); ekinerja `pendingList` = T/O style, monev `pendingList` = Target/Validasi style; `templateEngine.render("{{imports.<key>.pendingCount}} / {{imports.<key>.pendingList}}")` produces correct per-user output.
+
+### Files Created/Modified
+```
+lib/imports/variables.ts (new)
+lib/scheduler.ts (resolveImportVars)
+app/api/notifications/send/route.ts (resolveImportVars)
+app/api/notifications/batch/route.ts (async per-user render)
+components/templates/template-form.tsx (importHint)
+lib/i18n/en.json (templates.form.importHint)
+lib/i18n/id.json (templates.form.importHint)
+PHASES.md (this update)
+```
+
+---
+
 ## Environment Variables
 
 ```bash

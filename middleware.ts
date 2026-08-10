@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifyToken, getCookieName } from "@/lib/auth/session";
 
-const publicPaths = ["/login", "/register", "/"];
-const authApiPaths = ["/api/auth/login", "/api/auth/logout", "/api/auth/register"];
+const publicPaths = ["/login", "/"];
+const authApiPaths = ["/api/auth/login", "/api/auth/logout"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -28,8 +28,8 @@ export async function middleware(request: NextRequest) {
   // Auth API — allow always
   if (isAuthApi) return NextResponse.next();
 
-  // Already logged in, trying to access login/register/landing page → redirect to dashboard
-  if (session && (pathname === "/login" || pathname === "/register" || pathname === "/")) {
+  // Already logged in, trying to access login/landing page → redirect to dashboard
+  if (session && (pathname === "/login" || pathname === "/")) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

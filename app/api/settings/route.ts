@@ -5,6 +5,7 @@ import { settingsSchema } from "@/lib/validations";
 import { and, eq } from "drizzle-orm";
 import { getWaHealth, resetWaProvider } from "@/lib/wa";
 import { checkEmailHealth, resetEmailTransporter } from "@/lib/email";
+import { addBaileysDisconnectJob } from "@/lib/queue";
 import { getSession, unauthorizedResponse } from "@/lib/auth/api";
 
 const SETTING_KEYS = [
@@ -100,6 +101,8 @@ export async function GET() {
         smtpSecure: (stored.smtpSecure as string) || null,
         emailFrom: stored.emailFrom || null,
         defaultTimezone: stored.defaultTimezone || "Asia/Jakarta",
+        serverTime: new Date().toISOString(),
+        serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         health: {
           wa: waHealth,
           email: emailHealth,
@@ -123,6 +126,13 @@ export async function PUT(request: Request) {
 
     const body = await request.json();
     const validated = settingsSchema.parse(body);
+
+    const [currentProviderRow] = await db
+      .select()
+      .from(settings)
+      .where(and(eq(settings.adminId, session.adminId), eq(settings.key, "waProvider")))
+      .limit(1);
+    const oldWaProvider = (currentProviderRow?.value as string) || "fonnte";
 
     const entries: { key: SettingKey; value: string | number }[] = [];
 
@@ -159,6 +169,14 @@ export async function PUT(request: Request) {
         e.key === "openwaSession"
     );
     if (hasWaUpdate) resetWaProvider(session.adminId);
+
+    if (
+      validated.waProvider !== undefined &&
+      oldWaProvider === "baileys" &&
+      validated.waProvider !== "baileys"
+    ) {
+      await addBaileysDisconnectJob(session.adminId);
+    }
 
     const hasSmtpUpdate = entries.some(
       (e) =>
