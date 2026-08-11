@@ -990,6 +990,165 @@ PHASES.md (this update)
 
 ---
 
+## Phase 28: Easy Template Building from Imported Data ✅
+
+### Scope
+Make it easy for admins to write templates that use imported data — no need to hand-type `{{imports.<key>.<field>}}` or guess keys.
+
+### Changes
+- **`GET /api/imports/variable-keys`** (new) — distinct `{ key, name }` actually in use across the admin's users' `data_imports` (first-seen order by recency).
+- **Template form** (`template-form.tsx`):
+  - Variable detection regex upgraded to multi-segment `\{\{([\w.]+)\}\}` (consistent with `templateEngine.validateVariables`) → import paths show up in chips, sample data, and stored `template.variables`.
+  - New **"Data Import variables"** panel: for each in-use key, click-to-insert chips for `pendingCount`, `pendingList`, `currentTw`, `currentTwList`, `currentTwCount`, `summary.itemCount`, `summary.pendingPerTriwulan.1..4`, `fileName`, `period` (reuses `insertVariable` at cursor); empty-state hint if no imports yet.
+- **Preview with real user** (`template-preview.tsx` + preview API):
+  - `templatePreviewSchema` now accepts optional `userId`.
+  - Preview route: when `userId` given, loads the user (admin-scoped) and renders via `resolveImportVars(user, sampleData)` → real imported data in output.
+  - Preview UI: user dropdown ("Sample data" / pick a user); selecting a user calls the API and shows the real rendered message; sample inputs still override where filled.
+- i18n keys: `templates.form.importVars*`, `templates.form.importField.*`, `templates.form.pendingTw`, `templates.previewUser*`.
+
+### Verified
+- `bunx tsc --noEmit` clean; JSON valid.
+- E2E live: import Monev → `variable-keys` returns `monev_tw` → create template with `{{imports.<key>...}}` → preview without user (sample only) → preview with user renders real data (TW 3, pendingCount 18, full Monev pending list, total 66) → cleanup.
+
+### Files Created/Modified
+```
+app/api/imports/variable-keys/route.ts (new)
+lib/validations.ts (templatePreviewSchema + userId)
+app/api/templates/[id]/preview/route.ts (resolveImportVars on userId)
+components/templates/template-form.tsx (picker panel + multi-segment regex)
+components/templates/template-preview.tsx (user dropdown + API preview)
+lib/i18n/en.json (templates.* keys)
+lib/i18n/id.json (templates.* keys)
+PHASES.md (this update)
+```
+
+---
+
+## Phase 29: Consistent Import Keys + Handle Users with Different Imports ✅
+
+### Scope
+1. Import keys become **explicit, reusable identifiers** (dropdown of existing keys per tenant) so templates stay consistent across users.
+2. Templates that reference imports now **handle users who don't have the data** (filter recipients + coverage + conditional hint).
+
+### Changes
+**Part 1 — Explicit import keys**
+- `createImportSchema`: `key` required (regex `^[a-z0-9_]+$`), `name` optional (display).
+- `POST /api/users/[id]/imports`: uses the provided key; same user + same key → **replace** (transaction: delete old + insert). No more auto-slug-from-name.
+- `PATCH /api/users/[id]/imports/[importId]`: `name` display-only — no longer re-slugs the key.
+- Imports page: **Key** field = dropdown of existing keys (`/api/imports/variable-keys`) + "Create new key…" (key-safe input) + optional **Name**; hint to reuse the same key across users.
+- i18n: `imports.key*`, `imports.nameOptional`.
+
+**Part 2 — Templates when users have different imports**
+- `extractImportKeys(text)` (utils) — parses `{{imports.<key>...}}` AND `{{#if imports.<key>...}}` paths → unique keys.
+- **Batch send filter**: recipients kept only if they have **all** referenced import keys; others skipped; response includes `skippedCount` + clear message. (Single send unchanged — admin picked the user.)
+- **Coverage**: preview API returns `coverage: [{ key, count, total }]` (users with the key vs total active users); preview UI shows a coverage panel.
+- **Template form hint**: documents the `{{#if imports.<key>.pendingCount}}...{{/if}}` pattern so users without the import get a clean message.
+
+### Verified
+- `bunx tsc --noEmit` clean; JSON valid.
+- E2E live: import twice with same key → list stays 1 (replace); `variable-keys` includes `monev`; preview with real user renders (TW3, 18 pending, Monev list); coverage `monev: 2 of 11`; batch-filter logic keeps only the 2 users with key `monev` out of 3 targets; `extractImportKeys` unit cases (plain/conditional/multiple/none) pass.
+
+### Files Created/Modified
+```
+lib/validations.ts (createImportSchema key/name, updateImportSchema)
+app/api/users/[id]/imports/route.ts (provided key + replace)
+app/api/users/[id]/imports/[importId]/route.ts (name-only)
+app/(dashboard)/users/[id]/imports/page.tsx (key dropdown + name)
+lib/imports/utils.ts (extractImportKeys)
+app/api/notifications/batch/route.ts (filter + skipped)
+app/api/templates/[id]/preview/route.ts (coverage)
+components/templates/template-preview.tsx (coverage panel)
+components/templates/template-form.tsx (hint text)
+lib/i18n/en.json (imports.key*, templates.coverage*)
+lib/i18n/id.json (imports.key*, templates.coverage*)
+PHASES.md (this update)
+```
+
+---
+
+## Phase 30: Import Categories (CRUD per tenant) ✅
+
+### Scope
+Import keys are now a **managed, CRUD-able list per tenant** ("Kategori Import") instead of only a derived list. The import dropdown sources from active categories (with fallback to keys already in use). Category key is **immutable** (templates & old data stay safe).
+
+### Changes
+- **Schema** — `import_categories` table: id, adminId (FK cascade), `key` (unique per admin, immutable), `name`, `description`, `isActive`, timestamps. Migration `0008_lush_madrox.sql` pushed.
+- **APIs**
+  - `GET /api/imports/categories` — list (admin-scoped)
+  - `POST /api/imports/categories` — create (409 on duplicate key)
+  - `PATCH /api/imports/categories/[id]` — name/description/isActive only (**key not editable**)
+  - `DELETE /api/imports/categories/[id]`
+  - Guards: session + `isAdminActive` on writes
+- **UI**
+  - New **Import Categories** page (`/import-categories`) + sidebar nav — CRUD manager (key/name/description/active), key disabled when editing
+  - Data Import page: **Key dropdown** = active categories first, then fallback keys already in use (`variable-keys`), then "Create new key…"
+- **Validations** — `createImportCategorySchema` (key regex), `updateImportCategorySchema` (no key)
+- i18n keys `importCategories.*` + `nav.importCategories` (en/id)
+
+### Verified
+- `bunx tsc --noEmit` clean; JSON valid.
+- E2E live: create category `monev` → duplicate key 409 → list contains it → PATCH renames name but key stays `monev` → import user with key `monev` → `variable-keys` includes `monev` → delete category → cleanup.
+
+### Files Created/Modified
+```
+lib/db/schema.ts (import_categories)
+lib/db/migrations/0008_lush_madrox.sql (new)
+lib/validations.ts (category schemas)
+app/api/imports/categories/route.ts (new)
+app/api/imports/categories/[id]/route.ts (new)
+components/imports/import-categories-manager.tsx (new)
+app/(dashboard)/import-categories/page.tsx (new) + loading.tsx (new)
+app/(dashboard)/users/[id]/imports/page.tsx (dropdown from categories)
+components/layouts/sidebar.tsx (nav)
+lib/i18n/en.json (importCategories.*, nav)
+lib/i18n/id.json (importCategories.*, nav)
+PHASES.md (this update)
+```
+
+---
+
+## Phase 31: data_imports FK to Import Categories (drop key/name) ✅
+
+### Scope
+`data_imports.key` and `data_imports.name` are removed. Every import is now linked to an `import_categories` row via a required FK — the category `key` is the template reference (`{{imports.<categoryKey>...}}`), giving consistency by design.
+
+### Changes
+- **Schema** — `data_imports`: dropped `key` + `name`; added `import_category_id` uuid FK → `import_categories.id` (**NOT NULL, ON DELETE RESTRICT**); unique index changed to `(admin_id, user_id, import_category_id)` (1 import per category per user). Migration `0009_import_category_fk.sql` (custom — includes **backfill**: legacy `data_imports.key` values auto-create categories and link rows).
+- **Validations** — `createImportSchema` = `{ importTypeId, categoryId (uuid, required), fileName, period?, items }`; `updateImportSchema` = `{ period? }` only.
+- **Routes**
+  - `POST /api/users/[id]/imports` — validates category (admin + active); replace by `(user + category)`.
+  - `GET /api/users/[id]/imports` — `innerJoin` category → returns `categoryId`, `categoryName`, `categoryKey`.
+  - `PATCH /api/users/[id]/imports/[importId]` — `period` only.
+  - `variable-keys` — returns **active categories** (`key`, `name`).
+- **`resolveImportVars`** — joins category → `imports[category.key] = { name: category.name, ... }` (templates unchanged).
+- **Batch filter / preview coverage** — join categories, match on `importCategories.key`.
+- **UI (Data Import page)** — dropdown = active categories (send `categoryId`), "Create new category" link → `/import-categories`; list shows category name + key badge; rename button removed (update = re-import).
+
+### Verified
+- `bunx tsc --noEmit` clean; JSON valid.
+- Applied migration `0009` to local DB: 5 categories auto-created from legacy keys, imports linked, `key`/`name` dropped, unique replaced.
+- E2E live: create category `monev` → import with `categoryId` (66 items) → GET row has `categoryName`/`categoryKey` and **no** `key`/`name` → preview renders via category join (TW3, 18 pending) → `variable-keys` from categories → **delete category with import blocked (RESTRICT)** → after deleting import, category deletable → cleanup.
+
+### Files Created/Modified
+```
+lib/db/schema.ts (data_imports categoryId, drop key/name)
+lib/db/migrations/0009_import_category_fk.sql (new, custom + backfill)
+lib/validations.ts (create/update import schema)
+app/api/users/[id]/imports/route.ts (categoryId + join)
+app/api/users/[id]/imports/[importId]/route.ts (period only)
+app/api/imports/variable-keys/route.ts (categories)
+app/api/notifications/batch/route.ts (join categories)
+app/api/templates/[id]/preview/route.ts (join categories)
+lib/imports/variables.ts (join category)
+app/(dashboard)/users/[id]/imports/page.tsx (category dropdown + list)
+lib/i18n/en.json (imports.category*, createCategory)
+lib/i18n/id.json (imports.category*, createCategory)
+AGENTS.md (migration range 0001-0009)
+PHASES.md (this update)
+```
+
+---
+
 ## Environment Variables
 
 ```bash

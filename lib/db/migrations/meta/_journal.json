@@ -57,6 +57,20 @@
       "when": 1786353957568,
       "tag": "0007_strange_slayback",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786418531430,
+      "tag": "0008_lush_madrox",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786419905006,
+      "tag": "0009_import_category_fk",
+      "breakpoints": true
     }
   ]
 }

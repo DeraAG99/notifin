@@ -11,7 +11,6 @@ import {
   type SessionPayload,
 } from "@/lib/auth/api";
 import { isAdminActive } from "@/lib/admin-status";
-import { slugifyKey } from "@/lib/imports/utils";
 
 async function loadUser(session: SessionPayload, userId: string) {
   const scoped = isSuperadmin(session) ? undefined : eq(users.adminId, session.adminId);
@@ -42,10 +41,6 @@ export async function PATCH(
     const validated = updateImportSchema.parse(body);
 
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
-    if (validated.name !== undefined) {
-      updateData.name = validated.name;
-      updateData.key = slugifyKey(validated.name);
-    }
     if (validated.period !== undefined) updateData.period = validated.period;
 
     const [imported] = await db

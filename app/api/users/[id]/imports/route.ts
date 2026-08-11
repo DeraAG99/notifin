@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { dataImports, importTypes, users } from "@/lib/db/schema";
+import { dataImports, importTypes, importCategories, users } from "@/lib/db/schema";
 import { createImportSchema } from "@/lib/validations";
 import { and, desc, eq } from "drizzle-orm";
 import {
@@ -12,7 +12,7 @@ import {
 } from "@/lib/auth/api";
 import { isAdminActive } from "@/lib/admin-status";
 import type { ImportItem } from "@/lib/imports/types";
-import { buildSummary, slugifyKey } from "@/lib/imports/utils";
+import { buildSummary } from "@/lib/imports/utils";
 
 async function loadUser(session: SessionPayload, userId: string) {
   const scoped = isSuperadmin(session) ? undefined : eq(users.adminId, session.adminId);
@@ -22,21 +22,6 @@ async function loadUser(session: SessionPayload, userId: string) {
     .where(and(eq(users.id, userId), scoped))
     .limit(1);
   return user;
-}
-
-async function uniqueKey(adminId: string, userId: string, base: string): Promise<string> {
-  const existing = await db
-    .select({ key: dataImports.key })
-    .from(dataImports)
-    .where(and(eq(dataImports.adminId, adminId), eq(dataImports.userId, userId)));
-  const keys = new Set(existing.map((r) => r.key));
-  let candidate = base;
-  let i = 2;
-  while (keys.has(candidate)) {
-    candidate = `${base}_${i}`;
-    i += 1;
-  }
-  return candidate;
 }
 
 export async function GET(
@@ -58,10 +43,11 @@ export async function GET(
         id: dataImports.id,
         adminId: dataImports.adminId,
         userId: dataImports.userId,
-        name: dataImports.name,
+        categoryId: dataImports.categoryId,
+        categoryName: importCategories.name,
+        categoryKey: importCategories.key,
         source: dataImports.source,
         engine: dataImports.engine,
-        key: dataImports.key,
         fileName: dataImports.fileName,
         period: dataImports.period,
         data: dataImports.data,
@@ -70,6 +56,7 @@ export async function GET(
         updatedAt: dataImports.updatedAt,
       })
       .from(dataImports)
+      .innerJoin(importCategories, eq(dataImports.categoryId, importCategories.id))
       .where(and(eq(dataImports.adminId, user.adminId), eq(dataImports.userId, id)))
       .orderBy(desc(dataImports.createdAt));
 
@@ -115,30 +102,58 @@ export async function POST(
       );
     }
 
-    const items = validated.items as ImportItem[];
-    const key = await uniqueKey(session.adminId, id, slugifyKey(validated.name));
+    const [category] = await db
+      .select()
+      .from(importCategories)
+      .where(
+        and(
+          eq(importCategories.id, validated.categoryId),
+          eq(importCategories.adminId, session.adminId)
+        )
+      )
+      .limit(1);
 
-    const [imported] = await db
-      .insert(dataImports)
-      .values({
-        adminId: session.adminId,
-        userId: id,
-        name: validated.name,
-        source: type.key,
-        engine: type.engine,
-        key,
-        fileName: validated.fileName,
-        period: validated.period || null,
-        data: items as unknown as Record<string, unknown>[],
-        summary: buildSummary(items),
-      })
-      .returning();
+    if (!category || !category.isActive) {
+      return NextResponse.json(
+        { success: false, error: "Kategori import tidak ditemukan atau nonaktif" },
+        { status: 400 }
+      );
+    }
+
+    const items = validated.items as ImportItem[];
+
+    const [imported] = await db.transaction(async (tx) => {
+      await tx
+        .delete(dataImports)
+        .where(
+          and(
+            eq(dataImports.adminId, session.adminId),
+            eq(dataImports.userId, id),
+            eq(dataImports.categoryId, category.id)
+          )
+        );
+
+      return tx
+        .insert(dataImports)
+        .values({
+          adminId: session.adminId,
+          userId: id,
+          categoryId: category.id,
+          source: type.key,
+          engine: type.engine,
+          fileName: validated.fileName,
+          period: validated.period || null,
+          data: items as unknown as Record<string, unknown>[],
+          summary: buildSummary(items),
+        })
+        .returning();
+    });
 
     return NextResponse.json(
       {
         success: true,
         data: imported,
-        message: `Data "${validated.name}" berhasil diimpor (${items.length} item)`,
+        message: `Data "${category.name}" berhasil diimpor (${items.length} item)`,
       },
       { status: 201 }
     );

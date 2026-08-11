@@ -82,7 +82,7 @@ bunx tsc --noEmit    # Type check (ALWAYS run after changes)
 - Six services: postgres, redis, web, worker, scheduler, openwa
 
 ## Migration & Redeploy Rules
-- JANGAN pernah mengedit migration yang sudah ter-apply (0001-0007). Perubahan schema = selalu buat migration BARU: `bun run db:generate`, commit file `.sql` + snapshot `meta/*`.
+- JANGAN pernah mengedit migration yang sudah ter-apply (0001-0009). Perubahan schema = selalu buat migration BARU: `bun run db:generate`, commit file `.sql` + snapshot `meta/*`.
 - `lib/db/migrate.ts` idempotent — mencatat migration yang sudah jalan di tabel `__drizzle_migrations`, hanya menjalankan yang BARU. Redeploy TIDAK menghapus data.
 - Data hanya hilang jika: (a) migration sengaja DROP tabel/kolom, atau (b) `docker compose down -v` menghapus volume postgres. `docker compose down` biasa TIDAK menghapus data.
 - Alur deploy: `docker compose build web worker scheduler && docker compose up -d` — migration baru otomatis jalan saat container `web` start (`bun lib/db/migrate.ts && bun run start`).

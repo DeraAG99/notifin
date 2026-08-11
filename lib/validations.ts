@@ -77,6 +77,7 @@ export const batchSendSchema = z.object({
 
 export const templatePreviewSchema = z.object({
   sampleData: z.record(z.string(), z.unknown()).default({}),
+  userId: z.string().uuid("User tidak valid").optional(),
 });
 
 export const logFilterSchema = z.object({
@@ -175,14 +176,13 @@ export const importItemSchema = z.object({
 
 export const createImportSchema = z.object({
   importTypeId: z.string().uuid("Tipe import tidak valid"),
-  name: z.string().min(1, "Nama wajib diisi").max(100),
+  categoryId: z.string().uuid("Kategori import tidak valid"),
   fileName: z.string().min(1, "Nama file wajib diisi"),
   period: z.string().nullable().optional(),
   items: z.array(importItemSchema).min(1, "Tidak ada data untuk diimpor"),
 });
 
 export const updateImportSchema = z.object({
-  name: z.string().min(1, "Nama wajib diisi").max(100).optional(),
   period: z.string().nullable().optional(),
 });
 
@@ -229,6 +229,23 @@ export const createImportTypeSchema = z.object({
 
 export const updateImportTypeSchema = createImportTypeSchema.partial();
 
+export const createImportCategorySchema = z.object({
+  key: z
+    .string()
+    .regex(/^[a-z0-9_]+$/, "Key hanya huruf kecil, angka, dan underscore")
+    .min(1)
+    .max(40),
+  name: z.string().min(1, "Nama wajib diisi").max(100),
+  description: z.string().max(255).nullable().optional(),
+  isActive: z.boolean().default(true),
+});
+
+export const updateImportCategorySchema = z.object({
+  name: z.string().min(1, "Nama wajib diisi").max(100).optional(),
+  description: z.string().max(255).nullable().optional(),
+  isActive: z.boolean().optional(),
+});
+
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type CreateAdminInput = z.infer<typeof createAdminSchema>;
 export type UpdateAdminInput = z.infer<typeof updateAdminSchema>;
@@ -236,6 +253,8 @@ export type CreateImportInput = z.infer<typeof createImportSchema>;
 export type UpdateImportInput = z.infer<typeof updateImportSchema>;
 export type CreateImportTypeInput = z.infer<typeof createImportTypeSchema>;
 export type UpdateImportTypeInput = z.infer<typeof updateImportTypeSchema>;
+export type CreateImportCategoryInput = z.infer<typeof createImportCategorySchema>;
+export type UpdateImportCategoryInput = z.infer<typeof updateImportCategorySchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type CreateTemplateInput = z.infer<typeof createTemplateSchema>;
 export type UpdateTemplateInput = z.infer<typeof updateTemplateSchema>;

@@ -1,8 +1,8 @@
 import { db } from "@/lib/db";
-import { dataImports } from "@/lib/db/schema";
+import { dataImports, importCategories } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { mergeVariables } from "@/lib/variables";
-import { isEmptyRealisasi, slugifyKey } from "./utils";
+import { isEmptyRealisasi } from "./utils";
 import type { ImportItem } from "./types";
 import type { User } from "@/types";
 
@@ -40,8 +40,13 @@ export async function resolveImportVars(
   const base = mergeVariables(user as User, custom);
 
   const rows = await db
-    .select()
+    .select({
+      imp: dataImports,
+      categoryKey: importCategories.key,
+      categoryName: importCategories.name,
+    })
     .from(dataImports)
+    .innerJoin(importCategories, eq(dataImports.categoryId, importCategories.id))
     .where(
       and(eq(dataImports.userId, user.id), eq(dataImports.adminId, user.adminId))
     );
@@ -52,19 +57,20 @@ export async function resolveImportVars(
   const imports: Record<string, unknown> = {};
 
   for (const row of rows) {
-    const items = (Array.isArray(row.data) ? row.data : []) as ImportItem[];
+    const imp = row.imp;
+    const items = (Array.isArray(imp.data) ? imp.data : []) as ImportItem[];
     const twItems = items.filter((item) => item.triwulan === tw);
     const pending = twItems.filter((item) => isEmptyRealisasi(item.realisasi));
-    const isTable = row.engine === "table";
+    const isTable = imp.engine === "table";
     const line = (item: ImportItem, idx: number) =>
       isTable ? formatTableLine(item, idx) : formatEkinerjaLine(item, idx);
 
-    imports[row.key || slugifyKey(row.name)] = {
-      name: row.name,
-      key: row.key,
-      fileName: row.fileName,
-      period: row.period,
-      summary: row.summary,
+    imports[row.categoryKey] = {
+      name: row.categoryName,
+      key: row.categoryKey,
+      fileName: imp.fileName,
+      period: imp.period,
+      summary: imp.summary,
       currentTw: tw,
       pendingCount: pending.length,
       pendingList: pending.map(line).join("\n"),

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { notificationLogs, notificationTemplates, users } from "@/lib/db/schema";
+import { notificationLogs, notificationTemplates, users, dataImports, importCategories } from "@/lib/db/schema";
 import { batchSendSchema } from "@/lib/validations";
 import { addNotificationJob } from "@/lib/queue";
 import { templateEngine } from "@/lib/template-engine";
 import { resolveImportVars } from "@/lib/imports/variables";
+import { extractImportKeys } from "@/lib/imports/utils";
 import { and, eq, inArray } from "drizzle-orm";
 import type { ApiResponse } from "@/types";
 import { getSession, unauthorizedResponse, forbiddenResponse } from "@/lib/auth/api";
@@ -33,14 +34,48 @@ export async function POST(request: Request) {
       );
     }
 
-    const userList = await db
+    let userList = await db
       .select()
       .from(users)
       .where(and(inArray(users.id, validated.userIds), eq(users.adminId, session.adminId)));
 
+    const importKeys = extractImportKeys(template.content.text);
+    let skippedCount = 0;
+
+    if (importKeys.length > 0) {
+      const keyRows = await db
+        .select({ userId: dataImports.userId, categoryKey: importCategories.key })
+        .from(dataImports)
+        .innerJoin(importCategories, eq(dataImports.categoryId, importCategories.id))
+        .where(
+          and(
+            eq(dataImports.adminId, session.adminId),
+            inArray(importCategories.key, importKeys)
+          )
+        );
+
+      const keysByUser = new Map<string, Set<string>>();
+      for (const row of keyRows) {
+        if (!row.categoryKey) continue;
+        const set = keysByUser.get(row.userId) || new Set<string>();
+        set.add(row.categoryKey);
+        keysByUser.set(row.userId, set);
+      }
+
+      const kept = userList.filter((u) =>
+        importKeys.every((k) => keysByUser.get(u.id)?.has(k))
+      );
+      skippedCount = userList.length - kept.length;
+      userList = kept;
+    }
+
     if (userList.length === 0) {
       return NextResponse.json(
-        { success: false, error: "No valid users found" },
+        {
+          success: false,
+          error: "No valid users found",
+          message: `Tidak ada user yang memiliki data import yang dibutuhkan template (${importKeys.join(", ") || "n/a"})`,
+        },
         { status: 404 }
       );
     }
@@ -110,8 +145,16 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: true,
-        data: { totalJobs: queuedCount, totalUsers: userList.length, totalChannels: channels.length },
-        message: `${queuedCount} notifications queued`,
+        data: {
+          totalJobs: queuedCount,
+          totalUsers: userList.length,
+          totalChannels: channels.length,
+          skippedCount,
+        },
+        message:
+          skippedCount > 0
+            ? `${queuedCount} notifications queued, ${skippedCount} user(s) skipped (no matching import data)`
+            : `${queuedCount} notifications queued`,
       },
       { status: 201 }
     );

@@ -56,3 +56,14 @@ export function slugifyKey(name: string): string {
     .slice(0, 32);
   return slug || "import";
 }
+
+export function extractImportKeys(text: string): string[] {
+  const keys = new Set<string>();
+  const regex = /\{\{\s*(?:#if\s+)?imports\.([\w.]+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    const key = match[1].split(".")[0];
+    if (key) keys.add(key);
+  }
+  return Array.from(keys);
+}

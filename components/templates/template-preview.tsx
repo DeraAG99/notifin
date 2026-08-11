@@ -1,33 +1,92 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n/context";
-import { Copy, MessageSquare, Mail } from "lucide-react";
-import type { NotificationTemplate } from "@/types";
+import { Copy, MessageSquare, Mail, Loader2 } from "lucide-react";
+import type { NotificationTemplate, User } from "@/types";
 
 interface TemplatePreviewProps {
   template: NotificationTemplate;
 }
 
 export function TemplatePreview({ template }: TemplatePreviewProps) {
-  const { t } = useI18n();
+  const { t, tx } = useI18n();
   const [sampleData, setSampleData] = useState<Record<string, string>>({});
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [serverPreview, setServerPreview] = useState<{ text: string; html?: string } | null>(null);
+  const [coverage, setCoverage] = useState<{ key: string; count: number; total: number }[]>([]);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   const variables = template.variables || [];
 
+  useEffect(() => {
+    fetch("/api/users?pageSize=100")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) setUsers(data.data.items);
+      })
+      .catch(() => {});
+  }, []);
+
+  const loadServerPreview = async (userId: string, sample: Record<string, string>) => {
+    setLoadingPreview(true);
+    try {
+      const res = await fetch(`/api/templates/${template.id}/preview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sampleData: sample, userId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setServerPreview(data.data.rendered);
+        if (data.data.coverage) setCoverage(data.data.coverage);
+      }
+    } catch {
+      setServerPreview(null);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const handleUserChange = (value: string) => {
+    setSelectedUserId(value);
+    if (value) {
+      loadServerPreview(value, sampleData);
+    } else {
+      setServerPreview(null);
+    }
+  };
+
+  const handleSampleChange = (variable: string, value: string) => {
+    const next = { ...sampleData, [variable]: value };
+    setSampleData(next);
+    if (selectedUserId) {
+      loadServerPreview(selectedUserId, next);
+    }
+  };
+
   const renderedText = useMemo(() => {
+    if (serverPreview) return serverPreview.text;
     let text = template.content.text;
     Object.entries(sampleData).forEach(([key, value]) => {
       text = text.replaceAll(`{{${key}}}`, value || `{{${key}}}`);
     });
     return text;
-  }, [template.content.text, sampleData]);
+  }, [template.content.text, sampleData, serverPreview]);
 
   const renderedSubject = useMemo(() => {
     if (!template.subject) return null;
@@ -55,15 +114,42 @@ export function TemplatePreview({ template }: TemplatePreviewProps) {
                 </code>
                 <Input
                   value={sampleData[variable] || ""}
-                  onChange={(e) =>
-                    setSampleData({ ...sampleData, [variable]: e.target.value })
-                  }
+                  onChange={(e) => handleSampleChange(variable, e.target.value)}
                   placeholder={variable}
                   className="h-8 text-sm"
                 />
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Preview with real user */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">{t.templates.previewUser}</Label>
+        <Select value={selectedUserId} onValueChange={(v) => handleUserChange(v ?? "")}>
+          <SelectTrigger>
+            <SelectValue placeholder={t.templates.previewUserPlaceholder} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">{t.templates.previewUserPlaceholder}</SelectItem>
+            {users.map((u) => (
+              <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">{t.templates.previewUserHint}</p>
+      </div>
+
+      {coverage.length > 0 && (
+        <div className="rounded-lg border p-3 space-y-1">
+          <Label className="text-xs">{t.templates.coverageTitle}</Label>
+          {coverage.map((c) => (
+            <p key={c.key} className="text-xs text-muted-foreground">
+              <span className="font-mono font-medium text-foreground">{c.key}</span>:{" "}
+              {tx("templates.coverage", { count: c.count, total: c.total })}
+            </p>
+          ))}
         </div>
       )}
 
@@ -75,16 +161,19 @@ export function TemplatePreview({ template }: TemplatePreviewProps) {
               <ChannelIcon className="h-4 w-4" />
               {t.templates.preview} {channelLabel}
             </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                navigator.clipboard.writeText(renderedText);
-                toast.add({ title: t.common.copied, description: t.templates.form.previewCopied, type: "success" });
-              }}
-            >
-              <Copy className="h-4 w-4 mr-1" /> {t.common.copy}
-            </Button>
+            <div className="flex items-center gap-2">
+              {loadingPreview && <Loader2 className="h-4 w-4 animate-spin" />}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(renderedText);
+                  toast.add({ title: t.common.copied, description: t.templates.form.previewCopied, type: "success" });
+                }}
+              >
+                <Copy className="h-4 w-4 mr-1" /> {t.common.copy}
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>

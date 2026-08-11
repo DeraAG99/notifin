@@ -4,8 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -22,7 +28,6 @@ import {
   Upload,
   Trash2,
   FileText,
-  Pencil,
   CheckCircle,
   XCircle,
   Loader2,
@@ -38,10 +43,11 @@ import type { User } from "@/types";
 
 interface ImportRow {
   id: string;
-  name: string;
+  categoryId: string;
+  categoryName: string;
+  categoryKey: string;
   source: string;
   engine: string;
-  key: string | null;
   fileName: string;
   period: string | null;
   data: ImportItem[];
@@ -192,10 +198,11 @@ export default function UserImportsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [imports, setImports] = useState<ImportRow[]>([]);
   const [types, setTypes] = useState<ImportTypeConfig[]>([]);
+  const [categories, setCategories] = useState<{ id: string; key: string; name: string }[]>([]);
   const [selectedType, setSelectedType] = useState<ImportTypeConfig | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [importName, setImportName] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
   const [preview, setPreview] = useState<{ items: ImportItem[]; errors: string[] } | null>(null);
@@ -210,16 +217,27 @@ export default function UserImportsPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [userRes, listRes, typesRes] = await Promise.all([
+      const [userRes, listRes, typesRes, catRes] = await Promise.all([
         fetch(`/api/users/${userId}`),
         fetch(`/api/users/${userId}/imports`),
         fetch("/api/imports/types"),
+        fetch("/api/imports/categories"),
       ]);
       const userData = await userRes.json();
       const listJson = await listRes.json();
       const typesJson = await typesRes.json();
+      const catJson = await catRes.json();
       if (userData.success) setUser(userData.data);
       if (typesJson.success) setTypes(typesJson.data);
+
+      if (catJson.success) {
+        setCategories(
+          (catJson.data as { id: string; key: string; name: string; isActive: boolean | null }[])
+            .filter((c) => c.isActive !== false)
+            .map((c) => ({ id: c.id, key: c.key, name: c.name }))
+        );
+      }
+
       if (listJson.success) {
         const rows = listJson.data as ImportRow[];
         setImports(rows);
@@ -279,7 +297,7 @@ export default function UserImportsPage() {
   };
 
   const handleImport = async () => {
-    if (!importName.trim() || !selectedType || !file || !preview || preview.items.length === 0) return;
+    if (!selectedCategoryId || !selectedType || !file || !preview || preview.items.length === 0) return;
     setSubmitting(true);
     try {
       const res = await fetch(`/api/users/${userId}/imports`, {
@@ -287,7 +305,7 @@ export default function UserImportsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           importTypeId: selectedType.id,
-          name: importName,
+          categoryId: selectedCategoryId,
           fileName: file.name,
           items: preview.items,
         }),
@@ -295,7 +313,7 @@ export default function UserImportsPage() {
       const result = await res.json();
       if (result.success) {
         toast.add({ title: t.common.success, description: result.message || t.imports.importSuccess, type: "success" });
-        setImportName("");
+        setSelectedCategoryId("");
         setFile(null);
         setPreview(null);
         setSelectedType(null);
@@ -310,29 +328,8 @@ export default function UserImportsPage() {
     }
   };
 
-  const handleRename = async (row: ImportRow) => {
-    const newName = prompt("Nama data import:", row.name);
-    if (!newName || newName.trim() === "" || newName === row.name) return;
-    try {
-      const res = await fetch(`/api/users/${userId}/imports/${row.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName.trim() }),
-      });
-      const result = await res.json();
-      if (result.success) {
-        toast.add({ title: t.common.success, description: "Data import diperbarui", type: "success" });
-        await fetchData();
-      } else {
-        toast.add({ title: t.common.error, description: result.error || "Gagal memperbarui", type: "error" });
-      }
-    } catch {
-      // ignore
-    }
-  };
-
   const handleDelete = async (row: ImportRow) => {
-    if (!confirm(`Hapus data import "${row.name}"?`)) return;
+    if (!confirm(`Hapus data import "${row.categoryName}"?`)) return;
     try {
       const res = await fetch(`/api/users/${userId}/imports/${row.id}`, { method: "DELETE" });
       const result = await res.json();
@@ -371,12 +368,34 @@ export default function UserImportsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>{t.imports.name}</Label>
-            <Input
-              value={importName}
-              onChange={(e) => setImportName(e.target.value)}
-              placeholder="mis. Renaksi TW1 - 2026"
-            />
+            <Label>{t.imports.category}</Label>
+            <Select value={selectedCategoryId} onValueChange={(v) => setSelectedCategoryId(v ?? "")}>
+              <SelectTrigger>
+                {(() => {
+                  const sel = categories.find((c) => c.id === selectedCategoryId);
+                  return sel ? <span>{sel.name}</span> : <SelectValue placeholder={t.imports.categoryPlaceholder} />;
+                })()}
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-2">
+              {selectedCategoryId && (
+                <p className="text-xs text-muted-foreground">{t.imports.keyHint}</p>
+              )}
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-6 px-0 text-xs"
+                onClick={() => router.push("/import-categories")}
+              >
+                {t.imports.createCategory}
+              </Button>
+            </div>
           </div>
 
           <div
@@ -432,7 +451,10 @@ export default function UserImportsPage() {
               )}
               {preview.items.length > 0 && (
                 <div className="flex items-center justify-end">
-                  <Button onClick={handleImport} disabled={submitting || !importName.trim() || !selectedType}>
+                  <Button
+                    onClick={handleImport}
+                    disabled={submitting || !selectedCategoryId || !selectedType}
+                  >
                     {submitting ? t.imports.importing : t.imports.importButton}
                   </Button>
                 </div>
@@ -470,10 +492,8 @@ export default function UserImportsPage() {
                     <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{row.name}</span>
-                        {row.key && (
-                          <Badge variant="secondary" className="font-mono">{row.key}</Badge>
-                        )}
+                        <span className="font-medium text-sm">{row.categoryName}</span>
+                        <Badge variant="secondary" className="font-mono">{row.categoryKey}</Badge>
                         <Badge variant="outline" className="text-[10px]">{row.engine}</Badge>
                       </div>
                       <div className="text-xs text-muted-foreground mt-0.5 truncate">
@@ -493,9 +513,6 @@ export default function UserImportsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRename(row)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(row)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
