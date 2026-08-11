@@ -62,6 +62,8 @@ services:
       NEXT_PUBLIC_APP_URL: ${APP_URL:-http://localhost:3000}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       DEFAULT_TIMEZONE: ${TZ:-Asia/Jakarta}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM: ${RESEND_FROM:-}
       JWT_SECRET: ${JWT_SECRET:-notifin-docker-secret-change-me}
       BAILEYS_AUTH_DIR: /data/baileys-auth
     volumes:
@@ -85,6 +87,8 @@ services:
       DATABASE_URL: *db-url
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-notifin-docker-secret-change-me}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM: ${RESEND_FROM:-}
       BAILEYS_AUTH_DIR: /data/baileys-auth
     volumes:
       - baileys_auth:/data/baileys-auth

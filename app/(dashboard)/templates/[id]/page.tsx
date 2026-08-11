@@ -40,6 +40,7 @@ import {
   Pencil, Check, X, Eye, Copy, Trash2, Plus,
 } from "lucide-react";
 import { TemplatePreview } from "@/components/templates/template-preview";
+import { ImportVariablesPicker } from "@/components/imports/import-variables-picker";
 import type { NotificationTemplate, NotificationSchedule, NotificationLog, User } from "@/types";
 
 export default function TemplateDetailPage() {
@@ -117,10 +118,26 @@ export default function TemplateDetailPage() {
     setEditing(false);
   };
 
+  const insertVariable = (variable: string) => {
+    const textarea = document.getElementById("editContent") as HTMLTextAreaElement | null;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const next = editContentText.substring(0, start) + `{{${variable}}}` + editContentText.substring(end);
+      setEditContentText(next);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + variable.length + 4, start + variable.length + 4);
+      }, 0);
+    } else {
+      setEditContentText((prev) => prev + `{{${variable}}}`);
+    }
+  };
+
   const saveEditing = async () => {
     if (!template) return;
     setSaving(true);
-    const variables = editContentText.match(/\{\{(\w+)\}\}/g)?.map((v) => v.replace(/\{\{|\}\}/g, "")) || [];
+    const variables = editContentText.match(/\{\{([\w.]+)\}\}/g)?.map((v) => v.replace(/\{\{|\}\}/g, "")) || [];
     try {
       const res = await fetch(`/api/templates/${template.id}`, {
         method: "PUT",
@@ -321,6 +338,7 @@ export default function TemplateDetailPage() {
                 <div className="space-y-2">
                   <Label>{t.templates.form.messageContent}</Label>
                   <Textarea
+                    id="editContent"
                     value={editContentText}
                     onChange={(e) => setEditContentText(e.target.value)}
                     rows={10}
@@ -329,9 +347,10 @@ export default function TemplateDetailPage() {
                   />
                   <p className="text-xs text-muted-foreground">
                     {"{{variabel}}"} untuk konten dinamis. Terdeteksi:{" "}
-                    {editContentText.match(/\{\{(\w+)\}\}/g)?.map((v) => v.replace(/\{\{|\}\}/g, "")).filter((v, i, a) => a.indexOf(v) === i).join(", ") || "tidak ada"}
+                    {editContentText.match(/\{\{([\w.]+)\}\}/g)?.map((v) => v.replace(/\{\{|\}\}/g, "")).filter((v, i, a) => a.indexOf(v) === i).join(", ") || "tidak ada"}
                   </p>
                 </div>
+                <ImportVariablesPicker onInsert={insertVariable} />
                 {editChannel !== "wa" && (
                   <div className="space-y-2">
                     <Label>{t.templates.form.htmlTemplate}</Label>

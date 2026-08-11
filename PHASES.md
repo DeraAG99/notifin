@@ -1149,6 +1149,86 @@ PHASES.md (this update)
 
 ---
 
+## Phase 32: Import Variables Picker in Template Detail Editor ✅
+
+### Scope
+The inline editor on the template **detail page** (`/templates/[id]`) was missing the "Data Import variables" picker (Phase 28 only added it to `template-form.tsx`), and its variable regex only matched single-segment `{{var}}` (so `{{imports.<key>.<field>}}` wasn't detected/stored).
+
+### Changes
+- **`components/imports/import-variables-picker.tsx`** (new, reusable) — fetches `/api/imports/variable-keys` and renders the click-to-insert panel (`onInsert(variable)` prop). Used by both editors.
+- **`template-form.tsx`** — replaced inline panel + state with `<ImportVariablesPicker onInsert={insertVariable} />` (DRY).
+- **`templates/[id]/page.tsx`** — added `<ImportVariablesPicker>` to the edit form, `insertVariable` (cursor-insert via `#editContent` textarea), `id="editContent"` on the Textarea, and upgraded both regexes (`saveEditing` + "Terdeteksi" display) to multi-segment `\{\{([\w.]+)\}\}`.
+- Verified `bunx tsc --noEmit` clean.
+
+### Files Created/Modified
+```
+components/imports/import-variables-picker.tsx (new)
+components/templates/template-form.tsx (use picker)
+app/(dashboard)/templates/[id]/page.tsx (picker + insert + regex)
+PHASES.md (this update)
+```
+
+---
+
+## Phase 33: Email From Name (sender display name) ✅
+
+### Scope
+Add a per-admin **From Name** for email sending (e.g. `"Notifin" <notifications@domain.com>`) so recipients see a proper sender, and the From header is more deliverable.
+
+### Changes
+- **Setting `emailFromName`**: `settingsSchema`, `SETTING_KEYS` + `STRING_SETTINGS`, GET response, Settings UI input ("From Name") + save body; `.env.example` `EMAIL_FROM_NAME`.
+- **`lib/email.ts`**: `SmtpConfig.fromName`; `getSmtpConfig` reads DB `emailFromName` + env fallback; `getFromAddress` returns `"Name" <addr>` when a name is set (quotes stripped safely), otherwise plain address. Applies to all send paths (`sendEmail`, `sendBulkEmail`, welcome/notification email).
+- i18n `settings.fromName` / `fromNamePlaceholder` (en/id).
+
+### Verified
+- `bunx tsc --noEmit` clean; JSON valid.
+- API round-trip: PUT `emailFromName` → GET returns it → clear works.
+
+### Files Created/Modified
+```
+lib/validations.ts (settingsSchema emailFromName)
+app/api/settings/route.ts (key + GET)
+lib/email.ts (fromName + getFromAddress)
+app/(dashboard)/settings/page.tsx (input + state + save)
+lib/i18n/en.json (settings.fromName)
+lib/i18n/id.json (settings.fromName)
+.env.example (EMAIL_FROM_NAME)
+PHASES.md (this update)
+```
+
+---
+
+## Phase 34: Email Provider — Resend (Notifin mail) ✅
+
+### Scope
+Per-admin email delivery can use **own SMTP** or **Notifin's Resend** (platform email). Tenants don't need their own Resend key — the platform sends via Resend API using env `RESEND_API_KEY` + `RESEND_FROM` (sender address platform-controlled; tenant can set From Name).
+
+### Changes
+- **Env/Docker**: `.env.example` + docker-compose (`web`, `worker`) add `RESEND_API_KEY`, `RESEND_FROM`.
+- **Setting `emailProvider`** (`smtp` | `resend`, default `smtp`): `settingsSchema`, `SETTING_KEYS`/`STRING_SETTINGS`, GET response.
+- **`lib/email.ts`**:
+  - `getEmailProvider` (cached 60s); `resetEmailTransporter` clears it too.
+  - `sendViaResend(adminId, params)` — `fetch` POST `https://api.resend.com/emails` with Bearer `RESEND_API_KEY`; `from` = `"<From Name>" <RESEND_FROM address>`; returns Resend message id; error passthrough.
+  - `sendEmail` routes to Resend when provider = `resend`, else SMTP (unchanged).
+  - `checkEmailHealth` — resend → `!!RESEND_API_KEY`.
+- **Settings UI** — "Email Provider" dropdown (SMTP / Resend); Resend → info box + From Name only (SMTP form hidden); SMTP → existing form. i18n `settings.emailProvider*`, `settings.resendInfo`.
+- Verified `bunx tsc --noEmit` clean; JSON valid; `docker compose config` valid; API round-trip `emailProvider` resend↔smtp + From Name works.
+
+### Files Created/Modified
+```
+.env.example (RESEND_API_KEY, RESEND_FROM)
+docker-compose.yml (web/worker env)
+lib/validations.ts (settingsSchema emailProvider)
+app/api/settings/route.ts (key + GET)
+lib/email.ts (provider routing + sendViaResend + health)
+app/(dashboard)/settings/page.tsx (provider dropdown + resend panel)
+lib/i18n/en.json (settings.emailProvider*, resendInfo)
+lib/i18n/id.json (settings.emailProvider*, resendInfo)
+PHASES.md (this update)
+```
+
+---
+
 ## Environment Variables
 
 ```bash

@@ -29,10 +29,12 @@ interface SmtpConfig {
   user?: string;
   pass?: string;
   from?: string;
+  fromName?: string;
 }
 
 const transporters = new Map<string, nodemailer.Transporter>();
 const cachedConfigs = new Map<string, { config: SmtpConfig | null; at: number }>();
+const cachedProviders = new Map<string, { provider: "smtp" | "resend"; at: number }>();
 const CACHE_TTL_MS = 60_000;
 
 async function getSetting(adminId: string, key: string): Promise<string | number | boolean | null> {
@@ -47,19 +49,30 @@ async function getSetting(adminId: string, key: string): Promise<string | number
   }
 }
 
+async function getEmailProvider(adminId: string): Promise<"smtp" | "resend"> {
+  const cached = cachedProviders.get(adminId);
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.provider;
+
+  const value = await getSetting(adminId, "emailProvider");
+  const provider: "smtp" | "resend" = value === "resend" ? "resend" : "smtp";
+  cachedProviders.set(adminId, { provider, at: Date.now() });
+  return provider;
+}
+
 async function getSmtpConfig(adminId: string): Promise<SmtpConfig | null> {
   const cached = cachedConfigs.get(adminId);
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
     return cached.config;
   }
 
-  const [dbHost, dbPort, dbUser, dbPass, dbSecure, dbFrom] = await Promise.all([
+  const [dbHost, dbPort, dbUser, dbPass, dbSecure, dbFrom, dbFromName] = await Promise.all([
     getSetting(adminId, "smtpHost"),
     getSetting(adminId, "smtpPort"),
     getSetting(adminId, "smtpUser"),
     getSetting(adminId, "smtpPass"),
     getSetting(adminId, "smtpSecure"),
     getSetting(adminId, "emailFrom"),
+    getSetting(adminId, "emailFromName"),
   ]);
 
   const host = (dbHost as string) || process.env.SMTP_HOST;
@@ -80,6 +93,7 @@ async function getSmtpConfig(adminId: string): Promise<SmtpConfig | null> {
     user: user || undefined,
     pass: pass || undefined,
     from: (dbFrom as string) || process.env.EMAIL_FROM,
+    fromName: (dbFromName as string) || process.env.EMAIL_FROM_NAME,
   };
   cachedConfigs.set(adminId, { config, at: Date.now() });
   return config;
@@ -89,9 +103,11 @@ export function resetEmailTransporter(adminId?: string): void {
   if (adminId) {
     transporters.delete(adminId);
     cachedConfigs.delete(adminId);
+    cachedProviders.delete(adminId);
   } else {
     transporters.clear();
     cachedConfigs.clear();
+    cachedProviders.clear();
   }
 }
 
@@ -124,10 +140,77 @@ async function getTransporter(adminId: string): Promise<nodemailer.Transporter |
 }
 
 function getFromAddress(config: SmtpConfig): string {
-  return config.from || config.user || "notifications@notifin.app";
+  const addr = config.from || config.user || "notifications@notifin.app";
+  if (config.fromName) {
+    return `"${config.fromName.replace(/"/g, "")}" <${addr}>`;
+  }
+  return addr;
+}
+
+async function sendViaResend(adminId: string, params: SendEmailParams): Promise<EmailResponse> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    return { id: "", success: false, error: "Resend not configured (RESEND_API_KEY)" };
+  }
+
+  const fromName = await getSetting(adminId, "emailFromName");
+  const fromBase =
+    process.env.RESEND_FROM || process.env.EMAIL_FROM || "Notifin <notifications@notifin.app>";
+  let from = fromBase;
+  if (fromName) {
+    const addrMatch = fromBase.match(/<([^>]+)>/);
+    const addr = addrMatch ? addrMatch[1] : fromBase;
+    from = `"${String(fromName).replace(/"/g, "")}" <${addr}>`;
+  }
+
+  const body: Record<string, unknown> = {
+    from,
+    to: Array.isArray(params.to) ? params.to : [params.to],
+    subject: params.subject,
+  };
+  if (params.html) body.html = params.html;
+  if (params.text) body.text = params.text;
+  if (params.replyTo) body.reply_to = params.replyTo;
+  if (params.attachments && params.attachments.length > 0) {
+    body.attachments = params.attachments.map((a) => ({
+      filename: a.filename,
+      content: typeof a.content === "string" ? a.content : Buffer.from(a.content).toString("base64"),
+    }));
+  }
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+    });
+    const data = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
+    if (!res.ok) {
+      return {
+        id: "",
+        success: false,
+        error: data?.message || `Resend error ${res.status}`,
+      };
+    }
+    return { id: data?.id || "", success: true };
+  } catch (error) {
+    return {
+      id: "",
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to send via Resend",
+    };
+  }
 }
 
 export async function sendEmail(adminId: string, params: SendEmailParams): Promise<EmailResponse> {
+  const provider = await getEmailProvider(adminId);
+  if (provider === "resend") {
+    return sendViaResend(adminId, params);
+  }
+
   const transport = await getTransporter(adminId);
   if (!transport) {
     return {
@@ -186,6 +269,10 @@ export async function sendBulkEmail(
 
 export async function checkEmailHealth(adminId: string): Promise<boolean> {
   try {
+    const provider = await getEmailProvider(adminId);
+    if (provider === "resend") {
+      return !!process.env.RESEND_API_KEY;
+    }
     const transport = await getTransporter(adminId);
     if (!transport) return false;
     await transport.verify();

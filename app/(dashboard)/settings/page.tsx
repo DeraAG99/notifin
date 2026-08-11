@@ -37,7 +37,9 @@ export default function SettingsPage() {
     smtpUser: "",
     smtpPass: "",
     smtpSecure: "starttls" as "ssl" | "starttls" | "none",
+    emailProvider: "smtp" as "smtp" | "resend",
     emailFrom: "",
+    emailFromName: "",
     defaultTimezone: "Asia/Jakarta",
   });
   const [health, setHealth] = useState({
@@ -86,6 +88,8 @@ export default function SettingsPage() {
             (data.data.smtpSecure as "ssl" | "starttls" | "none") ||
             (data.data.smtpPort === 465 ? "ssl" : "starttls"),
           emailFrom: data.data.emailFrom || "",
+          emailFromName: data.data.emailFromName || "",
+          emailProvider: (data.data.emailProvider as "smtp" | "resend") || "smtp",
           defaultTimezone: data.data.defaultTimezone || "Asia/Jakarta",
         });
       }
@@ -164,7 +168,9 @@ export default function SettingsPage() {
       if (settings.smtpUser) body.smtpUser = settings.smtpUser;
       if (settings.smtpPass) body.smtpPass = settings.smtpPass;
       body.smtpSecure = settings.smtpSecure;
+      body.emailProvider = settings.emailProvider;
       if (settings.emailFrom) body.emailFrom = settings.emailFrom;
+      if (settings.emailFromName) body.emailFromName = settings.emailFromName;
       if (settings.defaultTimezone) body.defaultTimezone = settings.defaultTimezone;
 
       const res = await fetch("/api/settings", {
@@ -459,74 +465,119 @@ export default function SettingsPage() {
           <CardTitle>{t.settings.email}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>{t.settings.smtpHost}</Label>
-              <Input
-                value={settings.smtpHost}
-                onChange={(e) => setSettings({ ...settings, smtpHost: e.target.value })}
-                placeholder="smtp.provider.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{t.settings.smtpPort}</Label>
-              <Input
-                type="number"
-                value={settings.smtpPort}
-                onChange={(e) => setSettings({ ...settings, smtpPort: parseInt(e.target.value) || 587 })}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label>{t.settings.emailProvider}</Label>
+            <Select
+              value={settings.emailProvider}
+              onValueChange={(v) =>
+                setSettings({ ...settings, emailProvider: (v || "smtp") as "smtp" | "resend" })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="smtp">{t.settings.emailProviderSmtp}</SelectItem>
+                <SelectItem value="resend">{t.settings.emailProviderResend}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
+
+          {settings.emailProvider === "resend" && (
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-300">
+              {t.settings.resendInfo}
+            </div>
+          )}
+
+          {settings.emailProvider === "smtp" ? (
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>{t.settings.smtpHost}</Label>
+                  <Input
+                    value={settings.smtpHost}
+                    onChange={(e) => setSettings({ ...settings, smtpHost: e.target.value })}
+                    placeholder="smtp.provider.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t.settings.smtpPort}</Label>
+                  <Input
+                    type="number"
+                    value={settings.smtpPort}
+                    onChange={(e) => setSettings({ ...settings, smtpPort: parseInt(e.target.value) || 587 })}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>{t.settings.smtpUser}</Label>
+                  <Input
+                    value={settings.smtpUser}
+                    onChange={(e) => setSettings({ ...settings, smtpUser: e.target.value })}
+                    placeholder={t.settings.smtpUserPlaceholder}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t.settings.smtpPassword}</Label>
+                  <Input
+                    type="password"
+                    value={settings.smtpPass}
+                    onChange={(e) => setSettings({ ...settings, smtpPass: e.target.value })}
+                    placeholder={t.settings.smtpPasswordPlaceholder}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>{t.settings.smtpSecure}</Label>
+                  <Select
+                    value={settings.smtpSecure}
+                    onValueChange={(v) =>
+                      setSettings({
+                        ...settings,
+                        smtpSecure: (v || "starttls") as "ssl" | "starttls" | "none",
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ssl">{t.settings.smtpSecureSsl}</SelectItem>
+                      <SelectItem value="starttls">{t.settings.smtpSecureStarttls}</SelectItem>
+                      <SelectItem value="none">{t.settings.smtpSecureNone}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t.settings.fromAddress}</Label>
+                  <Input
+                    value={settings.emailFrom}
+                    onChange={(e) => setSettings({ ...settings, emailFrom: e.target.value })}
+                    placeholder={t.settings.fromAddressPlaceholder}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t.settings.fromName}</Label>
+                  <Input
+                    value={settings.emailFromName}
+                    onChange={(e) => setSettings({ ...settings, emailFromName: e.target.value })}
+                    placeholder={t.settings.fromNamePlaceholder}
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
             <div className="space-y-2">
-              <Label>{t.settings.smtpUser}</Label>
+              <Label>{t.settings.fromName}</Label>
               <Input
-                value={settings.smtpUser}
-                onChange={(e) => setSettings({ ...settings, smtpUser: e.target.value })}
-                placeholder={t.settings.smtpUserPlaceholder}
+                value={settings.emailFromName}
+                onChange={(e) => setSettings({ ...settings, emailFromName: e.target.value })}
+                placeholder={t.settings.fromNamePlaceholder}
               />
             </div>
-            <div className="space-y-2">
-              <Label>{t.settings.smtpPassword}</Label>
-              <Input
-                type="password"
-                value={settings.smtpPass}
-                onChange={(e) => setSettings({ ...settings, smtpPass: e.target.value })}
-                placeholder={t.settings.smtpPasswordPlaceholder}
-              />
-            </div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>{t.settings.smtpSecure}</Label>
-              <Select
-                value={settings.smtpSecure}
-                onValueChange={(v) =>
-                  setSettings({
-                    ...settings,
-                    smtpSecure: (v || "starttls") as "ssl" | "starttls" | "none",
-                  })
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ssl">{t.settings.smtpSecureSsl}</SelectItem>
-                  <SelectItem value="starttls">{t.settings.smtpSecureStarttls}</SelectItem>
-                  <SelectItem value="none">{t.settings.smtpSecureNone}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t.settings.fromAddress}</Label>
-              <Input
-                value={settings.emailFrom}
-                onChange={(e) => setSettings({ ...settings, emailFrom: e.target.value })}
-                placeholder={t.settings.fromAddressPlaceholder}
-              />
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
