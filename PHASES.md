@@ -1229,6 +1229,23 @@ PHASES.md (this update)
 
 ---
 
+## Phase 35: Instant Email Provider Switch (cache reset) ✅
+
+### Scope
+Switching `emailProvider` (or changing `emailFromName`) in Settings now takes effect immediately instead of waiting up to 60s (provider/config cache TTL).
+
+### Changes
+- `app/api/settings/route.ts` — `hasSmtpUpdate` now also matches `emailProvider` and `emailFromName`, so `resetEmailTransporter(adminId)` is called (clears `cachedProviders` + `cachedConfigs`) → health check & sending use the new provider right away.
+- Verified `bunx tsc --noEmit` clean; API round-trip: PUT `emailProvider=resend` → GET reflects `resend` immediately (health per provider; false locally until `RESEND_API_KEY` set).
+
+### Files Created/Modified
+```
+app/api/settings/route.ts (hasSmtpUpdate + emailProvider/emailFromName)
+PHASES.md (this update)
+```
+
+---
+
 ## Environment Variables
 
 ```bash

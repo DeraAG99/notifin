@@ -191,7 +191,9 @@ export async function PUT(request: Request) {
         e.key === "smtpUser" ||
         e.key === "smtpPass" ||
         e.key === "smtpSecure" ||
-        e.key === "emailFrom"
+        e.key === "emailFrom" ||
+        e.key === "emailFromName" ||
+        e.key === "emailProvider"
     );
     if (hasSmtpUpdate) resetEmailTransporter(session.adminId);
 
