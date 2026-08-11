@@ -223,7 +223,11 @@ export default function SettingsPage() {
                 ok: health.wa,
                 sub: settings.waProvider === "fonnte" ? "Fonnte" : settings.waProvider === "openwa" ? "OpenWA" : "Baileys",
               },
-              { label: t.settings.email, ok: health.email },
+              {
+                label: settings.emailProvider === "resend" ? t.settings.emailPlatform : t.settings.email,
+                ok: health.email,
+                sub: settings.emailProvider === "resend" ? t.settings.emailProviderResend : undefined,
+              },
               { label: t.settings.redis, ok: health.redis },
               { label: t.settings.database, ok: health.database },
             ].map((item) => (
@@ -462,7 +466,9 @@ export default function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{t.settings.email}</CardTitle>
+          <CardTitle>
+            {settings.emailProvider === "resend" ? t.settings.emailPlatform : t.settings.email}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -474,7 +480,11 @@ export default function SettingsPage() {
               }
             >
               <SelectTrigger>
-                <SelectValue />
+                <span>
+                  {settings.emailProvider === "resend"
+                    ? t.settings.emailProviderResend
+                    : t.settings.emailProviderSmtp}
+                </span>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="smtp">{t.settings.emailProviderSmtp}</SelectItem>

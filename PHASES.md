@@ -1246,6 +1246,29 @@ PHASES.md (this update)
 
 ---
 
+## Phase 36: Dynamic Email Provider Labels in Settings ✅
+
+### Scope
+Settings no longer shows "Email (SMTP)" when the admin uses the Notifin Platform provider; the provider dropdown trigger displays the friendly label (never the internal `resend` value).
+
+### Changes
+- **i18n** — `settings.emailPlatform` = "Email (Notifin Platform)" (en/id).
+- **Settings System Health** — email item label dynamic (`emailPlatform` when provider = `resend`, else `t.settings.email`), with sub-label "Notifin Platform" (mirrors WhatsApp provider sub-labels).
+- **Email card title** — dynamic (`emailPlatform` vs `t.settings.email`).
+- **Provider dropdown trigger** — renders the friendly label (`emailProviderResend` = "Notifin Platform") instead of base-UI `SelectValue` showing the raw `resend` value.
+- Health note: `health.email` shows X until the provider is actually configured — for `resend` that means `RESEND_API_KEY` present in the environment; for `smtp` a working transport. This is correct behavior.
+- Verified `bunx tsc --noEmit` clean; JSON valid.
+
+### Files Created/Modified
+```
+app/(dashboard)/settings/page.tsx (health label + card title + dropdown trigger)
+lib/i18n/en.json (settings.emailPlatform)
+lib/i18n/id.json (settings.emailPlatform)
+PHASES.md (this update)
+```
+
+---
+
 ## Environment Variables
 
 ```bash

@@ -452,6 +452,7 @@
     "systemHealth": "Kesehatan Sistem",
     "whatsapp": "WhatsApp",
     "email": "Email (SMTP)",
+    "emailPlatform": "Email (Notifin Platform)",
     "redis": "Redis",
     "database": "Database",
     "apiToken": "Token API",
