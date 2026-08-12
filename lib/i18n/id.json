@@ -480,6 +480,7 @@
     "defaultTimezone": "Timezone Default",
     "serverTime": "Waktu Server",
     "serverTimezone": "Timezone Server",
+    "timezone": "Timezone",
     "providerBaileys": "Baileys (WhatsApp Web)",
     "providerBaileysDesc": "Koneksi WhatsApp Web langsung via QR",
     "baileysConnect": "Hubungkan WhatsApp",

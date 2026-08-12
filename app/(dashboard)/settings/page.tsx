@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, XCircle, Save, MessageSquare, Globe, Smartphone, AlertTriangle, Lock, RefreshCw } from "lucide-react";
 import { useI18n } from "@/lib/i18n/context";
+import { useAuth } from "@/lib/auth/context";
+import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 
 type WaProvider = "fonnte" | "openwa" | "baileys";
 
@@ -23,8 +25,19 @@ const providerIcons: Record<string, typeof MessageSquare> = {
   baileys: Smartphone,
 };
 
+function safeTimezone(tz: string): string {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return tz;
+  } catch {
+    return "Asia/Jakarta";
+  }
+}
+
 export default function SettingsPage() {
   const { t } = useI18n();
+  const { user } = useAuth();
+  const isSuper = user?.role === "superadmin";
   const [settings, setSettings] = useState({
     waProvider: "fonnte" as WaProvider,
     fonnteToken: "",
@@ -49,6 +62,8 @@ export default function SettingsPage() {
     database: true,
   });
   const [serverClock, setServerClock] = useState<{ time: string; tz: string } | null>(null);
+  const [serverNow, setServerNow] = useState(() => Date.now());
+  const serverOffsetRef = useRef(0);
   const [baileysStatus, setBaileysStatus] = useState<{
     connected: boolean;
     reconnecting: boolean;
@@ -73,6 +88,10 @@ export default function SettingsPage() {
           time: data.data.serverTime || "",
           tz: data.data.serverTimezone || "",
         });
+        if (data.data.serverTime) {
+          serverOffsetRef.current = Date.now() - new Date(data.data.serverTime).getTime();
+        }
+        setServerNow(Date.now());
         setSettings({
           waProvider: data.data.waProvider || "fonnte",
           fonnteToken: data.data.fonnteToken || "",
@@ -102,6 +121,11 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetchSettings();
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => setServerNow(Date.now()), 1000);
+    return () => clearInterval(id);
   }, []);
 
   const fetchBaileysStatus = async () => {
@@ -216,7 +240,7 @@ export default function SettingsPage() {
           <CardTitle>{t.settings.systemHealth}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className={`grid grid-cols-2 gap-4 ${isSuper ? "md:grid-cols-4" : ""}`}>
             {[
               {
                 label: t.settings.whatsapp,
@@ -228,8 +252,12 @@ export default function SettingsPage() {
                 ok: health.email,
                 sub: settings.emailProvider === "resend" ? t.settings.emailProviderResend : undefined,
               },
-              { label: t.settings.redis, ok: health.redis },
-              { label: t.settings.database, ok: health.database },
+              ...(isSuper
+                ? [
+                    { label: t.settings.redis, ok: health.redis },
+                    { label: t.settings.database, ok: health.database },
+                  ]
+                : []),
             ].map((item) => (
               <div key={item.label} className="flex items-start gap-2">
                 {item.ok ? (
@@ -249,16 +277,14 @@ export default function SettingsPage() {
               <span>
                 {t.settings.serverTime}:{" "}
                 <span className="font-medium text-foreground">
-                  {new Date(serverClock.time).toLocaleString("id-ID", { timeZone: serverClock.tz })}
+                  {new Date(serverNow - serverOffsetRef.current).toLocaleString("id-ID", {
+                    timeZone: safeTimezone(settings.defaultTimezone),
+                  })}
                 </span>
               </span>
               <span>
-                {t.settings.serverTimezone}:{" "}
-                <span className="font-medium text-foreground">{serverClock.tz}</span>
-              </span>
-              <span>
-                {t.settings.defaultTimezone}:{" "}
-                <span className="font-medium text-foreground">{settings.defaultTimezone}</span>
+                {t.settings.timezone}:{" "}
+                <span className="font-medium text-foreground">{safeTimezone(settings.defaultTimezone)}</span>
               </span>
             </div>
           )}
@@ -455,9 +481,11 @@ export default function SettingsPage() {
                   </p>
                 )}
 
-                <p className="text-xs text-muted-foreground">
-                  {t.settings.baileysPerAdmin}
-                </p>
+                {isSuper && (
+                  <p className="text-xs text-muted-foreground">
+                    {t.settings.baileysPerAdmin}
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -598,10 +626,24 @@ export default function SettingsPage() {
         <CardContent>
           <div className="space-y-2">
             <Label>{t.settings.defaultTimezone}</Label>
-            <Input
+            <Select
               value={settings.defaultTimezone}
-              onChange={(e) => setSettings({ ...settings, defaultTimezone: e.target.value })}
-            />
+              onValueChange={(v) => setSettings({ ...settings, defaultTimezone: v || "Asia/Jakarta" })}
+            >
+              <SelectTrigger className="w-full">
+                <span>
+                  {TIMEZONE_OPTIONS.find((o) => o.value === settings.defaultTimezone)?.label ||
+                    settings.defaultTimezone}
+                </span>
+              </SelectTrigger>
+              <SelectContent>
+                {TIMEZONE_OPTIONS.map((tz) => (
+                  <SelectItem key={tz.value} value={tz.value}>
+                    {tz.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>

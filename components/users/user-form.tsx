@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useI18n } from "@/lib/i18n/context";
+import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 import { Plus, X } from "lucide-react";
 import type { User } from "@/types";
 
@@ -20,14 +21,6 @@ interface UserFormProps {
   user?: User | null;
   onSuccess: () => void;
 }
-
-const timezones = [
-  "Asia/Jakarta",
-  "Asia/Makassar",
-  "Asia/Jayapura",
-  "Asia/Pontianak",
-  "Asia/Banjarmasin",
-];
 
 export function UserForm({ user, onSuccess }: UserFormProps) {
   const { t } = useI18n();
@@ -132,8 +125,8 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {timezones.map((tz) => (
-              <SelectItem key={tz} value={tz}>{tz}</SelectItem>
+            {TIMEZONE_OPTIONS.map((tz) => (
+              <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>

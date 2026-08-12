@@ -6,7 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { getWaHealth, resetWaProvider } from "@/lib/wa";
 import { checkEmailHealth, resetEmailTransporter } from "@/lib/email";
 import { addBaileysDisconnectJob } from "@/lib/queue";
-import { getSession, unauthorizedResponse } from "@/lib/auth/api";
+import { getSession, unauthorizedResponse, isSuperadmin } from "@/lib/auth/api";
 
 const SETTING_KEYS = [
   "waProvider",
@@ -112,8 +112,9 @@ export async function GET() {
         health: {
           wa: waHealth,
           email: emailHealth,
-          redis: true,
-          database: true,
+          ...(isSuperadmin(session)
+            ? { redis: true, database: true }
+            : {}),
         },
       },
     });

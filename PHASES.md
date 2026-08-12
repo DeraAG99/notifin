@@ -1269,6 +1269,33 @@ PHASES.md (this update)
 
 ---
 
+## Phase 37: Per-Admin Timezone UX + Superadmin-Only System Health
+
+### Scope
+Settings page: server clock follows each admin's chosen timezone (realtime), general timezone becomes a dropdown, and infra health (Redis/Database) + per-admin WhatsApp session note are superadmin-only.
+
+### Changes
+- **Server clock realtime + per-admin timezone** — Settings System Health clock ticks every second (`serverNow` state + 1s interval + `serverOffset` captured from `serverTime`), rendered in `timeZone: settings.defaultTimezone`. Changing the dropdown instantly updates the displayed time. "Timezone Default" line removed; "Server Timezone" line replaced with the admin's timezone (neutral `settings.timezone` label). `safeTimezone()` guard prevents invalid stored values from crashing the page.
+- **Redis & Database health superadmin-only** — Settings health items array only includes Redis/Database when `user.role === "superadmin"`; grid switches 2/4 cols accordingly. API `/api/settings` GET also gates `health.redis`/`health.database` behind `isSuperadmin(session)`.
+- **WhatsApp session note superadmin-only** — `settings.baileysPerAdmin` text only rendered for superadmin.
+- **Timezone dropdown (Pengaturan Umum)** — free-text `Input` replaced with a `Select` from shared `TIMEZONE_OPTIONS`; affects per-admin schedule delivery via `lib/scheduler.ts` `getAdminTimezone`.
+- **`lib/timezones.ts` (new)** — shared `TIMEZONE_OPTIONS` (5 Indonesia zones with friendly labels); `components/users/user-form.tsx` refactored to use it (removed duplicated inline array).
+- i18n: `settings.timezone` key added (en/id).
+- Verified `bunx tsc --noEmit` clean.
+
+### Files Created/Modified
+```
+lib/timezones.ts (new)
+app/(dashboard)/settings/page.tsx (clock + health gating + timezone dropdown)
+app/api/settings/route.ts (health.redis/database superadmin gate)
+components/users/user-form.tsx (shared timezone options)
+lib/i18n/en.json (settings.timezone)
+lib/i18n/id.json (settings.timezone)
+PHASES.md (this update)
+```
+
+---
+
 ## Environment Variables
 
 ```bash
