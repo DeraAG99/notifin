@@ -182,7 +182,9 @@ export default function SchedulesPage() {
                     </TableCell>
                     <TableCell className="text-sm">
                       {schedule.nextRunAt
-                        ? new Date(schedule.nextRunAt).toLocaleString()
+                        ? new Date(schedule.nextRunAt).toLocaleString(locale, {
+                            timeZone: schedule.timezone || "Asia/Jakarta",
+                          })
                         : "-"}
                     </TableCell>
                     <TableCell>

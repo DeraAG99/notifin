@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { notificationSchedules } from "@/lib/db/schema";
+import { notificationSchedules, settings } from "@/lib/db/schema";
 import { createScheduleSchema } from "@/lib/validations";
 import { scheduler } from "@/lib/scheduler";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { ApiResponse, NotificationSchedule } from "@/types";
 import { getSession, unauthorizedResponse, isSuperadmin } from "@/lib/auth/api";
 
@@ -13,9 +13,30 @@ export async function GET() {
     if (!session) return unauthorizedResponse();
 
     const scoped = isSuperadmin(session) ? undefined : eq(notificationSchedules.adminId, session.adminId);
-    const schedules = scoped
-      ? await db.select().from(notificationSchedules).where(scoped)
-      : await db.select().from(notificationSchedules);
+
+    const baseQuery = () =>
+      db
+        .select({
+          schedule: notificationSchedules,
+          timezone: settings.value,
+        })
+        .from(notificationSchedules)
+        .leftJoin(
+          settings,
+          and(
+            eq(settings.adminId, notificationSchedules.adminId),
+            eq(settings.key, "defaultTimezone")
+          )
+        );
+
+    const rows = scoped
+      ? await baseQuery().where(scoped)
+      : await baseQuery();
+
+    const schedules = rows.map((r) => ({
+      ...r.schedule,
+      timezone: (r.timezone as string) || "Asia/Jakarta",
+    }));
 
     return NextResponse.json({
       success: true,

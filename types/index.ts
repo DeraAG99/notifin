@@ -63,6 +63,7 @@ export interface NotificationSchedule {
   isActive: boolean | null;
   lastSentAt: Date | null;
   nextRunAt: Date | null;
+  timezone?: string | null;
   createdAt: Date | null;
 }
 

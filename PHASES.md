@@ -1296,6 +1296,33 @@ PHASES.md (this update)
 
 ---
 
+## Phase 38: Schedule next-run fixes + schedule logging + no auto-seed import types
+
+### Scope
+Fix "next run" mismatch (calculation + display), log the body overflow in log detail, make schedule-fired notifications appear in Logs, and stop auto-seeding e-TPP/Monev import types for new users.
+
+### Changes
+- **`lib/scheduler.ts`** — `calculateNextRun` rewritten to use `cron.createTask(...).getNextRun()` (same library that actually fires jobs) → handles `*/n` steps, minute/hour lists, `7`=Sunday correctly; removed ~100 lines of custom parser/matcher. `processSchedule` now inserts a `notification_logs` row (status `pending`) per channel before enqueueing and uses the real log id (previously `logId` = schedule id → worker updated 0 rows → schedule sends never logged). `loadSchedules()` recomputes & persists `nextRunAt` on startup so stale/past dates (downtime, timezone change) are corrected.
+- **`app/api/schedules/route.ts`** — GET left-joins `settings` (`defaultTimezone`) and returns `timezone` per schedule row.
+- **`types/index.ts`** — `NotificationSchedule.timezone?: string | null`.
+- **`app/(dashboard)/schedules/page.tsx`** — next-run rendered in each schedule's admin timezone (`toLocaleString(locale, { timeZone })`) instead of browser tz.
+- **`app/(dashboard)/logs/page.tsx`** — log detail dialog: body + `break-words`, error + `break-words`, grid cells `min-w-0`, timestamp `break-all`, dialog `sm:max-w-lg` + `max-h-[85vh] overflow-y-auto` (long bodies scroll instead of overflowing).
+- **`app/api/imports/types/route.ts`** — removed `ensureSeedImportTypes()` call on GET; new users no longer auto-receive e-TPP/Monev import types (they create their own; existing rows untouched; `lib/imports/seed.ts` kept for future manual seeding).
+- Verified `bunx tsc --noEmit` clean; scheduler module imports; join query runs against local DB.
+
+### Files Created/Modified
+```
+lib/scheduler.ts (getNextRun + schedule logging + nextRunAt recompute)
+app/api/schedules/route.ts (per-schedule timezone)
+types/index.ts (NotificationSchedule.timezone)
+app/(dashboard)/schedules/page.tsx (tz-aware next-run display)
+app/(dashboard)/logs/page.tsx (detail dialog overflow/scroll)
+app/api/imports/types/route.ts (no auto-seed)
+PHASES.md (this update)
+```
+
+---
+
 ## Environment Variables
 
 ```bash

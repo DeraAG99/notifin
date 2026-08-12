@@ -283,44 +283,46 @@ export default function LogsPage() {
       )}
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t.logs.detail}</DialogTitle>
           </DialogHeader>
           {selectedLog && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
+                <div className="min-w-0">
                   <span className="text-muted-foreground">{t.common.channel}:</span>{" "}
                   <Badge variant={selectedLog.channel === "wa" ? "default" : "secondary"}>
                     {selectedLog.channel === "wa" ? "WhatsApp" : "Email"}
                   </Badge>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-muted-foreground">{t.common.status}:</span>{" "}
                   <Badge className={statusColors[selectedLog.status || "pending"] || ""}>
                     {selectedLog.status}
                   </Badge>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-muted-foreground">{t.common.priority}:</span>{" "}
                   <Badge variant="outline">{selectedLog.priority}</Badge>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-muted-foreground">{t.common.created}:</span>{" "}
-                  {selectedLog.createdAt ? new Date(selectedLog.createdAt).toLocaleString() : "-"}
+                  <span className="break-all">
+                    {selectedLog.createdAt ? new Date(selectedLog.createdAt).toLocaleString() : "-"}
+                  </span>
                 </div>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground mb-1">{t.common.content}:</p>
-                <div className="bg-muted p-3 rounded text-sm whitespace-pre-wrap">
+                <div className="bg-muted p-3 rounded text-sm whitespace-pre-wrap break-words">
                   {selectedLog.content?.text || "-"}
                 </div>
               </div>
               {selectedLog.error && (
                 <div>
                   <p className="text-sm text-destructive mb-1">{t.common.error}:</p>
-                  <div className="bg-rose-400/10 text-rose-300 p-3 rounded text-sm">
+                  <div className="bg-rose-400/10 text-rose-300 p-3 rounded text-sm break-words">
                     {selectedLog.error}
                   </div>
                 </div>

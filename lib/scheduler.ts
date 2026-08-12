@@ -6,9 +6,10 @@ import {
   users,
   settings,
   admins,
+  notificationLogs,
 } from "./db/schema";
 import { and, eq, or, sql } from "drizzle-orm";
-import { addNotificationJob, type NotificationJobData } from "./queue";
+import { addNotificationJob } from "./queue";
 import { templateEngine } from "./template-engine";
 import { resolveImportVars } from "./imports/variables";
 import { isAdminActive } from "./admin-status";
@@ -32,31 +33,6 @@ function isValidTimezone(timezone: string): boolean {
   }
 }
 
-function getTimezoneOffsetMinutes(date: Date, timezone: string): number {
-  const dtf = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-  const parts = dtf.formatToParts(date);
-  const map: Record<string, string> = {};
-  for (const part of parts) map[part.type] = part.value;
-  const asUTC = Date.UTC(
-    Number(map.year),
-    Number(map.month) - 1,
-    Number(map.day),
-    Number(map.hour),
-    Number(map.minute),
-    Number(map.second)
-  );
-  return Math.round((asUTC - date.getTime()) / 60000);
-}
-
 async function getAdminTimezone(adminId: string): Promise<string> {
   try {
     const [setting] = await db
@@ -77,100 +53,16 @@ async function getAdminTimezone(adminId: string): Promise<string> {
   }
 }
 
-function parseCronExpression(expr: string): {
-  minute: string;
-  hour: string;
-  day: string;
-  month: string;
-  dayOfWeek: string;
-} | null {
-  const parts = expr.trim().split(/\s+/);
-  if (parts.length !== 5) return null;
-  return {
-    minute: parts[0],
-    hour: parts[1],
-    day: parts[2],
-    month: parts[3],
-    dayOfWeek: parts[4],
-  };
-}
-
-function matchesFieldValue(value: number, field: string, max: number, offset: number): boolean {
-  if (field === "*") return true;
-  return field.split(",").some((part) => {
-    const trimmed = part.trim();
-    if (!trimmed) return false;
-    if (trimmed.includes("-")) {
-      const [start, end] = trimmed.split("-").map((p) => parseInt(p, 10));
-      const a = (start ?? 0) + offset;
-      const b = (end ?? max) + offset;
-      return value >= a && value <= b;
-    }
-    return value === parseInt(trimmed, 10) + offset;
-  });
-}
-
-function matchesDayOfMonth(date: Date, field: string): boolean {
-  if (field === "*") return true;
-  return field
-    .split(",")
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .some((part) => {
-      if (part === "L") {
-        const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
-        return date.getUTCDate() === lastDay;
-      }
-      if (part.includes("-")) {
-        const [start, end] = part.split("-").map((p) => parseInt(p, 10));
-        return date.getUTCDate() >= (start ?? 0) && date.getUTCDate() <= (end ?? 31);
-      }
-      return date.getUTCDate() === parseInt(part, 10);
-    });
-}
-
 function calculateNextRun(cronExpression: string, timezone = DEFAULT_TIMEZONE): Date {
-  const parsed = parseCronExpression(cronExpression);
-  if (!parsed) return new Date(Date.now() + 60 * 60 * 1000);
-
-  const now = new Date();
-  const tzOffset = isValidTimezone(timezone) ? getTimezoneOffsetMinutes(now, timezone) : 0;
-  // Virtual clock: its UTC wall-clock components match the target timezone
-  const nowTz = new Date(now.getTime() + tzOffset * 60000);
-
-  if (parsed.minute === "*" && parsed.hour === "*") {
-    const next = new Date(nowTz);
-    next.setUTCSeconds(0, 0);
-    next.setUTCMinutes(next.getUTCMinutes() + 1);
-    return new Date(next.getTime() - tzOffset * 60000);
+  try {
+    const task = cron.createTask(cronExpression, () => {}, { timezone });
+    task.start();
+    const next = task.getNextRun();
+    task.destroy();
+    return next ?? new Date(Date.now() + 60 * 60 * 1000);
+  } catch {
+    return new Date(Date.now() + 60 * 60 * 1000);
   }
-
-  if (parsed.hour === "*") {
-    const next = new Date(nowTz);
-    next.setUTCSeconds(0, 0);
-    if (/^\d+$/.test(parsed.minute)) next.setUTCMinutes(parseInt(parsed.minute, 10));
-    if (next <= nowTz) next.setUTCHours(next.getUTCHours() + 1);
-    return new Date(next.getTime() - tzOffset * 60000);
-  }
-
-  const minute = /^\d+$/.test(parsed.minute) ? parseInt(parsed.minute, 10) : 0;
-  const hour = parseInt(parsed.hour, 10);
-
-  for (let offset = 0; offset <= 400; offset++) {
-    const candidate = new Date(nowTz);
-    candidate.setUTCDate(nowTz.getUTCDate() + offset);
-    candidate.setUTCSeconds(0, 0);
-    candidate.setUTCMinutes(minute);
-    candidate.setUTCHours(hour);
-
-    if (candidate <= nowTz) continue;
-    if (!matchesDayOfMonth(candidate, parsed.day)) continue;
-    if (!matchesFieldValue(candidate.getUTCMonth() + 1, parsed.month, 12, 0)) continue;
-    if (!matchesFieldValue(candidate.getUTCDay(), parsed.dayOfWeek, 6, 0)) continue;
-    return new Date(candidate.getTime() - tzOffset * 60000);
-  }
-
-  return new Date(now.getTime() + 60 * 60 * 1000);
 }
 
 class SchedulerService {
@@ -203,6 +95,11 @@ class SchedulerService {
 
     for (const schedule of schedules) {
       const timezone = await getAdminTimezone(schedule.adminId);
+      const nextRun = calculateNextRun(schedule.cronExpression, timezone);
+      await db
+        .update(notificationSchedules)
+        .set({ nextRunAt: nextRun })
+        .where(eq(notificationSchedules.id, schedule.id));
       this.scheduleJob(schedule.id, schedule.cronExpression, timezone);
     }
 
@@ -342,22 +239,38 @@ class SchedulerService {
         variables
       );
 
-      const jobData: NotificationJobData = {
-        type: template.channel === "wa" ? "send-wa" : "send-email",
-        adminId: schedule.adminId,
-        logId: scheduleId,
-        templateId: template.id,
-        userId: user.id,
-        channel: template.channel as "wa" | "email",
-        priority: "normal",
-        content: { text: renderedContent },
-        subject: template.subject || undefined,
-        recipientPhone: user.phone || undefined,
-        recipientEmail: user.email || undefined,
-        recipientName: user.name,
-      };
+      const channels: ("wa" | "email")[] =
+        template.channel === "both" ? ["wa", "email"] : [template.channel];
 
-      await addNotificationJob(jobData);
+      for (const ch of channels) {
+        const [log] = await db
+          .insert(notificationLogs)
+          .values({
+            adminId: schedule.adminId,
+            templateId: template.id,
+            userId: user.id,
+            channel: ch,
+            priority: "normal",
+            content: { text: renderedContent },
+            status: "pending",
+          })
+          .returning();
+
+        await addNotificationJob({
+          type: ch === "wa" ? "send-wa" : "send-email",
+          adminId: schedule.adminId,
+          logId: log.id,
+          templateId: template.id,
+          userId: user.id,
+          channel: ch,
+          priority: "normal",
+          content: { text: renderedContent },
+          subject: template.subject || undefined,
+          recipientPhone: user.phone || undefined,
+          recipientEmail: user.email || undefined,
+          recipientName: user.name,
+        });
+      }
 
       const timezone = await getAdminTimezone(schedule.adminId);
       await db

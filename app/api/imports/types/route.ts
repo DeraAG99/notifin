@@ -5,14 +5,11 @@ import { createImportTypeSchema } from "@/lib/validations";
 import { and, eq } from "drizzle-orm";
 import { getSession, unauthorizedResponse, forbiddenResponse } from "@/lib/auth/api";
 import { isAdminActive } from "@/lib/admin-status";
-import { ensureSeedImportTypes } from "@/lib/imports/seed";
 
 export async function GET() {
   try {
     const session = await getSession();
     if (!session) return unauthorizedResponse();
-
-    await ensureSeedImportTypes(session.adminId);
 
     const rows = await db
       .select()
