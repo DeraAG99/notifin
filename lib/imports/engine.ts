@@ -2,6 +2,7 @@ import type { ParseResult } from "./types";
 import { parseTable, type TableMapping } from "./engines/table";
 import { ekinerjaHtmlParser } from "./parsers/ekinerja/html";
 import { ekinerjaXlsxParser } from "./parsers/ekinerja/xlsx";
+import { pdukpdxlsxParser } from "./parsers/pdukpdxlsx";
 
 export interface ImportTypeConfig {
   id: string;
@@ -27,6 +28,16 @@ export function detectImportType(
   return null;
 }
 
+export function detectXlsxImportType(
+  types: ImportTypeConfig[],
+  headerText: string
+): ImportTypeConfig | null {
+  return detectImportType(
+    types.filter((t) => t.format === "xlsx"),
+    headerText
+  );
+}
+
 export async function parseWithType(
   type: ImportTypeConfig,
   content: string | ArrayBuffer
@@ -34,6 +45,10 @@ export async function parseWithType(
   if (type.engine === "ekinerja-json") {
     const parser = type.format === "xlsx" ? ekinerjaXlsxParser : ekinerjaHtmlParser;
     return parser.parse(content);
+  }
+
+  if (type.engine === "pdukpdxlsx") {
+    return pdukpdxlsxParser.parse(content);
   }
 
   const mapping = (type.columnMapping as unknown as TableMapping) || null;

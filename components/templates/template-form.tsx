@@ -101,18 +101,19 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
   }, [contentText, sampleData]);
 
   const insertVariable = useCallback((variable: string) => {
+    const insertText = variable.includes("{{") ? variable : `{{${variable}}}`;
     const textarea = document.getElementById("content") as HTMLTextAreaElement;
     if (textarea) {
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
-      const newText = contentText.substring(0, start) + `{{${variable}}}` + contentText.substring(end);
+      const newText = contentText.substring(0, start) + insertText + contentText.substring(end);
       setContentText(newText);
       setTimeout(() => {
         textarea.focus();
-        textarea.setSelectionRange(start + variable.length + 4, start + variable.length + 4);
+        textarea.setSelectionRange(start + insertText.length, start + insertText.length);
       }, 0);
     } else {
-      setContentText((prev) => prev + `{{${variable}}}`);
+      setContentText((prev) => prev + insertText);
     }
   }, [contentText]);
 

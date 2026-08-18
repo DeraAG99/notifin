@@ -311,9 +311,10 @@
       "noVariables": "No variables yet. Type {{variable}} in message content.",
       "insert": "Insert:",
       "variableHint": "Default variables: {{name}}, {{email}}, {{phone}}. You can also add custom fields in user data (e.g. {{amount}}, {{company}}).",
-      "importHint": "Imported data is available per user: {{imports.<key>.pendingList}}, {{imports.<key>.pendingCount}}, {{imports.<key>.currentTwList}}, {{imports.<key>.summary.itemCount}}. Use the key matching the import name. Wrap sections with {{#if imports.<key>.pendingCount}}...{{/if}} so users without the import get a clean message.",
+      "importHint": "Imported data is available per user: {{imports.<key>.pendingList}}, {{imports.<key>.pendingCount}}, {{imports.<key>.currentTwList}}, {{imports.<key>.summary.itemCount}}. Use the key matching the import name. To iterate per row use {{#each imports.<key>.rows}}...{{/each}} with column fields (e.g. {{namaKegiatan}}, {{targetKalkulasiTw2}}) and {{@number}} for the row number. Wrap sections with {{#if imports.<key>.pendingCount}}...{{/if}} so users without the import get a clean message.",
       "importVars": "Data Import variables",
       "importVarsEmpty": "No imported data yet — add it on a user's Data Import page first.",
+      "importRowFields": "Per-row fields (use {{#each}}):",
       "pendingTw": "Pending TW{tw}",
       "importField": {
         "pendingCount": "Pending count",

@@ -311,9 +311,10 @@
       "noVariables": "Belum ada variabel. Ketik {{variabel}} di isi pesan.",
       "insert": "Sisipkan:",
       "variableHint": "Variabel default: {{name}}, {{email}}, {{phone}}. Anda juga bisa menambah field kustom di data pengguna (misal: {{amount}}, {{company}}).",
-      "importHint": "Data import tersedia per user: {{imports.<key>.pendingList}}, {{imports.<key>.pendingCount}}, {{imports.<key>.currentTwList}}, {{imports.<key>.summary.itemCount}}. Gunakan key sesuai nama import. Bungkus bagian dengan {{#if imports.<key>.pendingCount}}...{{/if}} supaya user tanpa import mendapat pesan yang bersih.",
+      "importHint": "Data import tersedia per user: {{imports.<key>.pendingList}}, {{imports.<key>.pendingCount}}, {{imports.<key>.currentTwList}}, {{imports.<key>.summary.itemCount}}. Gunakan key sesuai nama import. Untuk iterasi per baris gunakan {{#each imports.<key>.rows}}...{{/each}} dengan field sesuai kolom (misal {{namaKegiatan}}, {{targetKalkulasiTw2}}) dan {{@number}} untuk nomor urut. Bungkus bagian dengan {{#if imports.<key>.pendingCount}}...{{/if}} supaya user tanpa import mendapat pesan yang bersih.",
       "importVars": "Variabel Data Import",
       "importVarsEmpty": "Belum ada data import — tambahkan dulu di halaman Data Import user.",
+      "importRowFields": "Field per baris (pakai {{#each}}):",
       "pendingTw": "Pending TW{tw}",
       "importField": {
         "pendingCount": "Jumlah pending",

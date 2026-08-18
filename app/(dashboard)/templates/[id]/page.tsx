@@ -119,18 +119,19 @@ export default function TemplateDetailPage() {
   };
 
   const insertVariable = (variable: string) => {
+    const insertText = variable.includes("{{") ? variable : `{{${variable}}}`;
     const textarea = document.getElementById("editContent") as HTMLTextAreaElement | null;
     if (textarea) {
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
-      const next = editContentText.substring(0, start) + `{{${variable}}}` + editContentText.substring(end);
+      const next = editContentText.substring(0, start) + insertText + editContentText.substring(end);
       setEditContentText(next);
       setTimeout(() => {
         textarea.focus();
-        textarea.setSelectionRange(start + variable.length + 4, start + variable.length + 4);
+        textarea.setSelectionRange(start + insertText.length, start + insertText.length);
       }, 0);
     } else {
-      setEditContentText((prev) => prev + `{{${variable}}}`);
+      setEditContentText((prev) => prev + insertText);
     }
   };
 

@@ -17,6 +17,7 @@ export type ImportItem = {
   capaian: string | null;
   keterangan: string | null;
   keteranganValidasi: string | null;
+  raw?: Record<string, string | null>;
 };
 
 export type ImportSource = "ekinerja" | "monev";

@@ -54,18 +54,28 @@ export const importTypeTemplates: ImportTypeTemplate[] = [
     detectRules: ["Indikator Kinerja", "Triwulan", "Target Tahunan"],
     columnMapping: monevTableMapping as unknown as Record<string, unknown>,
   },
+  {
+    key: "pdukpdxlsx",
+    name: "PDUKPD (Kegiatan / Sub Kegiatan)",
+    engine: "pdukpdxlsx",
+    format: "xlsx",
+    detectRules: ["target kalkulasi tw"],
+    columnMapping: null,
+  },
 ];
 
 export async function ensureSeedImportTypes(adminId: string): Promise<void> {
   const existing = await db
-    .select({ id: importTypes.id })
+    .select({ key: importTypes.key })
     .from(importTypes)
-    .where(eq(importTypes.adminId, adminId))
-    .limit(1);
+    .where(eq(importTypes.adminId, adminId));
 
-  if (existing.length > 0) return;
+  const existingKeys = new Set(existing.map((e) => e.key));
+  const missing = importTypeTemplates.filter((t) => !existingKeys.has(t.key));
+
+  if (missing.length === 0) return;
 
   await db.insert(importTypes).values(
-    importTypeTemplates.map((t) => ({ ...t, adminId }))
+    missing.map((t) => ({ ...t, adminId }))
   );
 }

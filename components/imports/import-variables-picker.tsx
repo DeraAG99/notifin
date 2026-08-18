@@ -10,7 +10,9 @@ interface ImportVariablesPickerProps {
 
 export function ImportVariablesPicker({ onInsert }: ImportVariablesPickerProps) {
   const { t, tx } = useI18n();
-  const [importKeys, setImportKeys] = useState<{ key: string; name: string }[]>([]);
+  const [importKeys, setImportKeys] = useState<
+    { key: string; name: string; rowFields: string[] }[]
+  >([]);
 
   useEffect(() => {
     fetch("/api/imports/variable-keys")
@@ -59,6 +61,26 @@ export function ImportVariablesPicker({ onInsert }: ImportVariablesPickerProps) 
                   </button>
                 ))}
               </div>
+              {k.rowFields.length > 0 && (
+                <div className="space-y-1 pt-1">
+                  <div className="text-[10px] text-muted-foreground">
+                    {t.templates.form.importRowFields}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {k.rowFields.map((field) => (
+                      <button
+                        key={field}
+                        type="button"
+                        className="h-6 text-[11px] px-2 rounded-md border border-dashed text-muted-foreground hover:border-primary hover:text-foreground transition-colors font-mono"
+                        onClick={() => onInsert(`{{#each imports.${k.key}.rows}}\n{{${field}}}\n{{/each}}`)}
+                        title={`{{#each imports.${k.key}.rows}} ... {{${field}}} ... {{/each}}`}
+                      >
+                        {field}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

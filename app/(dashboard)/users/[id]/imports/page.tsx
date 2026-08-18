@@ -36,6 +36,7 @@ import {
 import {
   parseWithType,
   detectImportType,
+  detectXlsxImportType,
   type ImportTypeConfig,
 } from "@/lib/imports/engine";
 import type { ImportItem } from "@/lib/imports/types";
@@ -210,7 +211,7 @@ export default function UserImportsPage() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const selected = imports.find((i) => i.id === selectedId) || null;
-  const isTable = selected?.engine === "table";
+  const isTable = selected?.engine === "table" || selected?.engine === "pdukpdxlsx";
   const blocks = !isTable && selected ? buildPivot(selected.data) : [];
   const tableBlocks = selected ? buildTableBlocks(selected.data) : [];
 
@@ -276,12 +277,28 @@ export default function UserImportsPage() {
           setPreview(await parseWithType(detected, text));
         }
       } else if (name.endsWith(".xlsx")) {
-        const xlsxType = types.find((tp) => tp.format === "xlsx" && tp.isActive);
-        if (!xlsxType) {
+        const buffer = await selectedFile.arrayBuffer();
+        const XLSX = await import("xlsx");
+        let headerText = "";
+        try {
+          const wb = XLSX.read(buffer, { type: "array" });
+          const firstSheet = wb.Sheets[wb.SheetNames[0]];
+          if (firstSheet) {
+            const headerRow = XLSX.utils.sheet_to_json<unknown[]>(firstSheet, {
+              header: 1,
+              defval: null,
+            })[0] as unknown[] | undefined;
+            headerText = (headerRow || []).map((c) => String(c ?? "")).join(" ");
+          }
+        } catch {
+          // header tidak terbaca, lanjut tanpa deteksi
+        }
+        const detected = detectXlsxImportType(types, headerText);
+        if (!detected) {
           setPreview({ items: [], errors: [t.imports.detectFailed] });
         } else {
-          setSelectedType(xlsxType);
-          setPreview(await parseWithType(xlsxType, await selectedFile.arrayBuffer()));
+          setSelectedType(detected);
+          setPreview(await parseWithType(detected, buffer));
         }
       } else {
         setPreview({

@@ -174,6 +174,7 @@ export const importItemSchema = z.object({
   capaian: z.string().nullable().optional(),
   keterangan: z.string().nullable().optional(),
   keteranganValidasi: z.string().nullable().optional(),
+  raw: z.record(z.string(), z.string().nullable()).optional(),
 });
 
 export const createImportSchema = z.object({

@@ -61,9 +61,19 @@ export async function resolveImportVars(
     const items = (Array.isArray(imp.data) ? imp.data : []) as ImportItem[];
     const twItems = items.filter((item) => item.triwulan === tw);
     const pending = twItems.filter((item) => isEmptyRealisasi(item.realisasi));
-    const isTable = imp.engine === "table";
+    const isTable = imp.engine === "table" || imp.engine === "pdukpdxlsx";
     const line = (item: ImportItem, idx: number) =>
       isTable ? formatTableLine(item, idx) : formatEkinerjaLine(item, idx);
+
+    const seenRaw = new Set<string>();
+    const rawRows: Record<string, unknown>[] = [];
+    for (const item of items) {
+      if (!item.raw) continue;
+      const dedupeKey = JSON.stringify(item.raw);
+      if (seenRaw.has(dedupeKey)) continue;
+      seenRaw.add(dedupeKey);
+      rawRows.push({ ...(item.raw as Record<string, string | null>) });
+    }
 
     imports[row.categoryKey] = {
       name: row.categoryName,
@@ -76,6 +86,8 @@ export async function resolveImportVars(
       pendingList: pending.map(line).join("\n"),
       currentTwCount: twItems.length,
       currentTwList: twItems.map(line).join("\n"),
+      rowCount: rawRows.length,
+      rows: rawRows,
     };
   }
 
