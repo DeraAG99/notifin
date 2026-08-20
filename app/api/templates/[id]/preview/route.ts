@@ -62,7 +62,7 @@ export async function POST(
     const importKeys = extractImportKeys(
       `${template.content.text} ${template.subject || ""}`
     );
-    let coverage: { key: string; count: number; total: number }[] = [];
+    let coverage: { key: string; count: number; total: number; global: boolean }[] = [];
 
     if (importKeys.length > 0) {
       const [totalResult] = await db
@@ -77,7 +77,7 @@ export async function POST(
       const total = Number(totalResult.count);
 
       const keyRows = await db
-        .select({ userId: dataImports.userId, categoryKey: importCategories.key })
+        .select({ userId: dataImports.userId, categoryKey: importCategories.key, scope: dataImports.scope })
         .from(dataImports)
         .innerJoin(importCategories, eq(dataImports.categoryId, importCategories.id))
         .where(
@@ -87,9 +87,15 @@ export async function POST(
           )
         );
 
+      const globalKeys = new Set<string>();
       const userKeys = new Map<string, Set<string>>();
       for (const row of keyRows) {
         if (!row.categoryKey) continue;
+        if (row.scope === "global") {
+          globalKeys.add(row.categoryKey);
+          continue;
+        }
+        if (!row.userId) continue;
         const set = userKeys.get(row.userId) || new Set<string>();
         set.add(row.categoryKey);
         userKeys.set(row.userId, set);
@@ -97,8 +103,11 @@ export async function POST(
 
       coverage = importKeys.map((key) => ({
         key,
-        count: Array.from(userKeys.values()).filter((s) => s.has(key)).length,
+        count: globalKeys.has(key)
+          ? total
+          : Array.from(userKeys.values()).filter((s) => s.has(key)).length,
         total,
+        global: globalKeys.has(key),
       }));
     }
 

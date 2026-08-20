@@ -11,7 +11,7 @@ interface ImportVariablesPickerProps {
 export function ImportVariablesPicker({ onInsert }: ImportVariablesPickerProps) {
   const { t, tx } = useI18n();
   const [importKeys, setImportKeys] = useState<
-    { key: string; name: string; rowFields: string[] }[]
+    { key: string; name: string; scope: string | null; rowFields: string[] }[]
   >([]);
 
   useEffect(() => {
@@ -35,6 +35,11 @@ export function ImportVariablesPicker({ onInsert }: ImportVariablesPickerProps) 
               <div className="flex items-center gap-1 text-xs">
                 <span className="font-mono font-medium">{k.key}</span>
                 <span className="text-muted-foreground truncate">({k.name})</span>
+                {k.scope === "global" && (
+                  <span className="ml-1 inline-flex items-center rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 dark:bg-blue-400/10 dark:text-blue-400 dark:ring-blue-400/30">
+                    {t.importGlobal?.badge || "Global"}
+                  </span>
+                )}
               </div>
               <div className="flex flex-wrap gap-1">
                 {[

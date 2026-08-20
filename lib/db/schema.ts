@@ -9,6 +9,7 @@ import {
   primaryKey,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const channelEnum = pgEnum("channel", ["wa", "email", "both"]);
 export const statusEnum = pgEnum("status", [
@@ -131,8 +132,8 @@ export const dataImports = pgTable(
       .references(() => admins.id, { onDelete: "cascade" })
       .notNull(),
     userId: uuid("user_id")
-      .references(() => users.id, { onDelete: "cascade" })
-      .notNull(),
+      .references(() => users.id, { onDelete: "cascade" }),
+    scope: text("scope").default("user").notNull(),
     categoryId: uuid("import_category_id")
       .references(() => importCategories.id, { onDelete: "restrict" })
       .notNull(),
@@ -146,11 +147,14 @@ export const dataImports = pgTable(
     updatedAt: timestamp("updated_at").defaultNow(),
   },
   (table) => [
-    uniqueIndex("data_imports_admin_user_category_unique").on(
+    uniqueIndex("data_imports_user_unique").on(
       table.adminId,
       table.userId,
       table.categoryId
     ),
+    uniqueIndex("data_imports_global_unique")
+      .on(table.adminId, table.categoryId)
+      .where(sql`${table.scope} = 'global'`),
   ]
 );
 

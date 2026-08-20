@@ -71,6 +71,13 @@
       "when": 1786419905006,
       "tag": "0009_import_category_fk",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787000000000,
+      "tag": "0010_global_import_scope",
+      "breakpoints": true
     }
   ]
 }

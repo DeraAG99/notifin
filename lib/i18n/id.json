@@ -63,6 +63,7 @@
     "admins": "Admin",
     "importTypes": "Tipe Import",
     "importCategories": "Kategori Import",
+    "importGlobal": "Data Global",
     "schedules": "Jadwal",
     "logs": "Log",
     "settings": "Pengaturan"
@@ -237,6 +238,13 @@
     "active": "Aktif",
     "createFailed": "Gagal membuat kategori",
     "saved": "Kategori tersimpan"
+  },
+  "importGlobal": {
+    "title": "Data Global",
+    "description": "Data yang berlaku untuk semua pengguna. Data spesifik pengguna diutamakan jika keduanya ada.",
+    "dataSection": "Data Global Tersimpan",
+    "empty": "Belum ada data global",
+    "badge": "Global"
   },
   "dashboard": {
     "title": "Dasbor",

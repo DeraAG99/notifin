@@ -28,13 +28,18 @@ export async function GET() {
       .select({
         categoryId: dataImports.categoryId,
         data: dataImports.data,
+        scope: dataImports.scope,
       })
       .from(dataImports)
-      .where(eq(dataImports.adminId, session.adminId));
+      .where(
+        eq(dataImports.adminId, session.adminId)
+      );
 
     const fieldsByCategory = new Map<string, string[]>();
+    const scopeByCategory = new Map<string, string>();
     for (const imp of imports) {
       if (fieldsByCategory.has(imp.categoryId)) continue;
+      scopeByCategory.set(imp.categoryId, imp.scope || "user");
       const items = Array.isArray(imp.data) ? imp.data : [];
       const first = items.find(
         (item) => item && typeof item === "object" && "raw" in item && item.raw
@@ -47,6 +52,7 @@ export async function GET() {
     const data = rows.map((r) => ({
       key: r.key,
       name: r.name,
+      scope: scopeByCategory.get(r.id) || null,
       rowFields: fieldsByCategory.get(r.id) || [],
     }));
 

@@ -63,6 +63,7 @@
     "admins": "Admins",
     "importTypes": "Import Types",
     "importCategories": "Import Categories",
+    "importGlobal": "Global Data",
     "schedules": "Schedules",
     "logs": "Logs",
     "settings": "Settings"
@@ -237,6 +238,13 @@
     "active": "Active",
     "createFailed": "Failed to create category",
     "saved": "Category saved"
+  },
+  "importGlobal": {
+    "title": "Global Data",
+    "description": "Data that applies to all users. User-specific data takes priority when both exist.",
+    "dataSection": "Saved Global Data",
+    "empty": "No global data yet",
+    "badge": "Global"
   },
   "dashboard": {
     "title": "Dashboard",

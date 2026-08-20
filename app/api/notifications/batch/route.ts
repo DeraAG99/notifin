@@ -44,7 +44,7 @@ export async function POST(request: Request) {
 
     if (importKeys.length > 0) {
       const keyRows = await db
-        .select({ userId: dataImports.userId, categoryKey: importCategories.key })
+        .select({ userId: dataImports.userId, categoryKey: importCategories.key, scope: dataImports.scope })
         .from(dataImports)
         .innerJoin(importCategories, eq(dataImports.categoryId, importCategories.id))
         .where(
@@ -54,19 +54,29 @@ export async function POST(request: Request) {
           )
         );
 
+      const globalKeys = new Set<string>();
       const keysByUser = new Map<string, Set<string>>();
       for (const row of keyRows) {
         if (!row.categoryKey) continue;
+        if (row.scope === "global") {
+          globalKeys.add(row.categoryKey);
+          continue;
+        }
+        if (!row.userId) continue;
         const set = keysByUser.get(row.userId) || new Set<string>();
         set.add(row.categoryKey);
         keysByUser.set(row.userId, set);
       }
 
-      const kept = userList.filter((u) =>
-        importKeys.every((k) => keysByUser.get(u.id)?.has(k))
-      );
-      skippedCount = userList.length - kept.length;
-      userList = kept;
+      const uncoveredKeys = importKeys.filter((k) => !globalKeys.has(k));
+
+      if (uncoveredKeys.length > 0) {
+        const kept = userList.filter((u) =>
+          uncoveredKeys.every((k) => keysByUser.get(u.id)?.has(k))
+        );
+        skippedCount = userList.length - kept.length;
+        userList = kept;
+      }
     }
 
     if (userList.length === 0) {

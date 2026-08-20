@@ -28,6 +28,7 @@ import {
   Building2,
   Boxes,
   Tags,
+  Globe,
 } from "lucide-react";
 
 export function AppSidebar() {
@@ -48,6 +49,7 @@ export function AppSidebar() {
       : []),
     { href: "/import-types", label: t.nav.importTypes, icon: Boxes },
     { href: "/import-categories", label: t.nav.importCategories, icon: Tags },
+    { href: "/import-global", label: t.nav.importGlobal, icon: Globe },
     { href: "/schedules", label: t.nav.schedules, icon: Clock },
     { href: "/logs", label: t.nav.logs, icon: ScrollText },
     { href: "/settings", label: t.nav.settings, icon: Settings },
