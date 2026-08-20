@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -28,8 +28,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n/context";
-import { describeCron } from "@/lib/cron-utils";
-import { Plus, Play, Trash2 } from "lucide-react";
+import { describeCron, validateCron, getNextRun } from "@/lib/cron-utils";
+import { Plus, Play, Trash2, Pencil } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import type { NotificationSchedule } from "@/types";
 
@@ -38,6 +38,7 @@ export default function SchedulesPage() {
   const [schedules, setSchedules] = useState<NotificationSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState<NotificationSchedule | null>(null);
   const [templateId, setTemplateId] = useState("");
   const [userId, setUserId] = useState("");
   const [cronExpression, setCronExpression] = useState("0 9 * * *");
@@ -53,6 +54,19 @@ export default function SchedulesPage() {
     { label: t.schedules.presets.endOfMonth, value: "0 9 L * *" },
     { label: t.schedules.presets.startEndOfMonth, value: "0 9 1,L * *" },
   ];
+
+  const cronCheck = useMemo(() => validateCron(cronExpression), [cronExpression]);
+
+  const editingTimezone = editingSchedule?.timezone || "Asia/Jakarta";
+  const nextRunPreview = useMemo(
+    () => (cronCheck.valid ? getNextRun(cronExpression, editingTimezone) : null),
+    [cronCheck.valid, cronExpression, editingTimezone],
+  );
+
+  const cronDescription = useMemo(
+    () => (cronCheck.valid ? describeCron(cronExpression, locale) : ""),
+    [cronCheck.valid, cronExpression, locale],
+  );
 
   const fetchSchedules = async () => {
     setLoading(true);
@@ -83,19 +97,45 @@ export default function SchedulesPage() {
     fetchOptions();
   }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const openCreate = () => {
+    setEditingSchedule(null);
+    setTemplateId("");
+    setUserId("");
+    setCronExpression("0 9 * * *");
+    setFormOpen(true);
+  };
+
+  const openEdit = (schedule: NotificationSchedule) => {
+    setEditingSchedule(schedule);
+    setTemplateId(schedule.templateId);
+    setUserId(schedule.userId);
+    setCronExpression(schedule.cronExpression);
+    setFormOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!cronCheck.valid) return;
     try {
-      await fetch("/api/schedules", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ templateId, userId, cronExpression, isActive: true }),
-      });
+      if (editingSchedule) {
+        await fetch(`/api/schedules/${editingSchedule.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ templateId, userId, cronExpression }),
+        });
+        toast.add({ title: t.common.success, description: "Jadwal berhasil diperbarui", type: "success" });
+      } else {
+        await fetch("/api/schedules", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ templateId, userId, cronExpression, isActive: true }),
+        });
+        toast.add({ title: t.common.success, description: "Jadwal berhasil dibuat", type: "success" });
+      }
       setFormOpen(false);
       fetchSchedules();
-      toast.add({ title: t.common.success, description: "Jadwal berhasil dibuat", type: "success" });
     } catch (error) {
-      console.error("Gagal membuat jadwal:", error);
+      console.error("Gagal menyimpan jadwal:", error);
     }
   };
 
@@ -130,7 +170,7 @@ export default function SchedulesPage() {
           <h1 className="text-2xl font-bold">{t.schedules.title}</h1>
           <p className="text-muted-foreground">{t.schedules.description}</p>
         </div>
-        <Button onClick={() => setFormOpen(true)}>
+        <Button onClick={openCreate}>
           <Plus className="h-4 w-4 mr-2" /> {t.schedules.newSchedule}
         </Button>
       </div>
@@ -197,6 +237,14 @@ export default function SchedulesPage() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          title={t.common.edit}
+                          onClick={() => openEdit(schedule)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => handleToggle(schedule.id, schedule.isActive || false)}
                         >
                           <Play className="h-4 w-4" />
@@ -221,9 +269,11 @@ export default function SchedulesPage() {
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{t.schedules.form.title}</DialogTitle>
+            <DialogTitle>
+              {editingSchedule ? t.schedules.form.editTitle : t.schedules.form.title}
+            </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleCreate} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label>{t.schedules.template}</Label>
               <Select value={templateId} onValueChange={(v) => setTemplateId(v ?? "")}>
@@ -259,6 +309,8 @@ export default function SchedulesPage() {
                   value={cronExpression}
                   onChange={(e) => setCronExpression(e.target.value)}
                   placeholder="0 9 * * *"
+                  aria-invalid={!cronCheck.valid}
+                  className={!cronCheck.valid ? "border-destructive" : ""}
                   required
                 />
                 <Select value={cronExpression} onValueChange={(v) => setCronExpression(v ?? "")}>
@@ -277,14 +329,32 @@ export default function SchedulesPage() {
               <p className="text-xs text-muted-foreground">
                 {t.schedules.form.cronFormat}
               </p>
+              {!cronCheck.valid && (
+                <p className="text-xs text-destructive">
+                  {t.schedules.form.cronInvalid}
+                </p>
+              )}
+              {cronCheck.valid && cronDescription && (
+                <div className="space-y-1 rounded-md bg-muted p-3 text-sm">
+                  <p>{cronDescription}</p>
+                  {nextRunPreview && (
+                    <p className="text-muted-foreground">
+                      {t.schedules.form.nextRunPreview}:{" "}
+                      {nextRunPreview.toLocaleString(locale, {
+                        timeZone: editingTimezone,
+                      })}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setFormOpen(false)}>
                 {t.schedules.form.cancel}
               </Button>
-              <Button type="submit" disabled={!templateId || !userId}>
-                {t.schedules.form.createButton}
+              <Button type="submit" disabled={!templateId || !userId || !cronCheck.valid}>
+                {editingSchedule ? t.schedules.form.saveButton : t.schedules.form.createButton}
               </Button>
             </div>
           </form>

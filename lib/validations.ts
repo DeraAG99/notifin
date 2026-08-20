@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { validateCron } from "@/lib/cron-utils";
 
 export const channelSchema = z.enum(["wa", "email", "both"]);
 export const statusSchema = z.enum([
@@ -46,13 +47,9 @@ export const createScheduleSchema = z.object({
   cronExpression: z
     .string()
     .min(1, "Cron expression is required")
-    .refine(
-      (val) => {
-        const parts = val.split(" ");
-        return parts.length === 5;
-      },
-      { message: "Invalid cron expression format (need 5 parts)" }
-    ),
+    .refine((val) => validateCron(val).valid, {
+      message: "Invalid cron expression",
+    }),
   isActive: z.boolean().default(true),
 });
 

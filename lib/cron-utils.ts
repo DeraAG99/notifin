@@ -1,4 +1,33 @@
 import type { Locale } from "@/lib/i18n/context";
+import { CronExpressionParser } from "cron-parser";
+
+export interface CronValidation {
+  valid: boolean;
+  error?: string;
+}
+
+export function validateCron(expression: string): CronValidation {
+  const parts = expression.trim().split(/\s+/);
+  if (parts.length !== 5) {
+    return { valid: false, error: "parts" };
+  }
+  try {
+    CronExpressionParser.parse(expression.trim());
+    return { valid: true };
+  } catch (err) {
+    return { valid: false, error: err instanceof Error ? err.message : "invalid" };
+  }
+}
+
+export function getNextRun(expression: string, timezone = "Asia/Jakarta"): Date | null {
+  try {
+    return CronExpressionParser.parse(expression.trim(), { tz: timezone })
+      .next()
+      .toDate();
+  } catch {
+    return null;
+  }
+}
 
 const WEEKDAYS: Record<Locale, string[]> = {
   id: ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"],
