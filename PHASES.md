@@ -1371,6 +1371,34 @@ PHASES.md (this update)
 
 ---
 
+## Phase 41: Truthful Email Health (Resend Platform) + Baileys Connect Error Surfacing
+
+### Scope
+Two visibility fixes: (1) email health for the platform-provided "Resend (Notifin)" provider now performs a real API verification instead of just checking env presence, and Settings shows WHY a health item is red; (2) Baileys connect failures/skips are surfaced per-admin in Settings instead of failing silently.
+
+### Changes
+- **`lib/email.ts`** — new `checkEmailHealthDetailed(adminId): {ok, detail}`; `checkEmailHealth` kept as boolean wrapper. Resend branch: no key → explicit reason; key present → `GET https://api.resend.com/domains` with 5s timeout; `200`/`403` = healthy (403 = valid restricted/send-only key), `401` = invalid key, other/timeout = unhealthy with reason. Result cached 60s (platform-global key). SMTP branch reports verify error message.
+- **`app/api/settings/route.ts`** — uses detailed check; response `health.emailDetail` added.
+- **Settings UI** — red health items render `detail` text under the label (email for now).
+- **`lib/wa/baileys-manager.ts`** — exported `setBaileysError(adminId, msg|null)` writing per-admin `baileys_error`; `connect()` clears stale `baileys_qr` and error at start; writes error on missing module / connect exception; clears on `connection open`.
+- **`workers/notification-worker.ts`** — writes `baileys_error` when connect job is skipped (admin inactive/expired), auto-connect fails, or manual connect throws.
+- **`app/api/baileys/status/route.ts`** — returns `error`; **Settings UI** shows it in red under Baileys status while not connected.
+- Per-tenant model unchanged: `emailProvider` choice stays per-admin; Resend key remains platform-level env (`RESEND_API_KEY`). If health stays red in production, check `docker compose exec web printenv RESEND_API_KEY`.
+- Verified `bunx tsc --noEmit` clean; lint unchanged (pre-existing only).
+
+### Files Created/Modified
+```
+lib/email.ts (EmailHealthResult + real Resend verification + cache)
+app/api/settings/route.ts (health.emailDetail)
+app/(dashboard)/settings/page.tsx (health detail + baileys error display)
+lib/wa/baileys-manager.ts (setBaileysError + QR/error hygiene)
+workers/notification-worker.ts (error surfacing on skip/fail)
+app/api/baileys/status/route.ts (error field)
+PHASES.md (this update)
+```
+
+---
+
 ## Environment Variables
 
 ```bash

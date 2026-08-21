@@ -32,6 +32,10 @@ async function writeDbSetting(adminId: string, key: string, value: string | numb
   }
 }
 
+export async function setBaileysError(adminId: string, message: string | null): Promise<void> {
+  await writeDbSetting(adminId, "baileys_error", message || "");
+}
+
 export class BaileysManager {
   private static instances = new Map<string, BaileysManager>();
   private adminId: string;
@@ -79,10 +83,13 @@ export class BaileysManager {
     if (this._connected || this.connecting) return;
     this.connecting = true;
     this.intentionalClose = false;
+    writeDbSetting(this.adminId, "baileys_qr", "");
+    setBaileysError(this.adminId, null);
 
     const hasModule = await ensureBaileys();
     if (!hasModule) {
       await writeDbSetting(this.adminId, "baileys_connected", false);
+      await setBaileysError(this.adminId, "Modul Baileys tidak tersedia di server");
       this.connecting = false;
       return;
     }
@@ -149,6 +156,7 @@ export class BaileysManager {
           writeDbSetting(this.adminId, "baileys_connected", true);
           writeDbSetting(this.adminId, "baileys_last_seen", new Date().toISOString());
           writeDbSetting(this.adminId, "baileys_qr", "");
+          setBaileysError(this.adminId, null);
           const rawJid = (this.sock?.user?.id as string | undefined) || "";
           const phone = rawJid.split(/[:@]/)[0].replace(/\D/g, "");
           if (phone) {
@@ -170,6 +178,10 @@ export class BaileysManager {
     } catch (err) {
       console.error(`[Baileys:${this.adminId}] Failed to connect:`, err);
       await writeDbSetting(this.adminId, "baileys_connected", false);
+      await setBaileysError(
+        this.adminId,
+        err instanceof Error ? err.message : "Gagal terhubung ke WhatsApp"
+      );
     } finally {
       this.connecting = false;
     }

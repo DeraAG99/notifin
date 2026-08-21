@@ -267,19 +267,75 @@ export async function sendBulkEmail(
   });
 }
 
-export async function checkEmailHealth(adminId: string): Promise<boolean> {
+export interface EmailHealthResult {
+  ok: boolean;
+  detail: string | null;
+}
+
+const RESEND_HEALTH_TTL_MS = 60_000;
+let resendHealthCache: { at: number; result: EmailHealthResult } | null = null;
+
+async function checkResendHealth(): Promise<EmailHealthResult> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    return { ok: false, detail: "RESEND_API_KEY belum di-set di server" };
+  }
+
+  if (resendHealthCache && Date.now() - resendHealthCache.at < RESEND_HEALTH_TTL_MS) {
+    return resendHealthCache.result;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  let result: EmailHealthResult;
+  try {
+    const res = await fetch("https://api.resend.com/domains", {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: controller.signal,
+    });
+    if (res.ok || res.status === 403) {
+      result = { ok: true, detail: null };
+    } else if (res.status === 401) {
+      result = { ok: false, detail: "Key API Resend tidak valid (401)" };
+    } else {
+      result = { ok: false, detail: `Resend API error ${res.status}` };
+    }
+  } catch (err) {
+    result = {
+      ok: false,
+      detail: `Gagal menghubungi Resend: ${err instanceof Error ? err.message : "network error"}`,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+
+  resendHealthCache = { at: Date.now(), result };
+  return result;
+}
+
+export async function checkEmailHealthDetailed(adminId: string): Promise<EmailHealthResult> {
   try {
     const provider = await getEmailProvider(adminId);
     if (provider === "resend") {
-      return !!process.env.RESEND_API_KEY;
+      return await checkResendHealth();
     }
     const transport = await getTransporter(adminId);
-    if (!transport) return false;
+    if (!transport) {
+      return { ok: false, detail: "SMTP belum dikonfigurasi" };
+    }
     await transport.verify();
-    return true;
-  } catch {
-    return false;
+    return { ok: true, detail: null };
+  } catch (err) {
+    return {
+      ok: false,
+      detail: err instanceof Error ? err.message : "Verifikasi email gagal",
+    };
   }
+}
+
+export async function checkEmailHealth(adminId: string): Promise<boolean> {
+  const result = await checkEmailHealthDetailed(adminId);
+  return result.ok;
 }
 
 export async function sendWelcomeEmail(adminId: string, to: string, name: string): Promise<EmailResponse> {

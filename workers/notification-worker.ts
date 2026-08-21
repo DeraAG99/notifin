@@ -73,6 +73,7 @@ async function autoConnectBaileys() {
       const manager = mod.BaileysManager.getInstance(admin.id);
       manager.connect().catch((err: Error) => {
         console.error(`[Worker] Baileys auto-connect failed for admin ${admin.id}:`, err.message);
+        mod.setBaileysError(admin.id, err.message);
       });
     }
   } catch {
@@ -96,6 +97,8 @@ async function handleBaileysJob(job: { id?: string | number; data: BaileysJobDat
 
   if (!(await isAdminActive(adminId))) {
     console.log(`Baileys connect job skipped: admin ${adminId} is inactive or expired`);
+    const mod = await import("../lib/wa/baileys-manager");
+    await mod.setBaileysError(adminId, "Akun admin tidak aktif atau kedaluwarsa");
     return;
   }
   console.log(`[Worker] Baileys connect job received for admin ${adminId}, initiating connection...`);
@@ -106,6 +109,8 @@ async function handleBaileysJob(job: { id?: string | number; data: BaileysJobDat
     console.log(`[Worker] Baileys connect completed for admin ${adminId}, connected:`, manager.isConnected());
   } catch (err) {
     console.error(`[Worker] Baileys connect failed for admin ${adminId}:`, err instanceof Error ? err.message : "Unknown error");
+    const mod = await import("../lib/wa/baileys-manager");
+    await mod.setBaileysError(adminId, err instanceof Error ? err.message : "Gagal terhubung ke WhatsApp");
   }
 }
 

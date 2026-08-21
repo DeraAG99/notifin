@@ -4,7 +4,7 @@ import { settings } from "@/lib/db/schema";
 import { settingsSchema } from "@/lib/validations";
 import { and, eq } from "drizzle-orm";
 import { getWaHealth, resetWaProvider } from "@/lib/wa";
-import { checkEmailHealth, resetEmailTransporter } from "@/lib/email";
+import { checkEmailHealthDetailed, resetEmailTransporter } from "@/lib/email";
 import { addBaileysDisconnectJob } from "@/lib/queue";
 import { getSession, unauthorizedResponse, isSuperadmin } from "@/lib/auth/api";
 
@@ -85,7 +85,7 @@ export async function GET() {
 
     const [waHealth, emailHealth, stored] = await Promise.all([
       getWaHealth(session.adminId),
-      checkEmailHealth(session.adminId),
+      checkEmailHealthDetailed(session.adminId),
       getSettingsMap(session.adminId),
     ]);
 
@@ -111,7 +111,8 @@ export async function GET() {
         serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         health: {
           wa: waHealth,
-          email: emailHealth,
+          email: emailHealth.ok,
+          emailDetail: emailHealth.detail,
           ...(isSuperadmin(session)
             ? { redis: true, database: true }
             : {}),

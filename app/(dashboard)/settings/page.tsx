@@ -58,6 +58,7 @@ export default function SettingsPage() {
   const [health, setHealth] = useState({
     wa: false,
     email: false,
+    emailDetail: null as string | null,
     redis: true,
     database: true,
   });
@@ -70,7 +71,8 @@ export default function SettingsPage() {
     qr: string | null;
     lastSeen: string | null;
     phone: string | null;
-  }>({ connected: false, reconnecting: false, qr: null, lastSeen: null, phone: null });
+    error: string | null;
+  }>({ connected: false, reconnecting: false, qr: null, lastSeen: null, phone: null, error: null });
   const [baileysConnecting, setBaileysConnecting] = useState(false);
   const [baileysDisconnecting, setBaileysDisconnecting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -141,6 +143,7 @@ export default function SettingsPage() {
           qr: data.data.qr || null,
           lastSeen: data.data.lastSeen || null,
           phone: data.data.phone || null,
+          error: data.data.error || null,
         });
       }
     } catch {
@@ -261,7 +264,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <div className={`grid grid-cols-2 gap-4 ${isSuper ? "md:grid-cols-4" : ""}`}>
-            {[
+            {            [
               {
                 label: t.settings.whatsapp,
                 ok: health.wa,
@@ -271,6 +274,7 @@ export default function SettingsPage() {
                 label: settings.emailProvider === "resend" ? t.settings.emailPlatform : t.settings.email,
                 ok: health.email,
                 sub: settings.emailProvider === "resend" ? t.settings.emailProviderResend : undefined,
+                detail: health.emailDetail || undefined,
               },
               ...(isSuper
                 ? [
@@ -288,6 +292,9 @@ export default function SettingsPage() {
                 <div className="min-w-0">
                   <div className="text-sm">{item.label}</div>
                   {item.sub && <div className="text-xs text-muted-foreground truncate">{item.sub}</div>}
+                  {!item.ok && item.detail && (
+                    <div className="text-xs text-destructive break-words">{item.detail}</div>
+                  )}
                 </div>
               </div>
             ))}
@@ -502,6 +509,10 @@ export default function SettingsPage() {
                     {t.settings.baileysConnectedAs}:{" "}
                     <span className="font-medium text-foreground">+{baileysStatus.phone}</span>
                   </p>
+                )}
+
+                {!baileysStatus.connected && baileysStatus.error && (
+                  <p className="text-xs text-destructive break-words">{baileysStatus.error}</p>
                 )}
 
                 {baileysStatus.qr && !baileysStatus.connected && (

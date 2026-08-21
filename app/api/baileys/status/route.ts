@@ -12,17 +12,19 @@ export async function GET() {
     if (!session) return unauthorizedResponse();
 
     const scope = eq(settings.adminId, session.adminId);
-    const [connectedRows, qrRows, lastSeenRows, phoneRows] = await Promise.all([
+    const [connectedRows, qrRows, lastSeenRows, phoneRows, errorRows] = await Promise.all([
       db.select().from(settings).where(and(scope, eq(settings.key, "baileys_connected"))),
       db.select().from(settings).where(and(scope, eq(settings.key, "baileys_qr"))),
       db.select().from(settings).where(and(scope, eq(settings.key, "baileys_last_seen"))),
       db.select().from(settings).where(and(scope, eq(settings.key, "baileys_phone"))),
+      db.select().from(settings).where(and(scope, eq(settings.key, "baileys_error"))),
     ]);
 
     const connected = connectedRows.length > 0 && connectedRows[0].value === true;
     const lastSeen = lastSeenRows.length > 0 ? (lastSeenRows[0].value as string) : null;
     const qr = qrRows.length > 0 ? (qrRows[0].value as string) : null;
     const phone = phoneRows.length > 0 ? String(phoneRows[0].value || "") : "";
+    const error = errorRows.length > 0 ? String(errorRows[0].value || "") : "";
 
     let effectiveStatus = connected;
     let reconnecting = false;
@@ -43,6 +45,7 @@ export async function GET() {
         qr,
         lastSeen,
         phone: phone || null,
+        error: error || null,
       },
     });
   } catch {
