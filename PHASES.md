@@ -1350,6 +1350,27 @@ PHASES.md (this update)
 
 ---
 
+## Phase 40: Fix Baileys Stuck-Connected on Manual Disconnect
+
+### Scope
+Manual disconnect (Settings → Putuskan) previously reconnected itself after ~5s and stayed "Tersambung"; reconnect attempts then competed with a ghost socket. Root cause: Baileys fires `connection.update close` for intentional closes too, and the handler auto-reconnected whenever the status code wasn't `loggedOut`.
+
+### Changes
+All in `lib/wa/baileys-manager.ts` (per-admin instance semantics unchanged):
+- **`intentionalClose` flag** — set in `disconnect()` before `sock.close()`; the `connection.close` handler checks it first and skips reconnect entirely (resets flag). `connect()` resets the flag so genuine network drops still auto-reconnect.
+- **Anti-ghost guard** — reconnect now also requires `BaileysManager.instances.get(this.adminId) === this`; instances removed from the map (disconnected) can never resurrect a socket.
+- **Grace-period fix** — `disconnect()` writes `baileys_last_seen = ""` so `/api/baileys/status` immediately reports "Belum terhubung" instead of showing the 60s "Menghubungkan ulang..." grace window; the close handler no longer writes a fresh timestamp when the close was intentional (ordering avoids overwriting the cleared value).
+- **`sock.close()` wrapped in try-catch** — safe if socket already dead.
+- Verified `bunx tsc --noEmit` clean; lint unchanged (single pre-existing false-positive).
+
+### Files Created/Modified
+```
+lib/wa/baileys-manager.ts (intentionalClose flag + anti-ghost + last_seen clear + guarded close)
+PHASES.md (this update)
+```
+
+---
+
 ## Environment Variables
 
 ```bash

@@ -39,6 +39,7 @@ export class BaileysManager {
   private sock: any = null;
   private _connected = false;
   private connecting = false;
+  private intentionalClose = false;
   private latestQr: string | null = null;
   private authDir: string;
 
@@ -77,6 +78,7 @@ export class BaileysManager {
   async connect(): Promise<void> {
     if (this._connected || this.connecting) return;
     this.connecting = true;
+    this.intentionalClose = false;
 
     const hasModule = await ensureBaileys();
     if (!hasModule) {
@@ -127,9 +129,16 @@ export class BaileysManager {
         if (connection === "close") {
           this._connected = false;
           writeDbSetting(this.adminId, "baileys_connected", false);
+          if (this.intentionalClose) {
+            this.intentionalClose = false;
+            console.log(`[Baileys:${this.adminId}] Disconnected intentionally, no reconnect`);
+            return;
+          }
           writeDbSetting(this.adminId, "baileys_last_seen", new Date().toISOString());
+          const isRegistered = BaileysManager.instances.get(this.adminId) === this;
           const statusCode = lastDisconnect?.error?.output?.statusCode;
-          const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+          const shouldReconnect =
+            isRegistered && statusCode !== DisconnectReason.loggedOut;
           if (shouldReconnect) {
             console.log(`[Baileys:${this.adminId}] Connection closed, reconnecting...`);
             setTimeout(() => this.connect(), 5000);
@@ -204,13 +213,19 @@ export class BaileysManager {
   }
 
   disconnect(): void {
+    this.intentionalClose = true;
     if (this.sock) {
-      this.sock.close();
+      try {
+        this.sock.close();
+      } catch {
+        // socket may already be closed
+      }
       this.sock = null;
     }
     this._connected = false;
     writeDbSetting(this.adminId, "baileys_connected", false);
     writeDbSetting(this.adminId, "baileys_qr", "");
     writeDbSetting(this.adminId, "baileys_phone", "");
+    writeDbSetting(this.adminId, "baileys_last_seen", "");
   }
 }
