@@ -2,6 +2,7 @@ import type { SendResult } from "./provider";
 import { db } from "@/lib/db";
 import { settings } from "@/lib/db/schema";
 import path from "path";
+import fs from "fs";
 
 const AUTH_DIR = process.env.BAILEYS_AUTH_DIR || path.join(process.cwd(), ".baileys-auth");
 
@@ -163,12 +164,28 @@ export class BaileysManager {
             console.log(`[Baileys:${this.adminId}] Disconnected intentionally, no reconnect`);
             return;
           }
-          writeDbSetting(this.adminId, "baileys_last_seen", new Date().toISOString());
           const isRegistered = BaileysManager.instances.get(this.adminId) === this;
           const statusCode = lastDisconnect?.error?.output?.statusCode;
-          const shouldReconnect =
-            isRegistered && statusCode !== DisconnectReason.loggedOut;
-          if (shouldReconnect) {
+
+          if (statusCode === DisconnectReason.loggedOut) {
+            console.log(`[Baileys:${this.adminId}] Session logged out by WhatsApp, resetting credentials...`);
+            try {
+              await fs.promises.rm(this.authDir, { recursive: true, force: true });
+            } catch {
+              // ignore
+            }
+            await resetBaileysState(this.adminId);
+            if (isRegistered && !this.reconnectTimer) {
+              this.reconnectTimer = setTimeout(() => {
+                this.reconnectTimer = null;
+                this.connect();
+              }, 2000);
+            }
+            return;
+          }
+
+          writeDbSetting(this.adminId, "baileys_last_seen", new Date().toISOString());
+          if (isRegistered) {
             console.log(`[Baileys:${this.adminId}] Connection closed, reconnecting...`);
             if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
             this.reconnectTimer = setTimeout(() => {

@@ -5,6 +5,7 @@ import {
   unauthorizedResponse,
 } from "@/lib/auth/api";
 import { getAdminStatus } from "@/lib/admin-status";
+import { setBaileysError } from "@/lib/wa/baileys-manager";
 
 export async function POST() {
   try {
@@ -19,6 +20,7 @@ export async function POST() {
           : status.reason === "not_found"
             ? "Akun admin tidak ditemukan"
             : "Akun admin tidak aktif, hubungi superadmin untuk aktivasi";
+      await setBaileysError(session.adminId, reason);
       return NextResponse.json({ success: false, error: reason }, { status: 403 });
     }
 

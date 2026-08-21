@@ -1465,6 +1465,26 @@ PHASES.md (this update)
 
 ---
 
+## Phase 45: Baileys loggedOut Self-Heal — Auto Fresh QR After Session Killed From Phone
+
+### Scope
+Confirmed root cause of tenant QR never appearing: iga's auth dir held `registered` credentials whose session had been killed from the phone side (device unlinked). Every connect attempt: Baileys skipped QR generation (registered=true), tried resume, WhatsApp rejected with `loggedOut`, old handler silently stopped — no reconnect, no QR, no error, no log. Worker logs showed `connect completed, connected: false` with nothing after. Manual fix was deleting the auth dir; this phase makes it automatic.
+
+### Changes
+- **`lib/wa/baileys-manager.ts`** — close handler now handles `DisconnectReason.loggedOut` explicitly: logs `"Session logged out by WhatsApp, resetting credentials..."`, wipes the admin's auth dir (`fs.promises.rm` recursive), `resetBaileysState`, then schedules one fresh `connect()` via the tracked `reconnectTimer` → new QR auto-emits within seconds. `baileys_last_seen` is NOT written for loggedOut (no fake "Menghubungkan ulang..." grace period for a permanently dead session).
+- **`app/api/baileys/connect/route.ts`** — 403 rejections (inactive/expired/not-found admin) now also write `baileys_error`, so the reason appears in red inside the Baileys section via status polling instead of only at the bottom of the page.
+- Normal operation unchanged: network-drop auto-reconnect (5s), worker-startup auto-connect, and ghost-instance guards from Phases 42-43 remain.
+- Verified `bunx tsc --noEmit` clean; lint unchanged (pre-existing useMultiFileAuthState false positive only).
+
+### Files Created/Modified
+```
+lib/wa/baileys-manager.ts (loggedOut self-heal)
+app/api/baileys/connect/route.ts (rejection visibility)
+PHASES.md (this update)
+```
+
+---
+
 ## Environment Variables
 
 ```bash
