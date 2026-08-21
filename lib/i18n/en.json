@@ -509,6 +509,7 @@
     "baileysDisconnectFailed": "Failed to disconnect",
     "baileysConnectedAs": "Connected as",
     "baileysScanHint": "Open WhatsApp on your phone → Linked Devices → Link a Device → scan this QR",
+    "baileysQrPendingHint": "The QR will appear here automatically a few seconds after settings are saved. If it does not, click Connect WhatsApp.",
     "baileysStatus": "Status",
     "baileysLastSeen": "Last seen",
     "baileysPerAdmin": "Each admin account has its own WhatsApp session (its own number & QR). One admin = one WhatsApp number.",

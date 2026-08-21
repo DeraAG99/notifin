@@ -1444,6 +1444,27 @@ PHASES.md (this update)
 
 ---
 
+## Phase 44: Auto-Connect Baileys on Provider Switch + QR Pending Hint
+
+### Scope
+Tenant set waProvider=baileys but no QR and no error appeared (settings row state: qr="", error="", connected=false) — meaning no connect attempt was ever initiated: worker autoConnect had already run at startup before the provider switch, and nothing re-triggered connection after Save.
+
+### Changes
+- **`app/api/settings/route.ts` (PUT)** — symmetric to the existing disconnect-on-switch-away logic: when `waProvider` changes TO `baileys`, a connect job is queued immediately (`addBaileysConnectJob`). QR now appears automatically a few seconds after Save without any extra click. UI-side `handleSave` already called connect as well; duplicate jobs are harmless (connect guard no-ops).
+- **Settings UI** — new pending hint in the Baileys section when not connected, no QR, and no error: "QR akan muncul otomatis di sini beberapa detik setelah pengaturan disimpan..." (i18n key `settings.baileysQrPendingHint`, id+en).
+- Diagnostic note: empty qr+error with provider=baileys means no connect job reached the worker; if clicking Hubungkan shows a specific 403 message (inactive/expired admin), that leaves no settings trace by design — check `admins.is_active`/`expires_at`.
+- Verified `bunx tsc --noEmit` clean; lint unchanged (pre-existing only).
+
+### Files Created/Modified
+```
+app/api/settings/route.ts (auto-connect on switch to baileys)
+app/(dashboard)/settings/page.tsx (QR pending hint)
+lib/i18n/id.json, lib/i18n/en.json (baileysQrPendingHint)
+PHASES.md (this update)
+```
+
+---
+
 ## Environment Variables
 
 ```bash

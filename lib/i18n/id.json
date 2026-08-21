@@ -509,6 +509,7 @@
     "baileysDisconnectFailed": "Gagal memutuskan koneksi",
     "baileysConnectedAs": "Terkoneksi sebagai",
     "baileysScanHint": "Buka WhatsApp di HP Anda → Perangkat Tertaut → Tautkan Perangkat → scan QR ini",
+    "baileysQrPendingHint": "QR akan muncul otomatis di sini beberapa detik setelah pengaturan disimpan. Jika tidak muncul, klik Hubungkan WhatsApp.",
     "baileysStatus": "Status",
     "baileysLastSeen": "Terakhir aktif",
     "baileysPerAdmin": "Tiap akun admin punya sesi WhatsApp sendiri (nomor & QR berbeda). Satu admin = satu nomor WhatsApp.",

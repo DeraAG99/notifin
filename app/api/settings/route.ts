@@ -5,7 +5,7 @@ import { settingsSchema } from "@/lib/validations";
 import { and, eq } from "drizzle-orm";
 import { getWaHealth, resetWaProvider } from "@/lib/wa";
 import { checkEmailHealthDetailed, resetEmailTransporter } from "@/lib/email";
-import { addBaileysDisconnectJob } from "@/lib/queue";
+import { addBaileysConnectJob, addBaileysDisconnectJob } from "@/lib/queue";
 import { getSession, unauthorizedResponse, isSuperadmin } from "@/lib/auth/api";
 
 const SETTING_KEYS = [
@@ -184,6 +184,13 @@ export async function PUT(request: Request) {
       validated.waProvider !== "baileys"
     ) {
       await addBaileysDisconnectJob(session.adminId);
+    }
+
+    if (
+      validated.waProvider === "baileys" &&
+      oldWaProvider !== "baileys"
+    ) {
+      await addBaileysConnectJob(session.adminId);
     }
 
     const hasSmtpUpdate = entries.some(

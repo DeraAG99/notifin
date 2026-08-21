@@ -515,6 +515,10 @@ export default function SettingsPage() {
                   <p className="text-xs text-destructive break-words">{baileysStatus.error}</p>
                 )}
 
+                {!baileysStatus.connected && !baileysStatus.qr && !baileysStatus.error && (
+                  <p className="text-xs text-muted-foreground">{t.settings.baileysQrPendingHint}</p>
+                )}
+
                 {baileysStatus.qr && !baileysStatus.connected && (
                   <div className="flex flex-col items-center gap-2 py-2">
                     <img
