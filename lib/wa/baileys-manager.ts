@@ -140,7 +140,12 @@ export class BaileysManager {
           writeDbSetting(this.adminId, "baileys_connected", true);
           writeDbSetting(this.adminId, "baileys_last_seen", new Date().toISOString());
           writeDbSetting(this.adminId, "baileys_qr", "");
-          console.log(`[Baileys:${this.adminId}] Connected successfully`);
+          const rawJid = (this.sock?.user?.id as string | undefined) || "";
+          const phone = rawJid.split(/[:@]/)[0].replace(/\D/g, "");
+          if (phone) {
+            writeDbSetting(this.adminId, "baileys_phone", phone);
+          }
+          console.log(`[Baileys:${this.adminId}] Connected successfully${phone ? ` as +${phone}` : ""}`);
         }
       });
 
@@ -205,5 +210,7 @@ export class BaileysManager {
     }
     this._connected = false;
     writeDbSetting(this.adminId, "baileys_connected", false);
+    writeDbSetting(this.adminId, "baileys_qr", "");
+    writeDbSetting(this.adminId, "baileys_phone", "");
   }
 }

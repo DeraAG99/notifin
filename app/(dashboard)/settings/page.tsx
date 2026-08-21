@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, XCircle, Save, MessageSquare, Globe, Smartphone, AlertTriangle, Lock, RefreshCw } from "lucide-react";
+import { CheckCircle, XCircle, Save, MessageSquare, Globe, Smartphone, AlertTriangle, Lock, RefreshCw, PhoneOff } from "lucide-react";
 import { useI18n } from "@/lib/i18n/context";
 import { useAuth } from "@/lib/auth/context";
 import { TIMEZONE_OPTIONS } from "@/lib/timezones";
@@ -69,8 +69,10 @@ export default function SettingsPage() {
     reconnecting: boolean;
     qr: string | null;
     lastSeen: string | null;
-  }>({ connected: false, reconnecting: false, qr: null, lastSeen: null });
+    phone: string | null;
+  }>({ connected: false, reconnecting: false, qr: null, lastSeen: null, phone: null });
   const [baileysConnecting, setBaileysConnecting] = useState(false);
+  const [baileysDisconnecting, setBaileysDisconnecting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -138,6 +140,7 @@ export default function SettingsPage() {
           reconnecting: data.data.reconnecting,
           qr: data.data.qr || null,
           lastSeen: data.data.lastSeen || null,
+          phone: data.data.phone || null,
         });
       }
     } catch {
@@ -165,6 +168,23 @@ export default function SettingsPage() {
       setMessage(t.settings.baileysConnectFailed);
     } finally {
       setBaileysConnecting(false);
+    }
+  };
+
+  const handleBaileysDisconnect = async () => {
+    if (!confirm(t.settings.baileysDisconnectConfirm)) return;
+    setBaileysDisconnecting(true);
+    try {
+      const res = await fetch("/api/baileys/disconnect", { method: "POST" });
+      const data = await res.json();
+      if (!data.success) {
+        setMessage(data.error || t.settings.baileysDisconnectFailed);
+      }
+      await fetchBaileysStatus();
+    } catch {
+      setMessage(t.settings.baileysDisconnectFailed);
+    } finally {
+      setBaileysDisconnecting(false);
     }
   };
 
@@ -460,7 +480,29 @@ export default function SettingsPage() {
                       {baileysConnecting ? t.settings.baileysConnecting : t.settings.baileysConnect}
                     </Button>
                   )}
+                  {baileysStatus.connected && (
+                    <Button
+                      onClick={handleBaileysDisconnect}
+                      disabled={baileysDisconnecting}
+                      size="sm"
+                      variant="destructive"
+                    >
+                      {baileysDisconnecting ? (
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <PhoneOff className="h-4 w-4 mr-2" />
+                      )}
+                      {baileysDisconnecting ? t.settings.baileysDisconnecting : t.settings.baileysDisconnect}
+                    </Button>
+                  )}
                 </div>
+
+                {baileysStatus.connected && baileysStatus.phone && (
+                  <p className="text-xs text-muted-foreground">
+                    {t.settings.baileysConnectedAs}:{" "}
+                    <span className="font-medium text-foreground">+{baileysStatus.phone}</span>
+                  </p>
+                )}
 
                 {baileysStatus.qr && !baileysStatus.connected && (
                   <div className="flex flex-col items-center gap-2 py-2">

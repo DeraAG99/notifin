@@ -1323,6 +1323,33 @@ PHASES.md (this update)
 
 ---
 
+## Phase 39: Baileys Disconnect Button + Connected Phone Number
+
+### Scope
+Settings (Baileys): explicit disconnect button while connected, and display the WhatsApp number of the active session. All per-admin (`adminId`-scoped), consistent with one-admin-one-number model.
+
+### Changes
+- **`lib/wa/baileys-manager.ts`** — on `connection open`: extract phone from `sock.user.id` JID (strip `:device`/`@s.whatsapp.net`), persist to per-admin setting `baileys_phone`, log `Connected successfully as +<phone>`. On `disconnect()`: also clear `baileys_qr` (stale QR) and `baileys_phone`.
+- **`app/api/baileys/disconnect/route.ts` (new)** — POST mirror of connect route: session check + `isAdminActive` → `addBaileysDisconnectJob(adminId)` (queue + worker handler already existed for provider-switch flow).
+- **`app/api/baileys/status/route.ts`** — also reads `baileys_phone`, returns `phone` in response.
+- **`app/(dashboard)/settings/page.tsx`** — destructive "Putuskan/Disconnect" button (with confirm) shown while connected; "Terkoneksi sebagai +62..." line under status when connected & phone known; `baileysDisconnecting` state mirrors connect flow.
+- **i18n** — new keys `settings.baileysDisconnect`, `baileysDisconnecting`, `baileysDisconnectConfirm`, `baileysDisconnectFailed`, `baileysConnectedAs` (en/id).
+- Notes: manual disconnect does not wipe the auth session (`BAILEYS_AUTH_DIR/<adminId>` volume) — reconnecting usually skips QR. Worker auto-connect on restart still applies to admins with provider = baileys.
+- Verified `bunx tsc --noEmit` clean; new files lint-clean; modified files introduce no new lint errors.
+
+### Files Created/Modified
+```
+lib/wa/baileys-manager.ts (phone capture + cleanup on disconnect)
+app/api/baileys/disconnect/route.ts (new)
+app/api/baileys/status/route.ts (phone field)
+app/(dashboard)/settings/page.tsx (disconnect button + connected-as line)
+lib/i18n/en.json (5 settings keys)
+lib/i18n/id.json (5 settings keys)
+PHASES.md (this update)
+```
+
+---
+
 ## Environment Variables
 
 ```bash
