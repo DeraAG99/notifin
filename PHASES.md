@@ -1423,6 +1423,27 @@ PHASES.md (this update)
 
 ---
 
+## Phase 43: Baileys Ghost Instance — Disconnect No-Op Fix
+
+### Scope
+Tenant (and any admin) could get stuck at "Tersambung" with the Putuskan button doing nothing. Root cause: a pending auto-reconnect timer scheduled before an intentional disconnect fires on the now-unregistered instance, resurrects the connection and rewrites `baileys_connected=true`; subsequent disconnect calls find no instance in the map and silently no-op.
+
+### Changes (`lib/wa/baileys-manager.ts`)
+- **Anti-resurrection:** `connect()` refuses to run when the instance is no longer registered in `instances` map (orphaned).
+- **Reconnect timer tracked:** new `reconnectTimer` field; cleared in `disconnect()` and before scheduling a new one; timer callback nulls it before calling `connect()`.
+- **Open-handler guard:** on `connection === "open"`, unregistered (orphan) sockets are closed immediately instead of writing connected/phone state.
+- **Static disconnect never a silent no-op:** when no live instance exists (e.g., ghost after worker restart or resurrection race), it still resets all per-admin flags via new exported `resetBaileysState(adminId)` (connected/qr/phone/last_seen/error). Instance `disconnect()` uses the same helper.
+- Result: Putuskan always flips status back to "Belum tersambung" within one UI poll (~4s); sessions cannot self-resurrect after intentional disconnect.
+- Verified `bunx tsc --noEmit` clean; lint unchanged (pre-existing useMultiFileAuthState false positive only).
+
+### Files Created/Modified
+```
+lib/wa/baileys-manager.ts (orphan guards + reconnectTimer + resetBaileysState)
+PHASES.md (this update)
+```
+
+---
+
 ## Environment Variables
 
 ```bash

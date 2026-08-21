@@ -42,6 +42,14 @@ export async function clearBaileysSessionFlags(adminId: string): Promise<void> {
   await writeDbSetting(adminId, "baileys_last_seen", "");
 }
 
+export async function resetBaileysState(adminId: string): Promise<void> {
+  await writeDbSetting(adminId, "baileys_connected", false);
+  await writeDbSetting(adminId, "baileys_qr", "");
+  await writeDbSetting(adminId, "baileys_phone", "");
+  await writeDbSetting(adminId, "baileys_last_seen", "");
+  await writeDbSetting(adminId, "baileys_error", "");
+}
+
 export class BaileysManager {
   private static instances = new Map<string, BaileysManager>();
   private adminId: string;
@@ -50,6 +58,7 @@ export class BaileysManager {
   private _connected = false;
   private connecting = false;
   private intentionalClose = false;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private latestQr: string | null = null;
   private authDir: string;
 
@@ -78,7 +87,9 @@ export class BaileysManager {
     if (instance) {
       instance.disconnect();
       BaileysManager.instances.delete(adminId);
+      return;
     }
+    void resetBaileysState(adminId);
   }
 
   isConnected(): boolean {
@@ -86,9 +97,14 @@ export class BaileysManager {
   }
 
   async connect(): Promise<void> {
+    if (BaileysManager.instances.get(this.adminId) !== this) return;
     if (this._connected || this.connecting) return;
     this.connecting = true;
     this.intentionalClose = false;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     writeDbSetting(this.adminId, "baileys_qr", "");
     setBaileysError(this.adminId, null);
 
@@ -154,9 +170,22 @@ export class BaileysManager {
             isRegistered && statusCode !== DisconnectReason.loggedOut;
           if (shouldReconnect) {
             console.log(`[Baileys:${this.adminId}] Connection closed, reconnecting...`);
-            setTimeout(() => this.connect(), 5000);
+            if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = setTimeout(() => {
+              this.reconnectTimer = null;
+              this.connect();
+            }, 5000);
           }
         } else if (connection === "open") {
+          if (BaileysManager.instances.get(this.adminId) !== this) {
+            console.log(`[Baileys:${this.adminId}] Orphan socket opened, closing`);
+            try {
+              this.sock?.close();
+            } catch {
+              // ignore
+            }
+            return;
+          }
           this._connected = true;
           this.latestQr = null;
           writeDbSetting(this.adminId, "baileys_connected", true);
@@ -232,6 +261,10 @@ export class BaileysManager {
 
   disconnect(): void {
     this.intentionalClose = true;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (this.sock) {
       try {
         this.sock.close();
@@ -241,9 +274,6 @@ export class BaileysManager {
       this.sock = null;
     }
     this._connected = false;
-    writeDbSetting(this.adminId, "baileys_connected", false);
-    writeDbSetting(this.adminId, "baileys_qr", "");
-    writeDbSetting(this.adminId, "baileys_phone", "");
-    writeDbSetting(this.adminId, "baileys_last_seen", "");
+    void resetBaileysState(this.adminId);
   }
 }
