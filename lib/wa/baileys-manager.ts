@@ -36,6 +36,12 @@ export async function setBaileysError(adminId: string, message: string | null): 
   await writeDbSetting(adminId, "baileys_error", message || "");
 }
 
+export async function clearBaileysSessionFlags(adminId: string): Promise<void> {
+  await writeDbSetting(adminId, "baileys_connected", false);
+  await writeDbSetting(adminId, "baileys_qr", "");
+  await writeDbSetting(adminId, "baileys_last_seen", "");
+}
+
 export class BaileysManager {
   private static instances = new Map<string, BaileysManager>();
   private adminId: string;

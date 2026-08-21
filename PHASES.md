@@ -1399,6 +1399,30 @@ PHASES.md (this update)
 
 ---
 
+## Phase 42: Baileys QR Tenant Diagnostics — Specific Errors + Stale Flag Cleanup
+
+### Scope
+Follow-up on "QR muncul di superadmin tapi tidak di admin biasa". Code paths verified identical for both roles; the three candidate causes are now all surfaced or self-healing instead of silent.
+
+### Changes
+- **`lib/admin-status.ts`** — new `getAdminStatus(adminId): {active, reason}` distinguishing `not_found` / `inactive` / `expired`; `isAdminActive` now wraps it.
+- **`app/api/baileys/connect/route.ts`** — inactive/expired admins get a specific 403 message ("Akun admin tidak aktif, hubungi superadmin untuk aktivasi" / "...kedaluwarsa...") instead of the misleading generic "Forbidden: superadmin only"; message shows in Settings UI toast.
+- **`lib/wa/baileys-manager.ts`** — exported `clearBaileysSessionFlags(adminId)` clearing `baileys_connected`, `baileys_qr`, `baileys_last_seen`.
+- **`workers/notification-worker.ts`** — `autoConnectBaileys` now: checks provider first, clears stale session flags at startup (worker restart = old sockets dead, so "Tersambung" ghost status and stale QR are wiped), writes `baileys_error` for inactive/expired baileys-admins, then connects active ones.
+- Remaining non-code causes covered by ops: tenant must set WhatsApp Provider = Baileys + Save before the section appears (default is fonnte); superadmin must activate/extend tenant.
+- Verified `bunx tsc --noEmit` clean; lint unchanged (pre-existing useMultiFileAuthState false positive only).
+
+### Files Created/Modified
+```
+lib/admin-status.ts (getAdminStatus with reason)
+app/api/baileys/connect/route.ts (specific 403 messages)
+lib/wa/baileys-manager.ts (clearBaileysSessionFlags export)
+workers/notification-worker.ts (startup cleanup + inactive error surfacing)
+PHASES.md (this update)
+```
+
+---
+
 ## Environment Variables
 
 ```bash

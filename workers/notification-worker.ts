@@ -61,15 +61,23 @@ async function autoConnectBaileys() {
     const adminRows = await db
       .select({ id: admins.id, isActive: admins.isActive, expiresAt: admins.expiresAt })
       .from(admins);
+    const mod = await import("../lib/wa/baileys-manager");
     for (const admin of adminRows) {
-      if (!admin.isActive) continue;
-      if (admin.expiresAt && new Date(admin.expiresAt).getTime() < Date.now()) continue;
-
       const providerType = await getSetting(admin.id, "waProvider");
       if (providerType !== "baileys") continue;
 
+      // Worker restart = semua socket lama mati; bersihkan flag basi
+      await mod.clearBaileysSessionFlags(admin.id);
+
+      const expired =
+        admin.expiresAt && new Date(admin.expiresAt).getTime() < Date.now();
+      if (!admin.isActive || expired) {
+        console.log(`[Worker] Auto-connect skipped for admin ${admin.id}: inactive or expired`);
+        await mod.setBaileysError(admin.id, "Akun admin tidak aktif atau kedaluwarsa");
+        continue;
+      }
+
       console.log(`[Worker] Auto-connecting Baileys for admin ${admin.id}...`);
-      const mod = await import("../lib/wa/baileys-manager");
       const manager = mod.BaileysManager.getInstance(admin.id);
       manager.connect().catch((err: Error) => {
         console.error(`[Worker] Baileys auto-connect failed for admin ${admin.id}:`, err.message);

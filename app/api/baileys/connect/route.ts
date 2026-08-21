@@ -3,16 +3,24 @@ import { addBaileysConnectJob } from "@/lib/queue";
 import {
   getSession,
   unauthorizedResponse,
-  forbiddenResponse,
 } from "@/lib/auth/api";
-import { isAdminActive } from "@/lib/admin-status";
+import { getAdminStatus } from "@/lib/admin-status";
 
 export async function POST() {
   try {
     const session = await getSession();
     if (!session) return unauthorizedResponse();
 
-    if (!(await isAdminActive(session.adminId))) return forbiddenResponse();
+    const status = await getAdminStatus(session.adminId);
+    if (!status.active) {
+      const reason =
+        status.reason === "expired"
+          ? "Akun admin sudah kedaluwarsa, hubungi superadmin untuk perpanjangan"
+          : status.reason === "not_found"
+            ? "Akun admin tidak ditemukan"
+            : "Akun admin tidak aktif, hubungi superadmin untuk aktivasi";
+      return NextResponse.json({ success: false, error: reason }, { status: 403 });
+    }
 
     await addBaileysConnectJob(session.adminId);
 
