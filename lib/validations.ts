@@ -11,8 +11,27 @@ export const statusSchema = z.enum([
 ]);
 export const prioritySchema = z.enum(["urgent", "normal", "low"]);
 
+/**
+ * Jabatan / unit kerja are shared between the single-user form and the CSV bulk
+ * import. They must be declared in *both* schemas: Zod strips unknown keys by
+ * default, so a field added to only one of them is silently dropped on the other
+ * path (e.g. a CSV column that parses fine but never reaches the insert).
+ */
+const jabatanField = z
+  .string()
+  .max(200, "Jabatan maksimal 200 karakter")
+  .optional()
+  .nullable();
+const unitKerjaField = z
+  .string()
+  .max(200, "Unit kerja maksimal 200 karakter")
+  .optional()
+  .nullable();
+
 export const createUserSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
+  jabatan: jabatanField,
+  unitKerja: unitKerjaField,
   phone: z
     .string()
     .regex(/^\d+$/, "Phone must contain only digits")
@@ -143,14 +162,28 @@ export const changePasswordSchema = z.object({
   newPassword: z.string().min(6, "Password baru minimal 6 karakter"),
 });
 
-export const bulkImportSchema = z.array(
-  z.object({
-    name: z.string().min(1),
-    phone: z.string().optional(),
-    email: z.string().email().optional(),
-    timezone: z.string().optional(),
-  })
-);
+/**
+ * Shape of a single row in a bulk user upload.
+ *
+ * Validated per row rather than as one array so that one malformed email
+ * reports a problem with that row instead of rejecting the entire upload with a
+ * 400 and no indication of which line was at fault.
+ */
+export const bulkUserRowSchema = z.object({
+  name: z.string().min(1),
+  jabatan: jabatanField,
+  unitKerja: unitKerjaField,
+  // Deliberately looser than createUserSchema: uploaded spreadsheets are not
+  // guaranteed to carry a well-formed 10-15 digit phone or a valid email, and
+  // rejecting the whole batch for that would be a regression. Note that
+  // `optional()` alone would NOT accept the explicit `null` the client sends for
+  // a blank cell, so `.nullable()` is required here.
+  phone: z.string().optional().nullable(),
+  email: z.string().email("Email tidak valid").optional().nullable(),
+  timezone: z.string().optional().nullable(),
+});
+
+export const bulkImportSchema = z.array(z.unknown()).max(5000, "Maksimal 5000 baris per import");
 
 export const importItemSchema = z.object({
   intervensi: z.string(),
@@ -174,12 +207,34 @@ export const importItemSchema = z.object({
   raw: z.record(z.string(), z.string().nullable()).optional(),
 });
 
+/**
+ * Identity block scraped from a source file's header (e-TPP "Data Kinerja Saya").
+ * Mirrors `SourceProfile` in `lib/imports/types.ts`, but declared here so the
+ * server re-validates rather than trusting whatever the client POSTs.
+ */
+export const sourceProfileSchema = z.object({
+  name: z.string().max(200).nullish(),
+  jabatan: z.string().max(200).nullish(),
+  unitKerja: z.string().max(200).nullish(),
+  perangkatDaerah: z.string().max(200).nullish(),
+  email: z.string().max(200).nullish(),
+  userId: z.string().max(100).nullish(),
+  eselon: z.string().max(20).nullish(),
+});
+
 export const createImportSchema = z.object({
   importTypeId: z.string().uuid("Tipe import tidak valid"),
   categoryId: z.string().uuid("Kategori import tidak valid"),
   fileName: z.string().min(1, "Nama file wajib diisi"),
   period: z.string().nullable().optional(),
   items: z.array(importItemSchema).min(1, "Tidak ada data untuk diimpor"),
+  profile: sourceProfileSchema.nullish(),
+  /**
+   * Force-write jabatan / unit kerja onto the user even if a value is already
+   * stored. Without it the fill-if-empty rule applies, so manual edits are
+   * never clobbered by a re-import.
+   */
+  overwriteProfile: z.boolean().optional(),
 });
 
 export const updateImportSchema = z.object({

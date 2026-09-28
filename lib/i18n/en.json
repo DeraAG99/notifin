@@ -142,6 +142,8 @@
     "preview": "Preview",
     "parsedCount": "{count} items read successfully",
     "parseErrors": "{count} rows failed to read",
+    "profileDetected": "Position & work unit detected from file",
+    "profileOverwriteHint": "Overwrite position/work unit on the user profile if already set (turn off to keep manual edits)",
     "importButton": "Import Data",
     "importing": "Importing...",
     "importSuccess": "Data imported",
@@ -384,9 +386,16 @@
     "importCSV": "Import CSV",
     "importUsers": "Import Users from CSV",
     "noContactInfo": "No contact info",
+    "table": {
+      "jabatan": "Position / Work Unit"
+    },
     "form": {
       "name": "Name",
       "namePlaceholder": "Full name",
+      "jabatan": "Position",
+      "jabatanPlaceholder": "e.g. Head of Finance Sub-division",
+      "unitKerja": "Work Unit",
+      "unitKerjaPlaceholder": "e.g. Palmerah District",
       "phone": "Phone",
       "phonePlaceholder": "6281234567890",
       "email": "Email",
@@ -532,12 +541,20 @@
     "backToDashboard": "Back to Dashboard"
   },
   "csv": {
-    "uploadPrompt": "Click to upload CSV file",
-    "uploadHint": "CSV must have columns: name, phone, email, timezone",
+    "uploadPrompt": "Click to upload a CSV or Excel file",
+    "uploadHint": "Accepts .csv, .xlsx or .xls. Required columns: name, plus at least one of phone or email. Optional: timezone, jabatan, unit_kerja. Column names are case- and space-insensitive (e.g. 'Unit Kerja' or 'unit_kerja').",
+    "downloadTemplateCsv": "Download CSV Template",
+    "downloadTemplateExcel": "Download Excel Template",
+    "readFailed": "Could not read the file. Make sure it is a valid .csv or .xlsx.",
+    "noValidRows": "No valid rows to import. Make sure the name column is filled in.",
     "preview": "Preview (first 5 rows):",
     "importButton": "Import Users",
     "importing": "Importing...",
     "importSuccess": "{count} users imported",
-    "importFailed": "Import failed"
+    "importFailed": "Import failed",
+    "importSummary": "{created} new, {updated} updated, {failed} rows failed",
+    "failedRows": "Rows that failed to import:",
+    "warningsTitle": "Worth checking (these were still imported):",
+    "rowNumber": "Row"
   }
 }

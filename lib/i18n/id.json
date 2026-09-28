@@ -142,6 +142,8 @@
     "preview": "Preview",
     "parsedCount": "{count} item berhasil dibaca",
     "parseErrors": "{count} baris gagal dibaca",
+    "profileDetected": "Data jabatan & unit kerja terdeteksi dari file",
+    "profileOverwriteHint": "Timpa jabatan/unit kerja di profil user bila sudah ada (matikan agar data manual aman)",
     "importButton": "Import Data",
     "importing": "Mengimpor...",
     "importSuccess": "Data berhasil diimpor",
@@ -384,9 +386,16 @@
     "importCSV": "Impor CSV",
     "importUsers": "Impor Pengguna dari CSV",
     "noContactInfo": "Tidak ada info kontak",
+    "table": {
+      "jabatan": "Jabatan / Unit Kerja"
+    },
     "form": {
       "name": "Nama",
       "namePlaceholder": "Nama lengkap",
+      "jabatan": "Jabatan",
+      "jabatanPlaceholder": "mis. Kepala Sub Bagian Keuangan",
+      "unitKerja": "Unit Kerja",
+      "unitKerjaPlaceholder": "mis. Kecamatan Palmerah",
       "phone": "Telepon",
       "phonePlaceholder": "6281234567890",
       "email": "Email",
@@ -532,12 +541,20 @@
     "backToDashboard": "Kembali ke Dasbor"
   },
   "csv": {
-    "uploadPrompt": "Klik untuk mengunggah file CSV",
-    "uploadHint": "CSV harus memiliki kolom: name, phone, email, timezone",
+    "uploadPrompt": "Klik untuk mengunggah file CSV atau Excel",
+    "uploadHint": "Format .csv, .xlsx, atau .xls. Kolom wajib: name, serta minimal salah satu dari phone atau email. Opsional: timezone, jabatan, unit_kerja. Nama kolom bebas kapitalisasi dan spasi (mis. 'Unit Kerja' atau 'unit_kerja').",
+    "downloadTemplateCsv": "Unduh Template CSV",
+    "downloadTemplateExcel": "Unduh Template Excel",
+    "readFailed": "Gagal membaca file. Pastikan format file .csv atau .xlsx yang valid.",
+    "noValidRows": "Tidak ada baris valid untuk diimpor. Pastikan kolom name terisi.",
     "preview": "Preview (5 baris pertama):",
     "importButton": "Impor Pengguna",
     "importing": "Mengimpor...",
     "importSuccess": "{count} pengguna berhasil diimpor",
-    "importFailed": "Gagal mengimpor"
+    "importFailed": "Gagal mengimpor",
+    "importSummary": "{created} user baru, {updated} diperbarui, {failed} baris gagal",
+    "failedRows": "Baris yang gagal diimpor:",
+    "warningsTitle": "Perlu diperiksa (data tetap diimpor):",
+    "rowNumber": "Baris"
   }
 }

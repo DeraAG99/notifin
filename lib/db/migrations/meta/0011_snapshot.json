@@ -1,6 +1,6 @@
 {
-  "id": "09b63ddd-bf1f-4866-932e-044a146827cf",
-  "prevId": "f3dd4eea-a349-427e-b0ac-c7ee2a350383",
+  "id": "6b749236-2fed-420f-9a9f-132d208f4fc6",
+  "prevId": "09b63ddd-bf1f-4866-932e-044a146827cf",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -75,10 +75,10 @@
       "uniqueConstraints": {
         "admins_email_unique": {
           "name": "admins_email_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "email"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -198,9 +198,9 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "data_imports_global_unique": {
           "name": "data_imports_global_unique",
@@ -219,38 +219,38 @@
             }
           ],
           "isUnique": true,
-          "with": {},
-          "method": "btree",
+          "where": "\"data_imports\".\"scope\" = 'global'",
           "concurrently": false,
-          "where": "\"data_imports\".\"scope\" = 'global'"
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
         "data_imports_admin_id_admins_id_fk": {
           "name": "data_imports_admin_id_admins_id_fk",
           "tableFrom": "data_imports",
+          "tableTo": "admins",
           "columnsFrom": [
             "admin_id"
           ],
-          "tableTo": "admins",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "data_imports_user_id_users_id_fk": {
           "name": "data_imports_user_id_users_id_fk",
           "tableFrom": "data_imports",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "data_imports_import_category_id_import_categories_id_fk": {
           "name": "data_imports_import_category_id_import_categories_id_fk",
@@ -347,24 +347,24 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "import_categories_admin_id_admins_id_fk": {
           "name": "import_categories_admin_id_admins_id_fk",
           "tableFrom": "import_categories",
+          "tableTo": "admins",
           "columnsFrom": [
             "admin_id"
           ],
-          "tableTo": "admins",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -469,24 +469,24 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "import_types_admin_id_admins_id_fk": {
           "name": "import_types_admin_id_admins_id_fk",
           "tableFrom": "import_types",
+          "tableTo": "admins",
           "columnsFrom": [
             "admin_id"
           ],
-          "tableTo": "admins",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -590,41 +590,41 @@
         "notification_logs_admin_id_admins_id_fk": {
           "name": "notification_logs_admin_id_admins_id_fk",
           "tableFrom": "notification_logs",
+          "tableTo": "admins",
           "columnsFrom": [
             "admin_id"
           ],
-          "tableTo": "admins",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "notification_logs_template_id_notification_templates_id_fk": {
           "name": "notification_logs_template_id_notification_templates_id_fk",
           "tableFrom": "notification_logs",
+          "tableTo": "notification_templates",
           "columnsFrom": [
             "template_id"
           ],
-          "tableTo": "notification_templates",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "notification_logs_user_id_users_id_fk": {
           "name": "notification_logs_user_id_users_id_fk",
           "tableFrom": "notification_logs",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -700,41 +700,41 @@
         "notification_schedules_admin_id_admins_id_fk": {
           "name": "notification_schedules_admin_id_admins_id_fk",
           "tableFrom": "notification_schedules",
+          "tableTo": "admins",
           "columnsFrom": [
             "admin_id"
           ],
-          "tableTo": "admins",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "notification_schedules_template_id_notification_templates_id_fk": {
           "name": "notification_schedules_template_id_notification_templates_id_fk",
           "tableFrom": "notification_schedules",
+          "tableTo": "notification_templates",
           "columnsFrom": [
             "template_id"
           ],
-          "tableTo": "notification_templates",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "notification_schedules_user_id_users_id_fk": {
           "name": "notification_schedules_user_id_users_id_fk",
           "tableFrom": "notification_schedules",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -818,15 +818,15 @@
         "notification_templates_admin_id_admins_id_fk": {
           "name": "notification_templates_admin_id_admins_id_fk",
           "tableFrom": "notification_templates",
+          "tableTo": "admins",
           "columnsFrom": [
             "admin_id"
           ],
-          "tableTo": "admins",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -870,15 +870,15 @@
         "settings_admin_id_admins_id_fk": {
           "name": "settings_admin_id_admins_id_fk",
           "tableFrom": "settings",
+          "tableTo": "admins",
           "columnsFrom": [
             "admin_id"
           ],
-          "tableTo": "admins",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -917,6 +917,18 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "jabatan": {
+          "name": "jabatan",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unit_kerja": {
+          "name": "unit_kerja",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "phone": {
           "name": "phone",
@@ -983,9 +995,9 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "users_admin_email_unique": {
           "name": "users_admin_email_unique",
@@ -1004,24 +1016,24 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "users_admin_id_admins_id_fk": {
           "name": "users_admin_id_admins_id_fk",
           "tableFrom": "users",
+          "tableTo": "admins",
           "columnsFrom": [
             "admin_id"
           ],
-          "tableTo": "admins",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1071,10 +1083,10 @@
     }
   },
   "schemas": {},
-  "views": {},
   "sequences": {},
   "roles": {},
   "policies": {},
+  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},

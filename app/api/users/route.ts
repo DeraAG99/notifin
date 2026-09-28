@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { createUserSchema, bulkImportSchema } from "@/lib/validations";
+import { createUserSchema } from "@/lib/validations";
+import { bulkUpsertUsers } from "@/lib/users/bulk-import";
 import { and, eq, or, ilike, sql } from "drizzle-orm";
 import type { ApiResponse, User, PaginatedResponse } from "@/types";
 import { getSession, unauthorizedResponse } from "@/lib/auth/api";
@@ -26,7 +27,9 @@ export async function GET(request: Request) {
           or(
             ilike(users.name, `%${search}%`),
             ilike(users.phone, `%${search}%`),
-            ilike(users.email, `%${search}%`)
+            ilike(users.email, `%${search}%`),
+            ilike(users.jabatan, `%${search}%`),
+            ilike(users.unitKerja, `%${search}%`)
           )
         )
       : adminFilter;
@@ -68,25 +71,26 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     if (Array.isArray(body)) {
-      const validated = bulkImportSchema.parse(body);
+      const result = await bulkUpsertUsers(body, session.adminId);
 
-      const inserted = await db
-        .insert(users)
-        .values(
-          validated.map((u) => ({
-            ...u,
-            adminId: session.adminId,
-          }))
-        )
-        .returning();
+      const summary =
+        `${result.created} user baru, ${result.updated} diperbarui` +
+        (result.errors.length > 0 ? `, ${result.errors.length} baris gagal` : "");
 
       return NextResponse.json(
         {
-          success: true,
-          data: inserted,
-          message: `${inserted.length} users imported`,
+          success: result.errors.length === 0,
+          data: result.data,
+          created: result.created,
+          updated: result.updated,
+          errors: result.errors,
+          warnings: result.warnings,
+          message: summary,
         },
-        { status: 201 }
+        // Partial success is a normal outcome, not a server fault: report it as
+        // 200 with a per-row breakdown so the UI can show what happened. A 500
+        // would tell the user nothing about which rows were the problem.
+        { status: 200 }
       );
     }
 

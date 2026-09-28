@@ -42,6 +42,8 @@ export const users = pgTable(
       .references(() => admins.id, { onDelete: "cascade" })
       .notNull(),
     name: text("name").notNull(),
+    jabatan: text("jabatan"),
+    unitKerja: text("unit_kerja"),
     phone: text("phone"),
     email: text("email"),
     timezone: text("timezone").default("Asia/Jakarta"),

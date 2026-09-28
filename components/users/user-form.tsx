@@ -25,6 +25,8 @@ interface UserFormProps {
 export function UserForm({ user, onSuccess }: UserFormProps) {
   const { t } = useI18n();
   const [name, setName] = useState(user?.name || "");
+  const [jabatan, setJabatan] = useState(user?.jabatan || "");
+  const [unitKerja, setUnitKerja] = useState(user?.unitKerja || "");
   const [phone, setPhone] = useState(user?.phone || "");
   const [email, setEmail] = useState(user?.email || "");
   const [timezone, setTimezone] = useState(user?.timezone || "Asia/Jakarta");
@@ -60,6 +62,8 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
 
     const body = {
       name,
+      jabatan: jabatan.trim() || null,
+      unitKerja: unitKerja.trim() || null,
       phone: phone || null,
       email: email || null,
       timezone,
@@ -94,6 +98,27 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
           placeholder={t.users.form.namePlaceholder}
           required
         />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="jabatan">{t.users.form.jabatan}</Label>
+          <Input
+            id="jabatan"
+            value={jabatan}
+            onChange={(e) => setJabatan(e.target.value)}
+            placeholder={t.users.form.jabatanPlaceholder}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="unitKerja">{t.users.form.unitKerja}</Label>
+          <Input
+            id="unitKerja"
+            value={unitKerja}
+            onChange={(e) => setUnitKerja(e.target.value)}
+            placeholder={t.users.form.unitKerjaPlaceholder}
+          />
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

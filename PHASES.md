@@ -1587,6 +1587,87 @@ PHASES.md (this update)
 
 ---
 
+## Phase 48: Jabatan & Unit Kerja on Users — e-TPP Auto-Fill + CSV/XLSX Bulk Upsert
+
+### Scope
+Users had only `name` / `phone` / `email` / `timezone`, so an employee's position and unit had nowhere to live and every notification template had to hardcode them. This phase adds `jabatan` and `unit_kerja` as real columns, populates them automatically from the e-TPP file each user already uploads, and replaces the blind-insert CSV importer with an idempotent upsert that also accepts Excel.
+
+### Design decisions
+- **Dedicated nullable columns**, not a `metadata` blob. They are queried, filtered and rendered in tables, and two of them need per-tenant uniqueness-free matching.
+- **Auto-fill is fill-if-empty by default.** A per-user import overwrites `jabatan` / `unit_kerja` only where the stored value is empty, so re-uploading an e-TPP file never clobbers a value someone corrected by hand. An explicit `overwriteProfile` flag (a toggle on the import screen) is the only way to force it. The global import has no target user and therefore does not write profile data at all.
+- **e-TPP `unit_kerja` comes from `perangkat_daerah.nalok`, not the label reading "Unit Kerja".** In the real document the "Unit Kerja" label sits above a field that holds the *subordinate* device name (e.g. `KECAMATAN PALMERAH KOTA ADM. JAKARTA BARAT`) while `perangkat_daerah_induk.nalok` holds the parent (`KOTA ADMINISTRASI JAKARTA BARAT`). The HTML labels are used as the primary source and the embedded JSON payload as a fallback; the mapping is recorded in `ProfileSource` so it can be corrected without touching the parser.
+- **Bulk import upserts, and partial failure is not an error.** The old importer was one `INSERT … VALUES` for the whole file, so a single duplicate phone rolled back every row and the API answered 500 with no indication of which line was at fault. Rows are now matched to existing users (email first, then phone) within the admin's tenant, and unresolvable rows are reported individually with their 1-based file line number while the rest of the batch still commits. The response is 200 with a per-row breakdown — a 500 would tell the user nothing.
+- **Blank cells never blank a stored value.** Updates only write fields the file actually carried, so re-importing a partial spreadsheet cannot erase a hand-entered or e-TPP-derived value.
+- **Excel is a first-class upload format, not just a download.** A template the app cannot read back would add a manual "Save As CSV" step to every import.
+
+### Design decisions — Excel phone-number safety
+Excel corrupts phone numbers in two ways, and both are addressed:
+1. A numeric cell loses its leading zero (`0812…` → `812…`) and Excel renders a 13-digit number in General format as `6.28123E+12`.
+2. Reading with SheetJS's `raw: false` returns that **display** string, so the value is already reduced to six significant digits before the app sees it — and the reconstructed number *looks* plausible, so it would import as silent data corruption.
+
+The fix is threefold: read with `raw: true` (the stored value, which is exact for any phone number inside `Number.MAX_SAFE_INTEGER`); pre-format the template's `phone` column as Text by writing blank `z: "@"` cells down rows 3–200, so Excel applies the format to whatever the user types; and run `analyzePhone` client-side, where the original cell value still exists, to flag any cell that was stored as a number. Flagged rows are still imported — rejecting them would be worse than importing them with a visible warning.
+
+### Changes
+- **`lib/db/schema.ts`** — `users.jabatan` and `users.unit_kerja`, both `text`, nullable.
+- **`lib/db/migrations/0011_user_jabatan_unit_kerja.sql`** (new) — two `ALTER TABLE … ADD COLUMN` statements, nothing else.
+- **`lib/db/migrations/meta/0010_snapshot.json`** — **repaired.** The committed 0010 snapshot did not reflect migrations 0009/0010, so generating 0011 from it produced a migration that tried to re-add `data_imports.import_category_id`, re-create the category foreign key, and re-create `data_imports_global_unique` without its partial-index predicate. All three were injected into the snapshot so the generated 0011 is clean. The 0009/0010 `.sql` files themselves are untouched and still apply in order; only the metadata that drizzle diffs against was wrong.
+- **`lib/db/migrations/meta/0011_snapshot.json`, `meta/_journal.json`** (new/modified) — snapshot and journal entry for the new migration.
+- **`types/index.ts`** — `User.jabatan`, `User.unitKerja`.
+- **`lib/validations.ts`** — shared `jabatanField` / `unitKerjaField` on `createUserSchema` (and therefore `updateUserSchema`); new `sourceProfileSchema`; `createImportSchema` gains optional `profile` and `overwriteProfile`. `bulkImportSchema` was split into an envelope (`z.array(z.unknown()).max(5000)`) plus a new `bulkUserRowSchema` applied **per row**, so one malformed email is reported against that row instead of rejecting the whole upload.
+- **`lib/imports/types.ts`** — `SourceProfile` and `ParseResult.profile`.
+- **`lib/imports/parsers/ekinerja/html.ts`** — `extractProfile()`: visible-label scraping with a brace-aware JSON payload fallback. The naive regex was fragile because the e-TPP page embeds several `…_nalok` keys and the "Unit Kerja" label maps to a different device level than its name suggests.
+- **`app/api/users/[id]/imports/route.ts`** — after a successful import, writes the extracted profile to the user. Fill-if-empty unless `overwriteProfile`; scoped to the session's admin; returns `profileApplied`.
+- **`app/(dashboard)/users/[id]/imports/page.tsx`** — sends `profile` + `overwriteProfile`, shows the detected jabatan/unit kerja above the upload, and exposes the overwrite toggle only when a value was actually detected.
+- **`lib/users/bulk-import.ts`** (new) — `bulkUpsertUsers()`. Tenant-scoped matching (email first, then phone), chunked inserts, per-row sequential updates inside one transaction, and two conflict classes that would otherwise surface as a raw unique-violation rollback:
+  - *cross-key* — a row whose email resolves to one user while its phone resolves to a different one. Matching on email alone would write that phone onto the wrong account; the row is rejected naming both users.
+  - *duplicate squatting* — duplicate detection now checks both keys before reserving either, so a row that is itself rejected cannot reserve a phone number and block a later valid row from using it.
+- **`lib/users/import-columns.ts`** (new) — the column contract shared by the CSV and Excel paths: canonical columns, header aliases, `mapRawRow`, `normalizePhone`, `looksLikeMangledPhone`, `analyzePhone`, `readUserRecords`, and the two template builders. Client-safe, with `xlsx` and `papaparse` loaded lazily.
+- **`components/users/csv-import.tsx`** — rewritten. Accepts `.csv`, `.xlsx`, `.xls`; two download buttons; preview; success/failure summary; per-row error table; per-row warning table. `readUserRecords` uses `file.text()` for CSV rather than handing PapaParse the `File`, which routes through `FileReader` and is unavailable outside the browser.
+- **`components/users/user-form.tsx`** — two new inputs.
+- **`app/(dashboard)/users/page.tsx`** — Jabatan / Unit Kerja columns; user search now covers both.
+- **`lib/variables.ts`** — `{{jabatan}}` and `{{unitKerja}}` available to template rendering, exposed alongside the existing `{{name}}` / `{{email}}` / `{{phone}}` user variables.
+- **`lib/i18n/id.json`, `lib/i18n/en.json`** — new keys. `csv.downloadTemplate` was renamed to `csv.downloadTemplateCsv` for symmetry with the new `csv.downloadTemplateExcel`; both dictionaries were diffed key-by-key to confirm they stay identical.
+
+### Files Created/Modified
+```
+lib/users/bulk-import.ts (new)
+lib/users/import-columns.ts (new)
+lib/db/migrations/0011_user_jabatan_unit_kerja.sql (new)
+lib/db/migrations/meta/0011_snapshot.json (new)
+lib/db/migrations/meta/0010_snapshot.json (repaired)
+lib/db/migrations/meta/_journal.json
+lib/db/schema.ts
+lib/validations.ts
+lib/imports/types.ts
+lib/imports/parsers/ekinerja/html.ts
+app/api/users/route.ts
+app/api/users/[id]/imports/route.ts
+app/(dashboard)/users/page.tsx
+app/(dashboard)/users/[id]/imports/page.tsx
+components/users/csv-import.tsx
+components/users/user-form.tsx
+lib/variables.ts
+lib/i18n/id.json, lib/i18n/en.json
+types/index.ts
+PHASES.md (this update)
+```
+
+### Verification
+- `bunx tsc --noEmit` — clean.
+- `bun run lint` — 78 problems (27 errors / 51 warnings), unchanged from the pre-phase baseline; ESLint scoped to the touched files reports only two pre-existing unused-variable warnings in `app/api/users/route.ts`.
+- `bun run build` — succeeds.
+- **Import contract (66 assertions, all passing):** header aliases resolve regardless of case/punctuation/spacing; `normalizePhone` handles plain text, leading zeros, numeric cells, scientific notation, thousands separators, whitespace and `NaN`; `analyzePhone` stays silent on clean text and flags numeric cells, scientific notation, short and non-digit values; whitespace-only cells are dropped; the generated workbook is a real xlsx (PK zip magic, 20,877 bytes) with `z: "@"` on header, sample and pre-filled blank phone cells and a "Petunjuk" sheet; a generate → serialise → re-read round trip returns exactly one data row with phone, jabatan, unit_kerja, email and timezone intact; the 198 blank pre-filled rows are dropped rather than imported as phantom users; a hostile workbook with a genuinely numeric phone yields the **exact** digits; the CSV path still parses, including a leading-zero phone; header-only and garbage-byte uploads return no rows instead of throwing.
+- **Bulk upsert against the live database (39 assertions, all passing):** explicit `null` phone/email accepted (this was a live 400 — `optional()` does not accept `null`); first run creates, second run updates the same rows with no duplication; a partial re-import does not null out hand-entered values; a four-row file with a bad email, a missing key and a duplicate applies only the one good row and reports rows 3, 4 and 5; the cross-key row is rejected naming both users and writes nothing; a rejected duplicate does not squat on a phone number; no match leaks across tenants; a short phone is imported **and** warned; empty and whitespace-name inputs behave. Test rows were scoped by a run-unique suffix and removed afterwards — the 8 seeded users were verified intact afterwards.
+- e-TPP parser verified against `docs/Data Kinerja Saya _ e-TPP.html`: 12 items, 0 errors, all 8 profile fields extracted, and three consecutive parses produce byte-identical output.
+- Local database pushed and confirmed to carry both columns and the correct `data_imports_user_unique` / `data_imports_global_unique` indexes.
+
+### Notes
+- `docs/` and `ui-mpoknori/` remain untracked input material, as in Phase 47.
+- `xlsx@0.18.5` is the last release on npm under SheetJS's Community licence (the project subsequently moved to its own licence and stopped publishing there). It was already the parser of record for e-TPP and PDUKPD, so this phase stays consistent rather than introducing a second Excel library; migrating later would mean `@e965/xlsx` or `exceljs` across all call sites at once.
+- The bulk importer is validated by ad-hoc scripts rather than a committed test suite, since the repo has no test runner. Those scripts were removed after use; the assertions are recorded above so they can be restored.
+
+---
+
 ## Environment Variables
 
 ```bash

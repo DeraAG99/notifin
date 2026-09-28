@@ -12,7 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+  import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -39,7 +40,7 @@ import {
   detectXlsxImportType,
   type ImportTypeConfig,
 } from "@/lib/imports/engine";
-import type { ImportItem } from "@/lib/imports/types";
+import type { ImportItem, SourceProfile } from "@/lib/imports/types";
 import type { User } from "@/types";
 
 interface ImportRow {
@@ -206,7 +207,12 @@ export default function UserImportsPage() {
   const [loading, setLoading] = useState(true);
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
-  const [preview, setPreview] = useState<{ items: ImportItem[]; errors: string[] } | null>(null);
+  const [preview, setPreview] = useState<{
+    items: ImportItem[];
+    errors: string[];
+    profile?: SourceProfile;
+  } | null>(null);
+  const [overwriteProfile, setOverwriteProfile] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -325,6 +331,8 @@ export default function UserImportsPage() {
           categoryId: selectedCategoryId,
           fileName: file.name,
           items: preview.items,
+          profile: preview.profile,
+          overwriteProfile,
         }),
       });
       const result = await res.json();
@@ -334,6 +342,7 @@ export default function UserImportsPage() {
         setFile(null);
         setPreview(null);
         setSelectedType(null);
+        setOverwriteProfile(false);
         await fetchData();
       } else {
         toast.add({ title: t.common.error, description: result.error || t.imports.importFailed, type: "error" });
@@ -370,6 +379,11 @@ export default function UserImportsPage() {
             {tx("imports.title", { name: user?.name || "..." })}
           </h1>
           <p className="text-muted-foreground">{user?.email || user?.phone || ""}</p>
+          {(user?.jabatan || user?.unitKerja) && (
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {[user.jabatan, user.unitKerja].filter(Boolean).join(" · ")}
+            </p>
+          )}
         </div>
         <Button variant="outline" size="sm" onClick={() => router.push("/import-types")}>
           <Database className="h-4 w-4 mr-2" /> {t.importTypes.title}
@@ -464,6 +478,33 @@ export default function UserImportsPage() {
                       <li key={i}>{err}</li>
                     ))}
                   </ul>
+                </div>
+              )}
+              {preview.profile && (preview.profile.jabatan || preview.profile.unitKerja) && (
+                <div className="rounded-lg border border-primary/25 bg-primary/5 p-3 text-xs space-y-2">
+                  <div className="font-semibold text-primary">{t.imports.profileDetected}</div>
+                  {preview.profile.jabatan && (
+                    <div className="flex gap-2">
+                      <span className="text-muted-foreground min-w-24 shrink-0">{t.users.form.jabatan}</span>
+                      <span className="font-medium">{preview.profile.jabatan}</span>
+                    </div>
+                  )}
+                  {preview.profile.unitKerja && (
+                    <div className="flex gap-2">
+                      <span className="text-muted-foreground min-w-24 shrink-0">{t.users.form.unitKerja}</span>
+                      <span className="font-medium">{preview.profile.unitKerja}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between gap-3 pt-1 border-t border-primary/15">
+                    <Label htmlFor="overwrite-profile" className="text-xs font-normal leading-snug">
+                      {t.imports.profileOverwriteHint}
+                    </Label>
+                    <Switch
+                      id="overwrite-profile"
+                      checked={overwriteProfile}
+                      onCheckedChange={setOverwriteProfile}
+                    />
+                  </div>
                 </div>
               )}
               {preview.items.length > 0 && (

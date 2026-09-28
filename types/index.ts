@@ -34,6 +34,8 @@ export interface AdminFormInput {
 export interface User {
   id: string;
   name: string;
+  jabatan: string | null;
+  unitKerja: string | null;
   phone: string | null;
   email: string | null;
   timezone: string | null;

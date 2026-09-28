@@ -128,6 +128,7 @@ export default function UsersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>{t.users.title}</TableHead>
+                <TableHead>{t.users.table.jabatan}</TableHead>
                 <TableHead>Kontak</TableHead>
                 <TableHead>Timezone</TableHead>
                 <TableHead>{t.common.status}</TableHead>
@@ -145,6 +146,18 @@ export default function UsersPage() {
                       <div>
                         <div className="font-medium">{user.name}</div>
                       </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      {user.jabatan ? (
+                        <div className="font-medium">{user.jabatan}</div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                      {user.unitKerja && (
+                        <div className="text-xs text-muted-foreground">{user.unitKerja}</div>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>

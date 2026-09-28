@@ -122,6 +122,22 @@ export async function POST(
 
     const items = validated.items as ImportItem[];
 
+    /**
+     * Jabatan / unit kerja auto-fill.
+     *
+     * Only the e-TPP engine ("ekinerja-json") carries a profile block, and only
+     * this per-user route has a single user to write to -- the global import
+     * route has no target user, so it deliberately does nothing here.
+     *
+     * Default is fill-if-empty: a value already on the user record (set
+     * manually, or from a previous import) is never clobbered. The client can
+     * pass `overwriteProfile: true` to force it.
+     */
+    const profile =
+      type.engine === "ekinerja-json" ? validated.profile : undefined;
+    const overwrite = validated.overwriteProfile === true;
+    const profileApplied = { jabatan: false, unitKerja: false };
+
     const [imported] = await db.transaction(async (tx) => {
       await tx
         .delete(dataImports)
@@ -132,6 +148,26 @@ export async function POST(
             eq(dataImports.categoryId, category.id)
           )
         );
+
+      if (profile) {
+        const patch: { jabatan?: string; unitKerja?: string } = {};
+
+        if (profile.jabatan && (overwrite || !user.jabatan)) {
+          patch.jabatan = profile.jabatan;
+          profileApplied.jabatan = true;
+        }
+        if (profile.unitKerja && (overwrite || !user.unitKerja)) {
+          patch.unitKerja = profile.unitKerja;
+          profileApplied.unitKerja = true;
+        }
+
+        if (patch.jabatan || patch.unitKerja) {
+          await tx
+            .update(users)
+            .set({ ...patch, updatedAt: new Date() })
+            .where(and(eq(users.id, id), eq(users.adminId, session.adminId)));
+        }
+      }
 
       return tx
         .insert(dataImports)
@@ -149,11 +185,17 @@ export async function POST(
         .returning();
     });
 
+    const profileNotice =
+      profileApplied.jabatan || profileApplied.unitKerja
+        ? " Jabatan/unit kerja terisi otomatis dari file."
+        : "";
+
     return NextResponse.json(
       {
         success: true,
         data: imported,
-        message: `Data "${category.name}" berhasil diimpor (${items.length} item)`,
+        profileApplied,
+        message: `Data "${category.name}" berhasil diimpor (${items.length} item).${profileNotice}`,
       },
       { status: 201 }
     );
