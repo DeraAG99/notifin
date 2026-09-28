@@ -348,6 +348,8 @@
         "name": "Budi Santoso",
         "email": "budi@example.com",
         "phone": "6281234567890",
+        "jabatan": "HEAD OF FINANCE DEPARTMENT",
+        "unitKerja": "SUKAMANUNG VILLAGE, PALMERAH SUBDISTRICT, WEST JAKARTA CITY",
         "amount": "Rp 150,000",
         "date": "Today's date",
         "message": "Your order is being processed",

@@ -348,6 +348,8 @@
         "name": "Budi Santoso",
         "email": "budi@example.com",
         "phone": "6281234567890",
+        "jabatan": "KEPALA SUB BAGIAN KEUANGAN",
+        "unitKerja": "KECAMATAN PALMERAH KOTA ADM. JAKARTA BARAT",
         "amount": "Rp 150.000",
         "date": "Tanggal hari ini",
         "message": "Pesanan Anda sedang diproses",

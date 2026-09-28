@@ -35,7 +35,7 @@ interface TemplateFormProps {
   onSuccess: () => void;
 }
 
-const AVAILABLE_VARIABLES = ["name", "email", "phone", "amount", "date", "message", "company"];
+const AVAILABLE_VARIABLES = ["name", "email", "phone", "jabatan", "unitKerja", "amount", "date", "message", "company"];
 
 export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
   const { t, tx } = useI18n();
@@ -61,6 +61,8 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
         case "name": data[v] = defaults.name; break;
         case "email": data[v] = defaults.email; break;
         case "phone": data[v] = defaults.phone; break;
+        case "jabatan": data[v] = defaults.jabatan || ""; break;
+        case "unitKerja": data[v] = defaults.unitKerja || ""; break;
         case "amount": data[v] = defaults.amount; break;
         case "date": data[v] = new Date().toLocaleDateString(); break;
         case "message": data[v] = defaults.message; break;
