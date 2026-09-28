@@ -1,9 +1,12 @@
 import { scheduler } from "../lib/scheduler";
+import { etppDailyScheduler } from "./etpp-daily";
 
 async function main() {
   console.log("Starting scheduler worker...");
 
   await scheduler.loadSchedules();
+
+  await etppDailyScheduler.scheduleDaily();
 
   const activeCount = scheduler.getActiveTaskCount();
   console.log(`Loaded ${activeCount} active schedules`);
@@ -12,6 +15,7 @@ async function main() {
   const shutdown = async () => {
     console.log("\nShutting down scheduler...");
     scheduler.stopAll();
+    etppDailyScheduler.stop();
     process.exit(0);
   };
 

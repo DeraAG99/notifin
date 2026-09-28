@@ -13,6 +13,7 @@ import {
 import { isAdminActive } from "@/lib/admin-status";
 import type { ImportItem } from "@/lib/imports/types";
 import { buildSummary } from "@/lib/imports/utils";
+import { extractEtppMetadata } from "@/lib/users/etpp-extract";
 
 async function loadUser(session: SessionPayload, userId: string) {
   const scoped = isSuperadmin(session) ? undefined : eq(users.adminId, session.adminId);
@@ -137,6 +138,20 @@ export async function POST(
       type.engine === "ekinerja-json" ? validated.profile : undefined;
     const overwrite = validated.overwriteProfile === true;
     const profileApplied = { jabatan: false, unitKerja: false };
+    let profileAppliedData: { jabatan?: string; unitKerja?: string } | undefined;
+
+    let profilePayload: { jabatan?: string; unitKerja?: string } | undefined;
+    if (profile) {
+      profilePayload = {};
+      if (profile.jabatan && (overwrite || !user.jabatan)) {
+        profilePayload.jabatan = profile.jabatan;
+        profileApplied.jabatan = true;
+      }
+      if (profile.unitKerja && (overwrite || !user.unitKerja)) {
+        profilePayload.unitKerja = profile.unitKerja;
+        profileApplied.unitKerja = true;
+      }
+    }
 
     const [imported] = await db.transaction(async (tx) => {
       await tx
@@ -149,24 +164,26 @@ export async function POST(
           )
         );
 
-      if (profile) {
-        const patch: { jabatan?: string; unitKerja?: string } = {};
+      const userPatch: { jabatan?: string; unitKerja?: string; metadata?: Record<string, unknown> } = {};
 
-        if (profile.jabatan && (overwrite || !user.jabatan)) {
-          patch.jabatan = profile.jabatan;
-          profileApplied.jabatan = true;
-        }
-        if (profile.unitKerja && (overwrite || !user.unitKerja)) {
-          patch.unitKerja = profile.unitKerja;
-          profileApplied.unitKerja = true;
-        }
+      if (profilePayload?.jabatan || profilePayload?.unitKerja) {
+        if (profilePayload.jabatan) userPatch.jabatan = profilePayload.jabatan;
+        if (profilePayload.unitKerja) userPatch.unitKerja = profilePayload.unitKerja;
+        profileAppliedData = { jabatan: profilePayload.jabatan, unitKerja: profilePayload.unitKerja };
+      }
 
-        if (patch.jabatan || patch.unitKerja) {
-          await tx
-            .update(users)
-            .set({ ...patch, updatedAt: new Date() })
-            .where(and(eq(users.id, id), eq(users.adminId, session.adminId)));
-        }
+      if (type.engine === "ekinerja-json" && items.length > 0) {
+        const etppMeta = extractEtppMetadata(items);
+        const existingMeta = (user.metadata as Record<string, unknown>) || {};
+        userPatch.metadata = { ...existingMeta, ...etppMeta };
+        profileAppliedData = profilePayload;
+      }
+
+      if (Object.keys(userPatch).length > 0) {
+        await tx
+          .update(users)
+          .set({ ...userPatch, updatedAt: new Date() })
+          .where(and(eq(users.id, id), eq(users.adminId, session.adminId)));
       }
 
       return tx
@@ -190,12 +207,16 @@ export async function POST(
         ? " Jabatan/unit kerja terisi otomatis dari file."
         : "";
 
+    const etppMetadataNotice =
+      type.engine === "ekinerja-json" && items.length > 0 ? " (Metadata e-TPP juga terisi otomatis)." : "";
+
     return NextResponse.json(
       {
         success: true,
         data: imported,
         profileApplied,
-        message: `Data "${category.name}" berhasil diimpor (${items.length} item).${profileNotice}`,
+        message: `Data "${category.name}" berhasil diimpor (${items.length} item).${profileNotice}${etppMetadataNotice}`,
+        metadata: profileAppliedData || null,
       },
       { status: 201 }
     );

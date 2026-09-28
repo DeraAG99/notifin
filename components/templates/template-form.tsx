@@ -35,7 +35,7 @@ interface TemplateFormProps {
   onSuccess: () => void;
 }
 
-const AVAILABLE_VARIABLES = ["name", "email", "phone", "jabatan", "unitKerja", "amount", "date", "message", "company"];
+const AVAILABLE_VARIABLES = ["name", "email", "phone", "jabatan", "unitKerja", "bulan_ini", "triwulan_ini", "rhk_iku", "rhk_lainnya", "amount", "date", "message", "company"];
 
 export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
   const { t, tx } = useI18n();
