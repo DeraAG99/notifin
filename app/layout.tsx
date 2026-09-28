@@ -25,9 +25,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NOTIFIN | User-Facing Notification Management Platform",
+  title: "NOTIFIN | Notification Management",
   description:
-    "The modern standard for automated customer notifications. Schedule alerts, manage recipients, and deliver via WhatsApp and Email from one intuitive dashboard.",
+    "Schedule WhatsApp and email notifications, manage recipients and templates, and track delivery from one dashboard.",
   icons: { icon: "/icon.svg" },
 };
 

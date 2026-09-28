@@ -1485,6 +1485,45 @@ PHASES.md (this update)
 
 ---
 
+## Phase 46: Remove Landing Page — Root Redirects to Login
+
+### Scope
+The app no longer has a public landing page. Any visitor hitting `/` goes straight to `/login`, and authenticated users hitting `/` go straight to `/dashboard`. Full dead-code cleanup of the landing page.
+
+### Changes
+- **`app/page.tsx`** — deleted (569-line landing page).
+- **`middleware.ts`** — `publicPaths` reduced to `["/login"]`. New root handler placed *after* the `/api/auth/me` and auth-API early returns but *before* the protected-path check, so `/` never reaches the `?redirect=` branch:
+  - `/` + no session → redirect `/login`
+  - `/` + valid session → redirect `/dashboard`
+
+  Handling this in middleware (not a page-level `redirect()`) is deliberate: dropping `"/"` from `publicPaths` and relying on a page redirect would send the user to `/login?redirect=/`, which bounces back to `/` after login.
+  The old `session && (pathname === "/login" || pathname === "/")` clause narrowed to `/login` only.
+- **`components/landing/`** — deleted all 5 components (`countup`, `cursor-glow`, `mobile-nav`, `reveal`, `tilt`); only `app/page.tsx` imported them.
+- **`lib/i18n/en.json` / `id.json`** — removed the whole `landing.*` block (lines 543-602 of each; the preceding `},` became `}`). Both files still parse.
+- **`app/globals.css`** — removed landing-only classes `.gradient-text`, `@keyframes gradient-shift` (only consumer was `.gradient-text`), `.nav-glass` + `.dark`, `.reveal`/`.reveal.active`, `.stat-card` + `.dark`. **Kept** everything the login/auth surfaces depend on: `brand-gradient`, `btn-shine`, `glass-panel`, `ambient-orb`/`orb-1`/`orb-2` (used by `(auth)/layout.tsx`), `hero-title-text`, `form-input`, `login-reveal`, `nf-logo`. Section comment renamed `/* ===== Landing page ===== */` → `/* ===== Brand & auth surfaces ===== */`.
+- **`next.config.ts`** — removed the `images` block. The `lh3.googleusercontent.com` remote pattern was used only by the landing page's bento/dashboard screenshots; `NotifinLogo` renders a plain `<img>`, so `dangerouslyAllowSVG` and the CSP header were unused too.
+- **`app/layout.tsx`** — metadata de-landed: title `NOTIFIN | Notification Management`, description rewritten to app-facing copy.
+- Untouched: `theme/landingpage.html` (design reference, not built), the empty `app/(auth)/register` dir, all `(dashboard)` and `api/` routes.
+
+### Files Created/Modified
+```
+app/page.tsx (deleted)
+components/landing/*.tsx (deleted — 5 files)
+middleware.ts (root → login/dashboard)
+app/globals.css (landing-only CSS removed)
+app/layout.tsx (metadata)
+lib/i18n/en.json, lib/i18n/id.json (landing.* removed)
+next.config.ts (images block removed)
+PHASES.md (this update)
+```
+
+### Verification
+- `bunx tsc --noEmit` — clean (a stale `.next` route validator initially referenced the deleted `app/page.js`; resolved by clearing the gitignored `.next` cache)
+- `bun run lint` — 80 problems / 27 errors, byte-identical to the `master` baseline measured via `git stash`. None of the changed files appear in the report.
+- `bun run build` — succeeds; `/` absent from the route manifest, `/login` still prerendered, middleware registered
+
+---
+
 ## Environment Variables
 
 ```bash
