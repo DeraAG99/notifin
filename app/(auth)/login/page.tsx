@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/context";
-import { NotifinLogo } from "@/components/layouts/notifin-logo";
+import { BrandLogo } from "@/components/layouts/brand-logo";
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Check } from "lucide-react";
 
 export default function LoginPage() {
@@ -33,10 +33,18 @@ export default function LoginPage() {
   return (
     <main className="login-reveal relative z-10 w-full max-w-[460px]">
       <div className="glass-panel rounded-3xl p-6 md:p-16 flex flex-col gap-6 shadow-2xl shadow-black/20 dark:shadow-black/50">
-        {/* Logo Section */}
-        <header className="flex flex-col items-center gap-4">
-          <div className="w-40 hover:scale-105 transition-transform duration-500">
-            <NotifinLogo className="nf-logo w-full h-auto rounded-lg" />
+        {/* Brand Section */}
+        <header className="flex flex-col items-center gap-5">
+          <div className="size-20 rounded-2xl ring-1 ring-nf-outline-variant/40">
+            <BrandLogo className="nf-logo size-full object-contain" />
+          </div>
+          <div className="text-center flex flex-col gap-1">
+            <p className="font-display text-2xl font-extrabold tracking-tight text-nf-primary">
+              SI-MPOK NORI
+            </p>
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-nf-secondary">
+              Preventive Performance Reminder
+            </p>
           </div>
           <div className="text-center">
             <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight hero-title-text">

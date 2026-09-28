@@ -1524,6 +1524,69 @@ PHASES.md (this update)
 
 ---
 
+## Phase 47: SI-MPOK NORI Rebrand (M3 Theme, New Logo, Plus Jakarta Sans)
+
+### Scope
+Full visual rebrand of the app from "Notifin" to **SI-MPOK NORI**, following the `ui-mpoknori/` design reference. Colours, typography and logo only — no layout restructuring, no changes to the dashboard information architecture, and operational values (sender addresses, seeded admin identity) deliberately left untouched.
+
+### Design decisions
+- **Theme**: Material 3 palette taken from `ui-mpoknori/dashboard_utama_si_mpok_nori.html` — light `background #f8f9ff`, `primary #00173b`, `primary-container #0f2c59`, `secondary #a73a00`, `secondary-container #fd651e`. The dark theme is a *derived* palette (`background #0d1c2e`, `primary #d8e2ff`, `secondary #ffb599`) rather than an independent design, so dark mode keeps brand identity.
+- **Light stays the default.** Dark mode is retained, not removed.
+- **Typography**: every role (`sans`, `serif`, `mono`) resolves to Plus Jakarta Sans, since the design uses a single family. Loaded via `next/font/google` in `app/layout.tsx`.
+- **Radius / spacing / component structure**: unchanged, per the "colours + logo only" scope.
+
+### Changes
+- **`app/layout.tsx`** — `Plus_Jakarta_Sans` (weights 400/500/600/700/800, `latin`) wired to `--font-jakarta-sans` and aliased into all three font roles. Metadata retitled to SI-MPOK NORI, favicon switched to the new PNG icon, `html lang="id"`. The anti-FOUC inline script now seeds `light` (instead of following the OS preference) and writes the new `theme-color`.
+- **`app/globals.css`** — added the `:root` M3 light block and the `.dark` derived block, plus the auth/dashboard surface helpers (`auth-bg`, `auth-orb-*`, `auth-panel`, `auth-title`, `auth-highlight`, `dashboard-card`, `stat-icon-*`) and the new `--sidebar-active` / `--sidebar-hover` tokens. Replaced the font-role mapping to point at Jakarta. Existing auth classes (`brand-gradient`, `btn-shine`, `glass-panel`, `ambient-orb`, `nf-logo`, …) were kept — Phase 46 removed only the landing-only CSS, and the login screen still depends on them.
+- **`lib/theme/provider.tsx`** — default resolved theme changed from `"system"` to `"light"`, theme-color metadata updated.
+- **`components/dashboard/notification-chart.tsx`** — the four hardcoded dark-mode hex colours (`#1e293b`, `#0f172a`, …) were unreadable on the new light background. Replaced with `var(--chart-*)` tokens plus a `muted` foreground token, driven off the new palette.
+- **`components/ui/sidebar.tsx`** — the active-item style was hardcoded to the old neutral palette; now driven by `--sidebar-active`, which is a navy tint in light and a bright navy in dark.
+- **`components/layouts/brand-logo.tsx`** — new. Replaces `components/layouts/notifin-logo.tsx`. Renders a single transparent PNG sized by a `variant` prop (`mark` / `sm` / `md` / `lg`) so the same asset serves the login page, the sidebar and the favicon. No light/dark variants — the logo already has enough contrast to sit on both.
+- **`components/layouts/sidebar.tsx`** — brand block re-rendered with `<BrandLogo variant="md" />`, name "SI-MPOK NORI", Indonesian tagline, and the footer version string re-branded. The inline `<img src="/icon.svg">` was removed in favour of the new component.
+- **`app/(auth)/login/page.tsx`** — brand block now shows the SI-MPOK NORI seal, the new wordmark, and the Indonesian tagline; form styling retargeted to the new auth surface tokens.
+- **`scripts/make-brand-assets.ts`** — new. Reproducible asset pipeline built on Jimp: reads the source JPEG, strips the external white background with a two-pass flood fill (tight tolerance pass to seed the border, then a looser pass constrained to the seeded region so the *interior* white of the seal is preserved), trims to the content bounding box, and writes:
+  - `public/brand/si-mpok-nori-logo.png` — 512×512, transparent
+  - `public/brand/icon.png` — 192×192, transparent
+  It also prints an ASCII preview and asserts that the four corners are transparent while the centre is opaque, so a bad strip fails loudly instead of shipping an invisible logo.
+- **`public/notifin-logo.svg`, `public/notifin-logo-dark.svg`, `public/icon.svg`** — deleted. `public/brand/` added.
+- **`lib/i18n/en.json` / `id.json`** — visible Notifin strings re-branded: `templates.variables.company`, `settings.emailPlatform`, `settings.emailProviderResend`, `settings.resendInfo`, `settings.fromNamePlaceholder`.
+- **`app/(dashboard)/settings/page.tsx`** — OpenWA "Session Name" placeholder `notifin-session` → `si-mpok-nori-session` (cosmetic example text only; the stored value is unaffected).
+- **Deliberately NOT changed**: `lib/email.ts` sender fallbacks (`notifications@notifin.app`, `Notifin <…>`) and `lib/db/seed.ts` (`admin@notifin.com`, `Admin Notifin`). These are operational values, not visual branding — editing the seed would not rewrite rows already in the database, and changing a sender address is a config decision rather than a rebrand.
+
+### Files Created/Modified
+```
+components/layouts/brand-logo.tsx (new)
+scripts/make-brand-assets.ts (new)
+public/brand/si-mpok-nori-logo.png (new, 512x512)
+public/brand/icon.png (new, 192x192)
+public/notifin-logo.svg (deleted)
+public/notifin-logo-dark.svg (deleted)
+public/icon.svg (deleted)
+components/layouts/notifin-logo.tsx (deleted)
+app/layout.tsx
+app/globals.css
+lib/theme/provider.tsx
+components/dashboard/notification-chart.tsx
+components/ui/sidebar.tsx
+components/layouts/sidebar.tsx
+app/(auth)/login/page.tsx
+app/(dashboard)/settings/page.tsx
+lib/i18n/en.json, lib/i18n/id.json
+PHASES.md (this update)
+```
+
+### Verification
+- `bunx tsc --noEmit` — clean.
+- `bun run lint` — 79 problems (27 errors / 52 warnings) vs a `master` baseline of 81 (27 errors / 54 warnings) measured via `git stash`. The delta is exactly −2 `no-img-element` warnings: `components/layouts/notifin-logo.tsx` (deleted) and `components/layouts/sidebar.tsx` (`<img>` replaced by `<BrandLogo>`). No new problems introduced. The 27 errors are pre-existing and unrelated.
+- `bun run build` — succeeds; `/login` prerendered, middleware registered.
+- Runtime smoke test against `bun run start`: `/` → `307` → `/login`; `/login` → `200`; `/brand/icon.png` and `/brand/si-mpok-nori-logo.png` both → `200 image/png`.
+- Logo assets validated programmatically: all four corners transparent, centre opaque, correct dimensions.
+
+### Note on untracked references
+`ui-mpoknori/` (the user-supplied design HTML and the source logo JPEG) and `docs/` are not committed — they are input material, not app code. `scripts/make-brand-assets.ts` reads from `ui-mpoknori/`, so the generated PNGs are the committed artefact; re-running the script locally requires that folder to be present.
+
+---
+
 ## Environment Variables
 
 ```bash

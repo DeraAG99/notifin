@@ -430,7 +430,7 @@ export default function SettingsPage() {
                 <Input
                   value={settings.openwaSession}
                   onChange={(e) => setSettings({ ...settings, openwaSession: e.target.value })}
-                  placeholder="notifin-session"
+                  placeholder="si-mpok-nori-session"
                 />
               </div>
             </>

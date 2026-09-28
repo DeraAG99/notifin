@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n/context";
 import { useAuth } from "@/lib/auth/context";
+import { BrandLogo } from "@/components/layouts/brand-logo";
 import {
   Sidebar,
   SidebarHeader,
@@ -61,19 +62,15 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
-              <div className="flex aspect-square size-10 items-center justify-center rounded-xl overflow-hidden border border-sidebar-border bg-muted">
-                <img
-                  src="/icon.svg"
-                  alt="NOTIFIN"
-                  className="size-full object-contain"
-                />
+              <div className="flex aspect-square size-10 items-center justify-center rounded-xl overflow-hidden bg-muted">
+                <BrandLogo className="size-full object-contain" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-display text-base font-bold tracking-tight">
-                  Notifin
+                  SI-MPOK NORI
                 </span>
                 <span className="truncate text-xs text-nf-on-surface-variant/70">
-                  Notification System
+                  Preventive Performance Reminder
                 </span>
               </div>
             </SidebarMenuButton>
@@ -164,7 +161,7 @@ export function AppSidebar() {
           </SidebarMenuItem>
           <SidebarMenuItem>
             <div className="px-2 py-1.5 text-xs text-muted-foreground">
-              Notifin v0.1.0
+              SI-MPOK NORI v0.1.0
             </div>
           </SidebarMenuItem>
         </SidebarMenu>

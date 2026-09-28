@@ -20,7 +20,7 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("dark");
+  const [theme, setThemeState] = useState<Theme>("light");
   const [systemDark, setSystemDark] = useState(false);
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.colorScheme = resolved;
 
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", resolved === "dark" ? "#061423" : "#f4f6fb");
+    if (meta) meta.setAttribute("content", resolved === "dark" ? "#0d1c2e" : "#f8f9ff");
   }, [theme, systemDark]);
 
   const setTheme = (t: Theme) => {

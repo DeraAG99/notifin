@@ -43,35 +43,35 @@ export function NotificationChart({ data }: NotificationChartProps) {
         ) : (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={chartData}>
-              <CartesianGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
+              <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
               <XAxis
                 dataKey="date"
                 fontSize={12}
                 tickLine={false}
-                axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
-                tick={{ fill: "#8d90a0" }}
+                axisLine={{ stroke: "var(--border)" }}
+                tick={{ fill: "var(--muted-foreground)" }}
               />
               <YAxis
                 fontSize={12}
                 tickLine={false}
-                axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
-                tick={{ fill: "#8d90a0" }}
+                axisLine={{ stroke: "var(--border)" }}
+                tick={{ fill: "var(--muted-foreground)" }}
               />
               <Tooltip
-                cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                cursor={{ fill: "var(--accent)" }}
                 contentStyle={{
-                  background: "#0e1b2b",
-                  border: "1px solid rgba(255,255,255,0.1)",
+                  background: "var(--popover)",
+                  border: "1px solid var(--border)",
                   borderRadius: "12px",
-                  color: "#d6e4f9",
+                  color: "var(--popover-foreground)",
                   fontSize: "13px",
                 }}
-                labelStyle={{ color: "#d6e4f9" }}
-                itemStyle={{ color: "#d6e4f9" }}
+                labelStyle={{ color: "var(--popover-foreground)" }}
+                itemStyle={{ color: "var(--popover-foreground)" }}
               />
-              <Legend wrapperStyle={{ color: "#8d90a0" }} />
-              <Bar dataKey="wa" name="WhatsApp" fill="#25D366" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="email" name="Email" fill="#41ddc2" radius={[4, 4, 0, 0]} />
+              <Legend wrapperStyle={{ color: "var(--muted-foreground)" }} />
+              <Bar dataKey="wa" name="WhatsApp" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="email" name="Email" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}

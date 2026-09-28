@@ -349,7 +349,7 @@
         "amount": "Rp 150,000",
         "date": "Today's date",
         "message": "Your order is being processed",
-        "company": "Notifin"
+        "company": "SI-MPOK NORI"
       }
     },
     "testSend": {
@@ -466,7 +466,7 @@
     "systemHealth": "System Health",
     "whatsapp": "WhatsApp",
     "email": "Email (SMTP)",
-    "emailPlatform": "Email (Notifin Platform)",
+    "emailPlatform": "Email (SI-MPOK NORI Platform)",
     "redis": "Redis",
     "database": "Database",
     "apiToken": "API Token",
@@ -481,15 +481,15 @@
     "smtpSecure": "Connection Security",
     "emailProvider": "Email Provider",
     "emailProviderSmtp": "SMTP (own)",
-    "emailProviderResend": "Notifin Platform",
-    "resendInfo": "Emails are sent through Notifin's platform email service. The sender address is managed by the platform; only the From Name is configurable.",
+    "emailProviderResend": "SI-MPOK NORI Platform",
+      "resendInfo": "Emails are sent through the SI-MPOK NORI platform email service. The sender address is managed by the platform; only the From Name is configurable.",
     "smtpSecureSsl": "SSL/TLS (implicit)",
     "smtpSecureStarttls": "STARTTLS",
     "smtpSecureNone": "None (plain)",
     "fromAddress": "From Address",
     "fromAddressPlaceholder": "notifications@yourdomain.com",
     "fromName": "From Name",
-    "fromNamePlaceholder": "e.g. Notifin",
+    "fromNamePlaceholder": "e.g. SI-MPOK NORI",
     "general": "General",
     "defaultTimezone": "Default Timezone",
     "serverTime": "Server Time",

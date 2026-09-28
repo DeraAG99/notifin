@@ -1,34 +1,19 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { Toaster } from "@/components/ui/toast";
 import { Providers } from "@/components/layouts/providers";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const hanken = Hanken_Grotesk({
-  variable: "--font-hanken",
-  subsets: ["latin"],
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains",
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "NOTIFIN | Notification Management",
+  title: "SI-MPOK NORI | Notification Management",
   description:
     "Schedule WhatsApp and email notifications, manage recipients and templates, and track delivery from one dashboard.",
-  icons: { icon: "/icon.svg" },
+  icons: { icon: "/brand/icon.png" },
 };
 
 export default function RootLayout({
@@ -38,14 +23,14 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${hanken.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      lang="id"
+      className={`${jakarta.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("theme");var d=t==="light"?false:(t==="dark"?true:(t==="system"?window.matchMedia("(prefers-color-scheme: dark)").matches:true));document.documentElement.classList.toggle("dark",d);}catch(e){document.documentElement.classList.add("dark")}})();`,
+            __html: `(function(){try{var t=localStorage.getItem("theme");var d=t==="light"?false:(t==="dark"?true:(t==="system"?window.matchMedia("(prefers-color-scheme: dark)").matches:false));document.documentElement.classList.toggle("dark",d);}catch(e){document.documentElement.classList.remove("dark")}})();`,
           }}
         />
       </head>

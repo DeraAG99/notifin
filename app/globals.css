@@ -7,11 +7,13 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-sans: var(--font-jakarta);
+  --font-mono: var(--font-jakarta);
+  --font-heading: var(--font-jakarta);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-active-foreground: var(--sidebar-active-foreground);
+  --color-sidebar-active: var(--sidebar-active);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
@@ -46,8 +48,8 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-  --font-display: var(--font-hanken);
-  --font-label: var(--font-jetbrains);
+  --font-display: var(--font-jakarta);
+  --font-label: var(--font-jakarta);
   --color-nf-bg: var(--nf-bg);
   --color-nf-bg-lowest: var(--nf-bg-lowest);
   --color-nf-bg-low: var(--nf-bg-low);
@@ -63,100 +65,111 @@
   --color-nf-outline-variant: var(--nf-outline-variant);
 }
 
+/* Material 3 light scheme, taken verbatim from the SI-MPOK NORI design's
+   Tailwind config (ui-mpoknori/dashboard_utama_si_mpok_nori.html). */
 :root {
-  --background: #f4f6fb;
-  --foreground: #0d1b2e;
+  --background: #f8f9ff;
+  --foreground: #0d1c2e;
   --card: #ffffff;
-  --card-foreground: #0d1b2e;
+  --card-foreground: #0d1c2e;
   --popover: #ffffff;
-  --popover-foreground: #0d1b2e;
-  --primary: #2563eb;
+  --popover-foreground: #0d1c2e;
+  --primary: #00173b;
   --primary-foreground: #ffffff;
-  --secondary: #00a58f;
+  --secondary: #a73a00;
   --secondary-foreground: #ffffff;
-  --muted: #e9eef6;
-  --muted-foreground: #6b7a90;
-  --accent: #e6eef9;
-  --accent-foreground: #0d1b2e;
-  --destructive: #dc2626;
-  --border: rgba(13, 27, 46, 0.1);
-  --input: rgba(13, 27, 46, 0.12);
-  --ring: #2563eb;
-  --chart-1: #2563eb;
-  --chart-2: #00a58f;
-  --chart-3: #25a05c;
-  --chart-4: #7c8cf8;
-  --chart-5: #d97706;
+  --muted: #e6eeff;
+  --muted-foreground: #44474f;
+  --accent: #dce9ff;
+  --accent-foreground: #0d1c2e;
+  --destructive: #ba1a1a;
+  --border: #c4c6d0;
+  --input: #c4c6d0;
+  --ring: #465e8e;
+  --chart-1: #25d366;
+  --chart-2: #465e8e;
+  --chart-3: #a73a00;
+  --chart-4: #0f2c59;
+  --chart-5: #fd651e;
   --radius: 0.625rem;
-  --nf-bg: #f4f6fb;
+  --nf-bg: #f8f9ff;
   --nf-bg-lowest: #ffffff;
-  --nf-bg-low: #e9eef6;
+  --nf-bg-low: #eff4ff;
   --nf-surface: #ffffff;
-  --nf-on-surface: #0d1b2e;
-  --nf-on-surface-variant: #4b5a72;
-  --nf-primary: #2563eb;
-  --nf-primary-container: #2563eb;
-  --nf-secondary: #00a58f;
-  --nf-secondary-container: #00c1a7;
-  --nf-on-secondary-container: #ffffff;
-  --nf-outline: #6b7a90;
-  --nf-outline-variant: #a3b0c2;
+  --nf-on-surface: #0d1c2e;
+  --nf-on-surface-variant: #44474f;
+  --nf-primary: #00173b;
+  --nf-primary-container: #0f2c59;
+  --nf-secondary: #a73a00;
+  --nf-secondary-container: #fd651e;
+  --nf-on-secondary-container: #571a00;
+  --nf-outline: #747780;
+  --nf-outline-variant: #c4c6d0;
   --sidebar: #ffffff;
-  --sidebar-foreground: #0d1b2e;
-  --sidebar-primary: #2563eb;
+  --sidebar-foreground: #0d1c2e;
+  --sidebar-primary: #00173b;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e8eef7;
-  --sidebar-accent-foreground: #2563eb;
-  --sidebar-border: rgba(13, 27, 46, 0.08);
-  --sidebar-ring: #2563eb;
+  --sidebar-accent: #e6eeff;
+  --sidebar-accent-foreground: #44474f;
+  --sidebar-active: #0f2c59;
+  --sidebar-active-foreground: #ffffff;
+  --sidebar-border: #c4c6d0;
+  --sidebar-ring: #465e8e;
 }
 
+/* The design is light-only, so this dark scheme is derived rather than copied:
+   M3 swaps each role family to its light-tone counterpart, which the design
+   already ships as the *-fixed roles (primary-fixed #d8e2ff,
+   secondary-fixed-dim #ffb599, inverse-on-surface #eaf1ff, ...) on the same
+   navy/orange seeds. */
 .dark {
   color-scheme: dark;
-  --background: #061423;
-  --foreground: #d6e4f9;
-  --card: #132030;
-  --card-foreground: #d6e4f9;
-  --popover: #132030;
-  --popover-foreground: #d6e4f9;
-  --primary: #b4c5ff;
-  --primary-foreground: #002a78;
-  --secondary: #41ddc2;
-  --secondary-foreground: #00382f;
-  --muted: #132030;
-  --muted-foreground: #8d90a0;
-  --accent: #1e2b3b;
-  --accent-foreground: #d6e4f9;
+  --background: #0d1c2e;
+  --foreground: #eaf1ff;
+  --card: #17263a;
+  --card-foreground: #eaf1ff;
+  --popover: #17263a;
+  --popover-foreground: #eaf1ff;
+  --primary: #d8e2ff;
+  --primary-foreground: #001a41;
+  --secondary: #ffb599;
+  --secondary-foreground: #370e00;
+  --muted: #17263a;
+  --muted-foreground: #b8c4d8;
+  --accent: #213048;
+  --accent-foreground: #eaf1ff;
   --destructive: #ffb4ab;
-  --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.1);
-  --ring: #b4c5ff;
-  --chart-1: #2563eb;
-  --chart-2: #41ddc2;
-  --chart-3: #25d366;
-  --chart-4: #b4c5ff;
-  --chart-5: #f59e0b;
-  --sidebar: #081627;
-  --sidebar-foreground: #d6e4f9;
-  --sidebar-primary: #b4c5ff;
-  --sidebar-primary-foreground: #002a78;
-  --sidebar-accent: #1e2b3b;
-  --sidebar-accent-foreground: #d6e4f9;
-  --sidebar-border: rgba(255, 255, 255, 0.06);
-  --sidebar-ring: #b4c5ff;
-  --nf-bg: #061423;
-  --nf-bg-lowest: #020f1e;
-  --nf-bg-low: #0f1c2c;
-  --nf-surface: #132030;
-  --nf-on-surface: #d6e4f9;
-  --nf-on-surface-variant: #c3c6d7;
-  --nf-primary: #b4c5ff;
-  --nf-primary-container: #2563eb;
-  --nf-secondary: #41ddc2;
-  --nf-secondary-container: #00c1a7;
-  --nf-on-secondary-container: #00483e;
-  --nf-outline: #8d90a0;
-  --nf-outline-variant: #434655;
+  --border: #3a4a63;
+  --input: #3a4a63;
+  --ring: #aec7fd;
+  --chart-1: #25d366;
+  --chart-2: #aec7fd;
+  --chart-3: #ffb599;
+  --chart-4: #d8e2ff;
+  --chart-5: #fd651e;
+  --sidebar: #081426;
+  --sidebar-foreground: #eaf1ff;
+  --sidebar-primary: #d8e2ff;
+  --sidebar-primary-foreground: #001a41;
+  --sidebar-accent: #213048;
+  --sidebar-accent-foreground: #eaf1ff;
+  --sidebar-active: #d8e2ff;
+  --sidebar-active-foreground: #001a41;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #aec7fd;
+  --nf-bg: #0d1c2e;
+  --nf-bg-lowest: #081426;
+  --nf-bg-low: #17263a;
+  --nf-surface: #17263a;
+  --nf-on-surface: #eaf1ff;
+  --nf-on-surface-variant: #b8c4d8;
+  --nf-primary: #d8e2ff;
+  --nf-primary-container: #0f2c59;
+  --nf-secondary: #ffb599;
+  --nf-secondary-container: #fd651e;
+  --nf-on-secondary-container: #370e00;
+  --nf-outline: #8f9bb0;
+  --nf-outline-variant: #3a4a63;
 }
 
 @layer base {
@@ -174,7 +187,7 @@
 
 /* ===== Brand & auth surfaces ===== */
 .brand-gradient {
-  background-image: linear-gradient(135deg, #2563eb 0%, #00c2a8 100%);
+  background-image: linear-gradient(135deg, #00173b 0%, #0f2c59 100%);
 }
 
 .btn-shine {
@@ -202,14 +215,14 @@
 }
 
 .glass-panel {
-  background: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(13, 27, 46, 0.08);
+  border: 1px solid #c4c6d0;
 }
 
 .dark .glass-panel {
-  background: rgba(22, 38, 56, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(23, 38, 58, 0.9);
+  border: 1px solid #3a4a63;
 }
 
 .nf-logo {
@@ -221,24 +234,24 @@
   border-radius: 50%;
   filter: blur(80px);
   z-index: 0;
-  opacity: 0.15;
+  opacity: 0.1;
   pointer-events: none;
 }
 
 :root .orb-1,
 :root .orb-2 {
-  opacity: 0.12;
+  opacity: 0.09;
 }
 
 .dark .orb-1,
 .dark .orb-2 {
-  opacity: 0.15;
+  opacity: 0.16;
 }
 
 .orb-1 {
   width: 400px;
   height: 400px;
-  background: #2563eb;
+  background: #0f2c59;
   top: -100px;
   right: -100px;
 }
@@ -246,13 +259,13 @@
 .orb-2 {
   width: 500px;
   height: 500px;
-  background: #00c2a8;
+  background: #fd651e;
   bottom: -200px;
   left: -100px;
 }
 
 .hero-title-text {
-  background: linear-gradient(to right, #0d1b2e 30%, #2563eb 100%);
+  background: linear-gradient(to right, #0d1c2e 30%, #465e8e 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -260,7 +273,7 @@
 }
 
 .dark .hero-title-text {
-  background: linear-gradient(to right, #ffffff 30%, #b4c5ff 100%);
+  background: linear-gradient(to right, #ffffff 30%, #aec7fd 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -268,44 +281,44 @@
 }
 
 .nf-card {
-  background: rgba(255, 255, 255, 0.6);
+  background: #ffffff;
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(13, 27, 46, 0.08);
+  border: 1px solid #c4c6d0;
 }
 
 .dark .nf-card {
-  background: rgba(14, 27, 43, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #17263a;
+  border: 1px solid #3a4a63;
 }
 
 .dashboard-bg {
   background-image:
-    radial-gradient(ellipse at top right, rgba(37, 99, 235, 0.1), transparent 55%),
-    radial-gradient(ellipse at bottom left, rgba(0, 165, 143, 0.08), transparent 55%);
+    radial-gradient(ellipse at top right, rgba(70, 94, 142, 0.12), transparent 55%),
+    radial-gradient(ellipse at bottom left, rgba(253, 101, 30, 0.08), transparent 55%);
 }
 
 .form-input {
-  background: rgba(13, 27, 46, 0.04);
-  border: 1px solid rgba(13, 27, 46, 0.12);
+  background: #ffffff;
+  border: 1px solid #c4c6d0;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dark .form-input {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #17263a;
+  border: 1px solid #3a4a63;
 }
 
 .form-input:focus {
-  border-color: #00a58f;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 0 4px rgba(0, 165, 143, 0.12);
+  border-color: #465e8e;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(70, 94, 142, 0.14);
   outline: none;
 }
 
 .dark .form-input:focus {
-  border-color: #41ddc2;
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: 0 0 0 4px rgba(65, 221, 194, 0.1);
+  border-color: #aec7fd;
+  background: #17263a;
+  box-shadow: 0 0 0 4px rgba(174, 199, 253, 0.14);
 }
 
 .login-reveal {
