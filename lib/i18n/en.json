@@ -343,6 +343,12 @@
       "previewCopied": "Preview copied to clipboard",
       "sampleData": "Sample Data",
       "sampleDataHint": "Edit sample data to adjust preview",
+      "sampleRaHint": "Each group = 1 RHK with its Rencana Aksi listed underneath",
+      "sampleRaAddGroup": "Add RHK",
+      "sampleRaEmpty": "No groups yet. Add an RHK together with its Rencana Aksi.",
+      "sampleRaRhkPlaceholder": "RHK name (Rencana Hasil Kerja)",
+      "sampleRaAksiPlaceholder": "One Rencana Aksi per line",
+      "sampleRaRemoveGroup": "Remove this RHK group",
       "sampleDataDefault": {
         "name": "Budi Santoso",
         "email": "budi@example.com",
@@ -354,7 +360,6 @@
         "message": "Your order is being processed",
         "company": "SI-MPOK NORI",
         "bulan_ini": "September 2026",
-        "triwulan_ini": 3,
         "rhk_iku": [
           "Implementation of SKPD financial administration"
         ],
@@ -362,8 +367,19 @@
           "Preparation of financial management reports"
         ],
         "ra": [
-          "Compile the September financial report",
-          "Verify financial administration documents"
+          {
+            "rhk": "Implementation of SKPD financial administration",
+            "aksi": [
+              "Compile the September financial report",
+              "Verify financial administration documents"
+            ]
+          },
+          {
+            "rhk": "Preparation of financial management reports",
+            "aksi": [
+              "Compile the monthly financial management report"
+            ]
+          }
         ]
       },
       "variableGroup": "{group} variables",
@@ -372,7 +388,7 @@
         "etpp": "e-TPP",
         "common": "General"
       },
-      "etppHint": "Available once a user imports their e-TPP file. Fields: {{rhk_lainnya}}, {{rhk_iku}}, {{ra}}.",
+      "etppHint": "Available once a user imports their e-TPP file. Fields: {{bulan_ini}}, {{rhk_lainnya}}, {{rhk_iku}}, {{ra}} (nested: {{rhk}} + {{aksi}}).",
       "etppPresetTitle": "Ready-to-use e-TPP template",
       "etppPresetHint": "Fill the message with the performance target reminder. You can edit it afterwards.",
       "etppPresetButton": "Use e-TPP Template",

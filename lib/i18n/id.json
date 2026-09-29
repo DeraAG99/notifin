@@ -343,6 +343,12 @@
       "previewCopied": "Preview disalin ke clipboard",
       "sampleData": "Data Contoh",
       "sampleDataHint": "Ubah data contoh untuk menyesuaikan preview",
+      "sampleRaHint": "Setiap grup = 1 RHK dengan daftar Rencana Aksi di bawahnya",
+      "sampleRaAddGroup": "Tambah RHK",
+      "sampleRaEmpty": "Belum ada grup. Tambahkan RHK beserta Rencana Aksinya.",
+      "sampleRaRhkPlaceholder": "Nama RHK (Rencana Hasil Kerja)",
+      "sampleRaAksiPlaceholder": "Satu Rencana Aksi per baris",
+      "sampleRaRemoveGroup": "Hapus grup RHK ini",
       "sampleDataDefault": {
         "name": "Budi Santoso",
         "email": "budi@example.com",
@@ -354,7 +360,6 @@
         "message": "Pesanan Anda sedang diproses",
         "company": "SI-MPOK NORI",
         "bulan_ini": "September 2026",
-        "triwulan_ini": 3,
         "rhk_iku": [
           "Terlaksananya Penatausahaan Keuangan SKPD"
         ],
@@ -362,8 +367,19 @@
           "Terlaksananya penyusunan Laporan pengelolaan Keuangan"
         ],
         "ra": [
-          "Menyusun laporan keuangan bulan September",
-          "Memverifikasi dokumen penatausahaan"
+          {
+            "rhk": "Terlaksananya Penatausahaan Keuangan SKPD",
+            "aksi": [
+              "Menyusun laporan keuangan bulan September",
+              "Memverifikasi dokumen penatausahaan"
+            ]
+          },
+          {
+            "rhk": "Terlaksananya penyusunan Laporan pengelolaan Keuangan",
+            "aksi": [
+              "Menyusun laporan pengelolaan Keuangan bulanan"
+            ]
+          }
         ]
       },
       "variableGroup": "Variabel {group}",
@@ -372,7 +388,7 @@
         "etpp": "Data e-TPP",
         "common": "Umum"
       },
-        "etppHint": "Tersedia setelah user import file e-TPP. Isi: {{rhk_lainnya}}, {{rhk_iku}}, {{ra}}.",
+        "etppHint": "Tersedia setelah user import file e-TPP. Isi: {{bulan_ini}}, {{rhk_lainnya}}, {{rhk_iku}}, {{ra}} (nested: {{rhk}} + {{aksi}}).",
       "etppPresetTitle": "Template e-TPP siap pakai",
       "etppPresetHint": "Isi pesan dengan template pengingat target kinerja. Bisa diedit setelahnya.",
       "etppPresetButton": "Pakai Template e-TPP",

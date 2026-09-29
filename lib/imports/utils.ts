@@ -35,9 +35,19 @@ export function isEmptyRealisasi(value: string | null | undefined): boolean {
   );
 }
 
-export function buildSummary(items: ImportItem[]): {
+export function buildSummary(
+  items: ImportItem[],
+  etppSkippedNoKode = 0
+): {
   itemCount: number;
   pendingPerTriwulan: Record<number, number>;
+  /**
+   * e-TPP rows dropped for having no usable `kode_sumber`. Kept on the import
+   * row rather than on the user because it is an audit trail for one file, not
+   * a variable any template renders -- per-user audit is a query over
+   * `data_imports.summary`.
+   */
+  etppSkippedNoKode: number;
 } {
   const pendingPerTriwulan: Record<number, number> = {};
   for (let tw = 1; tw <= 4; tw++) {
@@ -45,7 +55,7 @@ export function buildSummary(items: ImportItem[]): {
       (item) => item.triwulan === tw && isEmptyRealisasi(item.realisasi)
     ).length;
   }
-  return { itemCount: items.length, pendingPerTriwulan };
+  return { itemCount: items.length, pendingPerTriwulan, etppSkippedNoKode };
 }
 
 export function slugifyKey(name: string): string {

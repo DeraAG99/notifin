@@ -2,7 +2,7 @@
  * The e-TPP reminder message, shared by the template editor and any test that
  * needs to render the exact text users will receive.
  *
- * Two rules shape the block markup:
+ * Three rules shape the block markup:
  *
  * 1. The heading lives *inside* the `{{#if}}`. With it outside, a user whose
  *    list is empty still receives a bare "1. Target Rencana Hasil Kerja (RHK)
@@ -10,21 +10,28 @@
  * 2. The guard tests `.length`, never the variable itself. `isTruthy` in
  *    `lib/template-engine.ts` returns true for an empty array, so `{{#if ra}}`
  *    would always render the section.
+ * 3. `ra` is nested -- each group carries its own `rhk` with the `aksi` beneath
+ *    it -- so the loops nest. `{{#each ra}}` yields the group, `{{#each aksi}}`
+ *    yields its actions. A flat list would repeat the RHK once per action.
+ *
+ * `{{bulan_ini}}` is resolved at send time, not from the user's metadata; see
+ * `formatBulanIni` in `lib/imports/variables.ts`.
  */
 export const ETPP_PRESET = `Halo Bapak/Ibu:
 {{name}}
 {{jabatan}}
 {{unitKerja}},
 
-Ini adalah pesan otomatis dari SI-MPOK NORI Kecamatan Palmerah. Memasuki bulan {{bulan_ini}} di Triwulan {{triwulan_ini}}, berikut adalah target kinerja yang perlu Anda laksanakan:
+Ini adalah pesan otomatis dari SI-MPOK NORI Kecamatan Palmerah. Memasuki bulan {{bulan_ini}}, berikut adalah target kinerja yang perlu Anda laksanakan:
 
 🎯 e-TPP (https://etpp.jakarta.go.id/):
 {{#if rhk_lainnya.length}}1. Target Rencana Hasil Kerja (RHK) Lainnya:
 {{#each rhk_lainnya}}{{@number}}. {{this}}
 {{/each}}{{/if}}
 {{#if ra.length}}2. Target Rencana Aksi (RA) dari RHK IKU dan RHK Lainnya:
-{{#each ra}}{{@number}}. {{this}}
-{{/each}}{{/if}}
+{{#each ra}}• {{rhk}}
+{{#each aksi}}   {{this}}
+{{/each}}{{/each}}{{/if}}
 ⚠️ PERINGATAN PENTING:
 Mohon untuk mulai mempersiapkan pelaksanaan tugas dan dokumen pendukungnya sejak awal periode agar tidak menumpuk di akhir bulan.
 
@@ -55,11 +62,11 @@ export const ETPP_BLOCKS: EtppBlock[] = [
   {
     key: "ra",
     label: "raBlock",
-    body: "{{#if ra.length}}2. Target Rencana Aksi (RA) dari RHK IKU dan RHK Lainnya:\n{{#each ra}}{{@number}}. {{this}}\n{{/each}}{{/if}}",
+    body: "{{#if ra.length}}2. Target Rencana Aksi (RA) dari RHK IKU dan RHK Lainnya:\n{{#each ra}}• {{rhk}}\n{{#each aksi}}   {{this}}\n{{/each}}{{/each}}{{/if}}",
   },
   {
     key: "periode",
     label: "periodeBlock",
-    body: "{{bulan_ini}} (Triwulan {{triwulan_ini}})",
+    body: "{{bulan_ini}}",
   },
 ];

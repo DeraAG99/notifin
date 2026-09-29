@@ -47,8 +47,43 @@ interface VariableGroup {
 /** Loop/conditional keywords that appear inside `{{ }}` but name no variable. */
 const BLOCK_TAGS = new Set(["each", "if", "else", "endif", "endeach"]);
 
-/** Variables whose value is a list, so the sample editor uses a textarea shape. */
-const LIST_VARIABLES = new Set(["rhk_iku", "rhk_lainnya", "ra"]);
+/** Variables whose value is a flat list of strings, so the sample editor is one line per item. */
+const LIST_VARIABLES = new Set(["rhk_iku", "rhk_lainnya"]);
+
+/**
+ * Variables whose value is a list of objects. `ra` is nested -- each group is a
+ * Rencana Hasil Kerja with its Rencana Aksi beneath it -- so it cannot be edited
+ * as one line per item; the sample editor gives it a row per group instead.
+ */
+const NESTED_LIST_VARIABLES = new Set(["ra"]);
+
+interface RaSampleGroup {
+  rhk: string;
+  aksi: string[];
+}
+
+/**
+ * Coerces whatever `sampleDataDefault.ra` holds into the nested shape.
+ *
+ * Defensive because a legacy flat entry (a bare string, or a `{rhk, aksi}`
+ * pair with a single action) still round-trips through a cached i18n bundle or
+ * a saved editor session. A flat value would preview as a row of undefined and
+ * teach the admin the wrong shape.
+ */
+function normalizeRaSample(value: unknown): RaSampleGroup[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((row): RaSampleGroup | null => {
+      if (typeof row === "string") return row.trim() ? { rhk: row.trim(), aksi: [] } : null;
+      if (!row || typeof row !== "object") return null;
+      const { rhk, aksi } = row as { rhk?: unknown; aksi?: unknown };
+      const label = typeof rhk === "string" ? rhk.trim() : "";
+      if (!label) return null;
+      const list = Array.isArray(aksi) ? aksi : typeof aksi === "string" ? aksi.split("\n") : [];
+      return { rhk: label, aksi: list.map((a) => String(a).trim()).filter(Boolean) };
+    })
+    .filter((g): g is RaSampleGroup => g !== null);
+}
 
 const VARIABLE_GROUPS: VariableGroup[] = [
   {
@@ -58,7 +93,7 @@ const VARIABLE_GROUPS: VariableGroup[] = [
   {
     key: "etpp",
     description: "etppHint",
-    variables: ["bulan_ini", "triwulan_ini", "rhk_iku", "rhk_lainnya", "ra"],
+    variables: ["bulan_ini", "rhk_iku", "rhk_lainnya", "ra"],
   },
   {
     key: "common",
@@ -133,12 +168,13 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
         case "message": data[v] = defaults.message; break;
         case "company": data[v] = defaults.company; break;
         case "bulan_ini": data[v] = defaults.bulan_ini || ""; break;
-        case "triwulan_ini": data[v] = defaults.triwulan_ini ?? 1; break;
         // Lists stay arrays so `#each` and `.length` behave like they will in
         // production; a string here would preview as one long run-on line.
         case "rhk_iku": data[v] = defaults.rhk_iku || []; break;
         case "rhk_lainnya": data[v] = defaults.rhk_lainnya || []; break;
-        case "ra": data[v] = defaults.ra || []; break;
+        // Nested, like the real extractor: one group per RHK, actions beneath.
+        // A flat list here would preview fine but then break in production.
+        case "ra": data[v] = normalizeRaSample(defaults.ra); break;
         default: data[v] = `[${v}]`;
       }
     });
@@ -165,6 +201,42 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
       return updated;
     });
   }, [detectedVariables, getDefaultSampleData]);
+
+  const getRaGroups = useCallback(
+    (v: string): RaSampleGroup[] => normalizeRaSample(sampleData[v]),
+    [sampleData]
+  );
+
+  const writeRaGroups = useCallback((v: string, groups: RaSampleGroup[]) => {
+    setSampleData((prev) => ({ ...prev, [v]: groups }));
+  }, []);
+
+  const addRaGroup = useCallback(
+    (v: string) => {
+      writeRaGroups(v, [...normalizeRaSample(sampleData[v]), { rhk: "", aksi: [] }]);
+    },
+    [sampleData, writeRaGroups]
+  );
+
+  const updateRaGroup = useCallback(
+    (v: string, index: number, patch: Partial<RaSampleGroup>) => {
+      const groups = normalizeRaSample(sampleData[v]).map((g, i) =>
+        i === index ? { ...g, ...patch } : g
+      );
+      writeRaGroups(v, groups);
+    },
+    [sampleData, writeRaGroups]
+  );
+
+  const removeRaGroup = useCallback(
+    (v: string, index: number) => {
+      writeRaGroups(
+        v,
+        normalizeRaSample(sampleData[v]).filter((_, i) => i !== index)
+      );
+    },
+    [sampleData, writeRaGroups]
+  );
 
   // Render through the real engine so `#each` / `#if` / `@number` preview the
   // same way the notification worker will. A plain `replaceAll` left the loop
@@ -501,7 +573,76 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {detectedVariables.map((v) => (
+                  {detectedVariables.map((v) =>
+                    v in NESTED_LIST_VARIABLES ? (
+                      <div key={v} className="rounded-md border p-3 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <code className="text-xs bg-muted px-2 py-1 rounded font-mono">
+                            {`{{${v}}}`}
+                          </code>
+                          <span className="text-xs text-muted-foreground">
+                            {t.templates.form.sampleRaHint}
+                          </span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="ml-auto h-7 text-xs"
+                            onClick={() => addRaGroup(v)}
+                          >
+                            <Plus className="h-3 w-3" />
+                            {t.templates.form.sampleRaAddGroup}
+                          </Button>
+                        </div>
+                        {getRaGroups(v).length === 0 ? (
+                          <p className="text-xs text-muted-foreground">
+                            {t.templates.form.sampleRaEmpty}
+                          </p>
+                        ) : (
+                          getRaGroups(v).map((group, gi) => (
+                            <div
+                              key={`${v}-${gi}`}
+                              className="flex gap-2 items-start rounded bg-muted/40 p-2"
+                            >
+                              <div className="flex-1 space-y-1">
+                                <Input
+                                  value={group.rhk}
+                                  onChange={(e) =>
+                                    updateRaGroup(v, gi, { rhk: e.target.value })
+                                  }
+                                  placeholder={t.templates.form.sampleRaRhkPlaceholder}
+                                  className="h-8 text-sm"
+                                />
+                                <Textarea
+                                  value={group.aksi.join("\n")}
+                                  onChange={(e) =>
+                                    updateRaGroup(v, gi, {
+                                      aksi: e.target.value
+                                        .split("\n")
+                                        .map((s) => s.trim())
+                                        .filter(Boolean),
+                                    })
+                                  }
+                                  placeholder={t.templates.form.sampleRaAksiPlaceholder}
+                                  rows={2}
+                                  className="text-sm"
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 shrink-0"
+                                onClick={() => removeRaGroup(v, gi)}
+                                aria-label={t.templates.form.sampleRaRemoveGroup}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    ) : (
                     <div key={v} className="flex items-center gap-2">
                       <code className="text-xs bg-muted px-2 py-1 rounded min-w-[80px] font-mono">
                         {`{{${v}}}`}
@@ -524,7 +665,8 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
                         className="h-8 text-sm"
                       />
                     </div>
-                  ))}
+                    )
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
                   {t.templates.form.sampleDataHint}

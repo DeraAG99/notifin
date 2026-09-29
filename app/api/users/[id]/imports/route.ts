@@ -140,6 +140,7 @@ export async function POST(
     const profileApplied = { jabatan: false, unitKerja: false };
     let profileAppliedData: { jabatan?: string; unitKerja?: string } | undefined;
     let appliedMetadata: Record<string, unknown> | null = null;
+    let etppSkippedNoKode = 0;
 
     let profilePayload: { jabatan?: string; unitKerja?: string } | undefined;
     if (profile) {
@@ -174,11 +175,23 @@ export async function POST(
       }
 
       if (type.engine === "ekinerja-json" && items.length > 0) {
-        const etppMeta = extractEtppMetadata(items);
+        const extraction = extractEtppMetadata(items);
+        etppSkippedNoKode = extraction.skippedNoKode;
         const existingMeta = (user.metadata as Record<string, unknown>) || {};
-        const mergedMeta = { ...existingMeta, ...etppMeta };
+        const mergedMeta = {
+          ...existingMeta,
+          ...extraction.metadata,
+          // Scrubbed on write. The e-TPP export carries no document period, so
+          // neither of these can be read from the file any more and a leftover
+          // key would only ever hold a stale value. `bulan_ini` is recomputed
+          // live at send time by `resolveImportVars`; `triwulan_ini` is gone
+          // from the notification layer entirely. JSON.stringify drops the
+          // undefined, which removes the key instead of storing a null.
+          bulan_ini: undefined,
+          triwulan_ini: undefined,
+        };
         userPatch.metadata = mergedMeta;
-        appliedMetadata = etppMeta;
+        appliedMetadata = extraction.metadata;
       }
 
       if (Object.keys(userPatch).length > 0) {
@@ -199,7 +212,7 @@ export async function POST(
           fileName: validated.fileName,
           period: validated.period || null,
           data: items as unknown as Record<string, unknown>[],
-          summary: buildSummary(items),
+          summary: buildSummary(items, etppSkippedNoKode),
         })
         .returning();
     });
@@ -210,16 +223,39 @@ export async function POST(
         : "";
 
     const etppMetadataNotice =
-      type.engine === "ekinerja-json" && items.length > 0 ? " (Metadata e-TPP juga terisi otomatis)." : "";
+      type.engine === "ekinerja-json" && items.length > 0
+        ? " (Metadata e-TPP juga terisi otomatis)."
+        : "";
+
+    // Logged server-side for the audit trail and echoed in the response so the
+    // admin sees the drop instead of a quietly short notification. A row with
+    // no `kode_sumber` cannot be placed in IKU or Lainnya, and guessing would
+    // mislabel the whole message.
+    const etppSkipNotice =
+      etppSkippedNoKode > 0
+        ? ` ${etppSkippedNoKode} baris tanpa kode_sumber dilewati (tidak bisa ditentukan IKU atau Lainnya).`
+        : "";
+
+    if (etppSkippedNoKode > 0) {
+      console.log(
+        `[etpp] ${etppSkippedNoKode} baris tanpa kode_sumber dilewati`,
+        {
+          adminId: session.adminId,
+          userId: id,
+          fileName: validated.fileName,
+        }
+      );
+    }
 
     return NextResponse.json(
       {
         success: true,
         data: imported,
         profileApplied,
-        message: `Data "${category.name}" berhasil diimpor (${items.length} item).${profileNotice}${etppMetadataNotice}`,
+        message: `Data "${category.name}" berhasil diimpor (${items.length} item).${profileNotice}${etppMetadataNotice}${etppSkipNotice}`,
         metadata: appliedMetadata,
         profile: profileAppliedData || null,
+        etppSkippedNoKode,
       },
       { status: 201 }
     );

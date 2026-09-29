@@ -10,6 +10,22 @@ function currentTriwulan(now: Date): number {
   return Math.floor((now.getMonth() + 1 - 1) / 3) + 1;
 }
 
+/**
+ * Month label for notification text, e.g. "September 2026".
+ *
+ * Live by design: the e-TPP export carries no document period ("Tahun
+ * Kinerja" is a datepicker input, its value is not in the HTML), so a month
+ * captured at import time goes stale. A user who imports once in September and
+ * never again would otherwise still be told "Memasuki bulan September 2026" in
+ * December. Computing it here rather than in each caller covers all five
+ * render paths -- cron, test send, batch, preview and the generic scheduler --
+ * and, because it lands after `mergeVariables`, it also overwrites a stale
+ * `bulan_ini` already sitting in `users.metadata` without a backfill.
+ */
+export function formatBulanIni(now: Date): string {
+  return now.toLocaleString("id-ID", { month: "long", year: "numeric" });
+}
+
 function formatEkinerjaLine(item: ImportItem, idx: number): string {
   const satuan = item.satuan
     ? ` (${item.satuan}${item.targetValue ? `: ${item.targetValue}` : ""})`
@@ -31,8 +47,9 @@ function buildImportVars(
   imp: { fileName: string; period: string | null; data: Record<string, unknown>[]; summary: Record<string, unknown>; engine: string },
   categoryKey: string,
   categoryName: string,
+  now: Date,
 ) {
-  const tw = currentTriwulan(new Date());
+  const tw = currentTriwulan(now);
   const items = (Array.isArray(imp.data) ? imp.data : []) as ImportItem[];
   const twItems = items.filter((item) => item.triwulan === tw);
   const pending = twItems.filter((item) => isEmptyRealisasi(item.realisasi));
@@ -76,9 +93,16 @@ function buildImportVars(
  */
 export async function resolveImportVars(
   user: { id: string; adminId: string } & Partial<User>,
-  custom?: Record<string, unknown>
+  custom?: Record<string, unknown>,
+  now: Date = new Date()
 ): Promise<Record<string, unknown>> {
-  const base = mergeVariables(user as User, custom);
+  // `bulan_ini` is spread after `mergeVariables` on purpose: `mergeVariables`
+  // lets `metadata` override the user defaults, so a value stored at import
+  // time would win and defeat the point of computing it live.
+  const base = {
+    ...mergeVariables(user as User, custom),
+    bulan_ini: formatBulanIni(now),
+  };
 
   const rows = await db
     .select({
@@ -101,7 +125,6 @@ export async function resolveImportVars(
 
   if (rows.length === 0) return base;
 
-  const tw = currentTriwulan(new Date());
   const imports: Record<string, unknown> = {};
 
   for (const row of rows) {
@@ -113,6 +136,7 @@ export async function resolveImportVars(
       row.imp as { fileName: string; period: string | null; data: Record<string, unknown>[]; summary: Record<string, unknown>; engine: string },
       key,
       row.categoryName,
+      now,
     );
   }
 

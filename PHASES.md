@@ -1729,6 +1729,115 @@ lib/i18n/id.json, lib/i18n/en.json
 
 ---
 
+## Phase 50b - e-TPP: live month, strict `kode_sumber`, nested RA
+
+Corrects three defects found while reviewing the Phase 50 output against the real
+export, and settles the Rencana Aksi layout as option Y.
+
+### 1. `bulan_ini` is computed live, not stored
+
+The e-TPP export carries no document period. "Tahun Kinerja" is a datepicker
+input, so its value never reaches the saved HTML, and the notification says
+"Memasuki bulan ...". A month captured at import time goes stale immediately: a
+user who imports once in September and never again would still be told
+"September 2026" in December.
+
+`formatBulanIni(now)` is exported from `lib/imports/variables.ts` and applied
+inside `resolveImportVars`, which is the single funnel for all five render
+paths (cron worker, test send, batch send, per-user preview, generic
+scheduler). It is spread *after* `mergeVariables` on purpose, because
+`mergeVariables` lets `users.metadata` override the user defaults, so a stored
+value would otherwise win and defeat the point.
+
+`resolveImportVars` takes an optional third `now: Date` argument, and
+`buildImportVars` takes the same clock for `currentTw`, so a test can pin the
+date instead of asserting against `new Date()`.
+
+`bulan_ini` and `triwulan_ini` are both scrubbed from `users.metadata` on write.
+Neither can be read from the file any more, so a leftover key could only ever
+hold a stale value; `bulan_ini` is recomputed at send time and `triwulan_ini` is
+gone from the notification layer entirely. `JSON.stringify` drops the
+`undefined`, so the key is removed rather than stored as `null`.
+
+### 2. `kode_sumber` is read strictly; unclassifiable rows are dropped
+
+`rencana_hasil_kerja` cannot classify anything on its own. One RHK can sit under
+either kind of indikator, so the IKU / Lainnya split has to come from the
+`kode_sumber` attached to the **indikator** object, which e-TPP emits as `iku`
+and `other` (rendered in the HTML as the `iku` / `lainnya` badges).
+
+Only those two tokens are accepted, case-insensitively and trimmed. Anything
+else -- including an empty cell -- drops the row, and its Rencana Aksi with it,
+because without a classifiable RHK the action has no parent. The older code
+defaulted an empty value to IKU, and the version before that defaulted it to
+Lainnya; both silently mislabelled a whole notification and reported nothing.
+
+The count lands on `data_imports.summary.etppSkippedNoKode` and **not** on
+`users.metadata`: it is an audit trail for one file, not a variable any template
+renders, so keeping it out of the template namespace leaves `metadata` holding
+only what templates actually consume. Per-user audit is a query over
+`data_imports.summary`. The route also logs
+`[etpp] N baris tanpa kode_sumber dilewati` with `adminId` / `userId` /
+`fileName`, and echoes the count in the response message so the admin sees the
+drop instead of a quietly short notification.
+
+### 3. `ra` is nested (option Y)
+
+`ra` is now `Array<{ rhk: string; aksi: string[] }>`: one group per RHK with its
+actions beneath it. The flat variant repeats the RHK once per action, which is
+exactly the layout this change was meant to remove. Groups keep first-seen order
+for both the RHKs and the actions inside them, so the message reads top to
+bottom the way the export does, and groups with no actions are filtered out.
+
+The template engine needed no change: `renderNodes` already pushes the item
+scope ahead of the parent, so `{{#each ra}}` → `{{rhk}}` and a nested
+`{{#each aksi}}` resolve correctly. Guards still test `.length`, never the
+variable, because `isTruthy` returns true for an empty array.
+
+`TemplateForm` gained a dedicated sample editor for `ra`: one row per group
+with an `Input` for the RHK, a `Textarea` of one action per line, and
+add/remove controls. `normalizeRaSample` coerces a legacy flat entry (a bare
+string, or a `{rhk, aksi}` pair with a single action) into the nested shape so
+a cached i18n bundle or a saved editor session cannot teach the wrong shape.
+
+### Verification
+- 64 assertions across 14 groups, all passing, against
+  `docs/Data Kinerja Saya _ e-TPP.html` (12 items, 0 parse errors):
+  `bulan_ini` with an injected clock across three months; `iku` and `other`
+  routed correctly; missing, blank and unknown `kode_sumber` dropped and
+  counted, with their actions dropped too; `case`/trim handling; nested RA
+  shape, grouping and order; dedupe across four quarters; no empty RA groups;
+  two users parsed back to back unable to see each other's data;
+  `etppSkippedNoKode` present in `summary` and absent from `users.metadata`;
+  the preset rendering with each RHK printed once and actions indented; empty
+  lists collapsing both headings; all four insertable blocks rendering
+  standalone; the merge layer overwriting a stale `bulan_ini` and dropping both
+  period keys after a `JSON.stringify` round-trip. No unreplaced tags and no
+  `undefined` in any rendered output.
+- `bunx tsc --noEmit` — clean.
+- `bun run lint` — 77 problems (27 errors / 50 warnings), one fewer than the
+  pre-phase baseline of 78: removing the dead `tw` local in
+  `resolveImportVars` cleared a warning. The remaining error in
+  `template-form.tsx` (`react-hooks/set-state-in-effect`) and the warning in
+  `imports/route.ts` (`catch (error)` unused) are both pre-existing, verified by
+  linting the `HEAD` version of each file.
+- `bun run build` — succeeds.
+- **Not covered:** no browser run of import → metadata → preview → Settings →
+  send, and no test-runner file was committed; the assertions above ran from a
+  temporary script that was deleted afterwards.
+
+### Notes for whoever picks this up
+- Users who imported before this change need to re-import: their stored `ra` is
+  a flat `string[]` and would render `{{rhk}}` as empty against the new preset.
+  There is no backfill.
+- Still open from the Phase 50 review, untouched here: `settings.value` is
+  `.notNull()` while the route can write `null`; `workers/etpp-notification.ts`
+  defines `DEFAULT_TIMEZONE` but `cron.schedule` never receives it; a missing
+  `jabatan` / `unitKerja` leaves a blank line in the preset; and
+  `perangkatDaerah` is extracted by the parser but never persisted or exposed.
+
+---
+
 ## Environment Variables
 
 ```bash
