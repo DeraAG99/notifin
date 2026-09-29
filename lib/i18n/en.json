@@ -350,6 +350,7 @@
       "sampleRaKodePlaceholder": "Indicator type",
       "sampleRaRhkPlaceholder": "RHK name (Rencana Hasil Kerja)",
       "sampleRaAksiPlaceholder": "One Rencana Aksi per line",
+      "sampleOutputPlaceholder": "TW | Output Name | Target | Unit",
       "sampleRaRemoveGroup": "Remove this RHK group",
       "sampleDataDefault": {
         "name": "Budi Santoso",
@@ -375,6 +376,9 @@
             "aksi": [
               "Compile the September financial report",
               "Verify financial administration documents"
+            ],
+            "output": [
+              { "tw": "3", "nama": "SKPD Financial Administration Verification Documents", "target": "1", "satuan": "Document" }
             ]
           },
           {
@@ -383,6 +387,9 @@
             "aksi": [
               "Collect realisation figures from every data source",
               "Compile the monthly financial management report"
+            ],
+            "output": [
+              { "tw": "3", "nama": "Subdistrict Financial Management Report", "target": "1", "satuan": "Report" }
             ]
           },
           {
@@ -391,6 +398,9 @@
             "aksi": [
               "Prepare the RKA and DPA for the finance section",
               "Run the TEMU KAHWA coordination forum"
+            ],
+            "output": [
+              { "tw": "3", "nama": "Finance Section Budget Target Achievement", "target": "1", "satuan": "Unit" }
             ]
           }
         ]

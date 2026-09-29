@@ -5,12 +5,14 @@ import type { ImportItem } from "../imports/types";
  *
  * 1: flat `ra` (list of strings).
  * 2: nested `ra` with `kode_sumber` and stripped `RA<n>.` prefixes.
+ * 3: nested `ra` with `kode_sumber`, stripped `RA<n>.` prefixes, and per-group
+ *    `output` array capturing the Target/Output pair per triwulan.
  *
  * Metadata written before a bump is still readable -- every field it carries
  * simply goes through `isEtppMetadataStale`, which is what turns a silent
  * blank section in a sent message into a warning the admin can act on.
  */
-export const ETPP_META_VERSION = 2;
+export const ETPP_META_VERSION = 3;
 
 /**
  * How the `kode_sumber` token is spelled in the message.
@@ -36,6 +38,21 @@ export interface EtppRencanaAksi {
   /** Which kind of indikator this group came from, as the user sees it. */
   kode_sumber: KodeLabel;
   aksi: string[];
+  /** Output/Target per triwulan, from row-6 (output) and row-7 (target). */
+  output: EtppOutput[];
+}
+
+/**
+ * Output item per triwulan, parsed from row-6 (output name) and row-7
+ * (target, satuan, tw).
+ */
+export interface EtppOutput {
+  /** Output name with T/O code stripped.**/
+  nama: string;
+  /** Triwulan number as string: "1" | "2" | "3" | "4". */
+  tw: string;
+  satuan: string;
+  target: string;
 }
 
 export interface EtppMetadata {
@@ -129,6 +146,16 @@ function stripRaPrefix(value: string): string {
   return value.replace(/^RA\d+\.\s*/i, "");
 }
 
+/**
+ * Drops the `T/O\d+...` prefix from the output name.
+ *
+ * Handles T/O1., T/O1.1., T/O1.1.1., with trailing dot optional.
+ * Case-insensitive because exports may vary.
+ */
+function stripToCode(value: string): string {
+  return value.replace(/^T\/O\d+(\.\d+)*\.?\s*/i, "").trim();
+}
+
 function pushUnique(target: string[], seen: Set<string>, value: string): void {
   if (seen.has(value)) return;
   seen.add(value);
@@ -166,6 +193,7 @@ export function extractEtppMetadata(
   const grupRa: EtppRencanaAksi[] = [];
   const grupRaByRhk = new Map<string, EtppRencanaAksi>();
   const seenAksi = new Map<string, Set<string>>();
+  const seenOutput = new Map<string, Set<string>>();
 
   let skippedNoKode = 0;
 
@@ -194,12 +222,33 @@ export function extractEtppMetadata(
 
     let grup = grupRaByRhk.get(rhk);
     if (!grup) {
-      grup = { rhk, kode_sumber: LABEL_KODE[kode], aksi: [] };
+      grup = { rhk, kode_sumber: LABEL_KODE[kode], aksi: [], output: [] };
       grupRaByRhk.set(rhk, grup);
       grupRa.push(grup);
       seenAksi.set(rhk, new Set<string>());
+      seenOutput.set(rhk, new Set<string>());
     }
     pushUnique(grup.aksi, seenAksi.get(rhk)!, aksi);
+
+    // Collect output + target per triwulan.
+    // item.output contains the T/O phrase, item.targetValue is the target,
+    // item.satuan is the unit, item.triwulan is the TW.
+    if (item.output) {
+      const nama = stripToCode(item.output);
+      if (nama) {
+        const outputKey = `${item.triwulan}|${nama}|${item.satuan}|${item.targetValue}`;
+        const outSet = seenOutput.get(rhk)!;
+        if (!outSet.has(outputKey)) {
+          outSet.add(outputKey);
+          grup.output.push({
+            nama,
+            tw: String(item.triwulan),
+            satuan: item.satuan || "",
+            target: item.targetValue || "",
+          });
+        }
+      }
+    }
   }
 
   return {
@@ -213,4 +262,20 @@ export function extractEtppMetadata(
     },
     skippedNoKode,
   };
+}
+
+/**
+ * Helper: returns a shallow copy of the ra array with output items filtered
+ * to keep only those for the given triwulan.
+ *
+ * Used by the notification worker to show only current-TW targets.
+ */
+export function filterRaForCurrentTw(
+  ra: EtppRencanaAksi[],
+  currentTw: number
+): EtppRencanaAksi[] {
+  return ra.map((g) => ({
+    ...g,
+    output: g.output.filter((o) => Number(o.tw) === currentTw),
+  }));
 }

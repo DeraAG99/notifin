@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { ImportVariablesPicker } from "@/components/imports/import-variables-picker";
 import { ETPP_BLOCKS, ETPP_PRESET } from "@/lib/templates/etpp-preset";
+import { type EtppOutput } from "@/lib/users/etpp-extract";
 import { templateEngine } from "@/lib/template-engine";
 import type { KodeLabel } from "@/lib/users/etpp-extract";
 import type { NotificationTemplate } from "@/types";
@@ -62,9 +63,27 @@ interface RaSampleGroup {
   rhk: string;
   kode_sumber: KodeLabel;
   aksi: string[];
+  output: EtppOutput[];
 }
 
 const KODE_LABELS: KodeLabel[] = ["IKU", "Lainnya"];
+
+function parseOutput(raw: unknown): EtppOutput[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((row): EtppOutput | null => {
+      if (!row || typeof row !== "object") return null;
+      const r = row as Record<string, unknown>;
+      const nama = typeof r.nama === "string" && r.nama.trim() ? r.nama.trim() : "";
+      if (!nama) return null;
+      const tw = typeof r.tw === "string" ? r.tw : "";
+      const satuan = typeof r.satuan === "string" ? r.satuan.trim() : "";
+      const target = typeof r.target === "string" ? r.target.trim() : "";
+      if (!tw) return null;
+      return { nama, tw, satuan, target };
+    })
+    .filter((o): o is EtppOutput => o !== null);
+}
 
 /**
  * Coerces whatever `sampleDataDefault.ra` holds into the nested shape.
@@ -82,9 +101,10 @@ function normalizeRaSample(value: unknown): RaSampleGroup[] {
   if (!Array.isArray(value)) return [];
   return value
     .map((row): RaSampleGroup | null => {
-      if (typeof row === "string") return row.trim() ? { rhk: row.trim(), kode_sumber: "Lainnya", aksi: [] } : null;
+      if (typeof row === "string") return row.trim() ? { rhk: row.trim(), kode_sumber: "Lainnya", aksi: [], output: [] } : null;
       if (!row || typeof row !== "object") return null;
-      const { rhk, kode_sumber, aksi } = row as { rhk?: unknown; kode_sumber?: unknown; aksi?: unknown };
+      const r = row as Record<string, unknown>;
+      const { rhk, kode_sumber, aksi, output } = r;
       const label = typeof rhk === "string" ? rhk.trim() : "";
       if (!label) return null;
       const list = Array.isArray(aksi) ? aksi : typeof aksi === "string" ? aksi.split("\n") : [];
@@ -92,6 +112,7 @@ function normalizeRaSample(value: unknown): RaSampleGroup[] {
         rhk: label,
         kode_sumber: KODE_LABELS.includes(kode_sumber as KodeLabel) ? (kode_sumber as KodeLabel) : "Lainnya",
         aksi: list.map((a) => String(a).trim()).filter(Boolean),
+        output: parseOutput(output),
       };
     })
     .filter((g): g is RaSampleGroup => g !== null);
@@ -225,7 +246,7 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
 
   const addRaGroup = useCallback(
     (v: string) => {
-      writeRaGroups(v, [...normalizeRaSample(sampleData[v]), { rhk: "", kode_sumber: "Lainnya", aksi: [] }]);
+      writeRaGroups(v, [...normalizeRaSample(sampleData[v]), { rhk: "", kode_sumber: "Lainnya", aksi: [], output: [] }]);
     },
     [sampleData, writeRaGroups]
   );
@@ -660,6 +681,28 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
                                   placeholder={t.templates.form.sampleRaAksiPlaceholder}
                                   rows={2}
                                   className="text-sm"
+                                />
+                                <Textarea
+                                  value={group.output.map((o) => `${o.tw} | ${o.nama} | ${o.target} | ${o.satuan}`).join("\n")}
+                                  onChange={(e) => {
+                                    const lines = e.target.value
+                                      .split("\n")
+                                      .map((s) => s.trim())
+                                      .filter(Boolean);
+                                    const newOutput: EtppOutput[] = lines.map((line) => {
+                                      const parts = line.split("|").map((p) => p.trim());
+                                      return {
+                                        tw: parts[0] || "",
+                                        nama: parts[1] || "",
+                                        target: parts[2] || "",
+                                        satuan: parts[3] || "",
+                                      };
+                                    }).filter((o) => o.tw && o.nama);
+                                    updateRaGroup(v, gi, { output: newOutput });
+                                  }}
+                                  placeholder={t.templates.form.sampleOutputPlaceholder}
+                                  rows={2}
+                                  className="text-sm font-mono text-muted-foreground"
                                 />
                               </div>
                               <Button

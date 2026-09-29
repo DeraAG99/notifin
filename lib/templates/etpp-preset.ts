@@ -41,6 +41,9 @@ Ini adalah pesan otomatis dari SI-MPOK NORI Kecamatan Palmerah. Memasuki bulan {
 2. Target Rencana Aksi (RA) dari RHK IKU dan RHK Lainnya:
 {{#if ra.length}}{{#each ra}}• [{{kode_sumber}}] {{rhk}}
 {{#each aksi}}   - {{this}}
+{{/each}}{{#each output}}
+   → Output TW {{tw}}: {{nama}}
+   → Target: {{target}} {{satuan}}
 {{/each}}{{/each}}{{#else}}⚠️ Silakan import ulang data kinerja Anda untuk melihat Rencana Aksi.{{/if}}
 ⚠️ PERINGATAN PENTING:
 Mohon untuk mulai mempersiapkan pelaksanaan tugas dan dokumen pendukungnya sejak awal periode agar tidak menumpuk di akhir bulan.
@@ -72,7 +75,7 @@ export const ETPP_BLOCKS: EtppBlock[] = [
   {
     key: "ra",
     label: "raBlock",
-    body: "2. Target Rencana Aksi (RA) dari RHK IKU dan RHK Lainnya:\n{{#if ra.length}}{{#each ra}}• [{{kode_sumber}}] {{rhk}}\n{{#each aksi}}   - {{this}}\n{{/each}}{{/each}}{{#else}}⚠️ Silakan import ulang data kinerja Anda untuk melihat Rencana Aksi.{{/if}}",
+    body: "2. Target Rencana Aksi (RA) dari RHK IKU dan RHK Lainnya:\n{{#if ra.length}}{{#each ra}}• [{{kode_sumber}}] {{rhk}}\n{{#each aksi}}   - {{this}}\n{{/each}}{{#each output}}\n   → Output TW {{tw}}: {{nama}}\n   → Target: {{target}} {{satuan}}\n{{/each}}{{/each}}{{#else}}⚠️ Silakan import ulang data kinerja Anda untuk melihat Rencana Aksi.{{/if}}",
   },
   {
     key: "periode",

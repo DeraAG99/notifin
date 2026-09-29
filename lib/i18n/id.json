@@ -350,6 +350,7 @@
       "sampleRaKodePlaceholder": "Jenis indikator",
       "sampleRaRhkPlaceholder": "Nama RHK (Rencana Hasil Kerja)",
       "sampleRaAksiPlaceholder": "Satu Rencana Aksi per baris",
+      "sampleOutputPlaceholder": "TW | Nama Output | Target | Satuan",
       "sampleRaRemoveGroup": "Hapus grup RHK ini",
       "sampleDataDefault": {
         "name": "Budi Santoso",
@@ -375,6 +376,9 @@
             "aksi": [
               "Menyusun laporan keuangan bulan September",
               "Memverifikasi dokumen penatausahaan"
+            ],
+            "output": [
+              { "tw": "3", "nama": "Dokumen Penatausahaan Keuangan SKPD", "target": "1", "satuan": "Dokumen" }
             ]
           },
           {
@@ -383,6 +387,9 @@
             "aksi": [
               "Menghimpun data realisasi dari setiap sumber data",
               "Menyusun Laporan Pengelolaan Keuangan bulanan"
+            ],
+            "output": [
+              { "tw": "3", "nama": "Laporan Pengelolaan Administrasi Keuangan Kecamatan", "target": "1", "satuan": "Laporan" }
             ]
           },
           {
@@ -391,6 +398,9 @@
             "aksi": [
               "Menyusun RKA dan DPA Subbagian Keuangan",
               "Melaksanakan TEMU KAHWA"
+            ],
+            "output": [
+              { "tw": "3", "nama": "Target Kinerja Anggaran Subbagian Keuangan", "target": "1", "satuan": "Unit" }
             ]
           }
         ]
