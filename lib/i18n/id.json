@@ -137,6 +137,7 @@
     "keterangan": "Keterangan/Evaluasi",
     "keteranganValidasi": "Keterangan Validasi",
     "noImport": "Belum ada data import untuk user ini.",
+    "etppStaleWarning": "Data kinerja e-TPP user ini dibuat dengan format lama, jadi Rencana Aksi belum lengkap. Minta user melakukan import ulang file e-TPP (Data Kinerja Saya).",
     "uploadPrompt": "Klik untuk pilih file",
     "uploadHint": "Format: .html (export Data Kinerja e-TPP) atau .xlsx",
     "preview": "Preview",
@@ -346,6 +347,7 @@
       "sampleRaHint": "Setiap grup = 1 RHK dengan daftar Rencana Aksi di bawahnya",
       "sampleRaAddGroup": "Tambah RHK",
       "sampleRaEmpty": "Belum ada grup. Tambahkan RHK beserta Rencana Aksinya.",
+      "sampleRaKodePlaceholder": "Jenis indikator",
       "sampleRaRhkPlaceholder": "Nama RHK (Rencana Hasil Kerja)",
       "sampleRaAksiPlaceholder": "Satu Rencana Aksi per baris",
       "sampleRaRemoveGroup": "Hapus grup RHK ini",
@@ -369,15 +371,26 @@
         "ra": [
           {
             "rhk": "Terlaksananya Penatausahaan Keuangan SKPD",
+            "kode_sumber": "IKU",
             "aksi": [
               "Menyusun laporan keuangan bulan September",
               "Memverifikasi dokumen penatausahaan"
             ]
           },
           {
-            "rhk": "Terlaksananya penyusunan Laporan pengelolaan Keuangan",
+            "rhk": "Terlaksananya penyusunan Laporan Pengelolaan Keuangan Kecamatan",
+            "kode_sumber": "Lainnya",
             "aksi": [
-              "Menyusun laporan pengelolaan Keuangan bulanan"
+              "Menghimpun data realisasi dari setiap sumber data",
+              "Menyusun Laporan Pengelolaan Keuangan bulanan"
+            ]
+          },
+          {
+            "rhk": "Tercapainya Target Kinerja Anggaran Subbagian Keuangan",
+            "kode_sumber": "Lainnya",
+            "aksi": [
+              "Menyusun RKA dan DPA Subbagian Keuangan",
+              "Melaksanakan TEMU KAHWA"
             ]
           }
         ]
@@ -388,7 +401,7 @@
         "etpp": "Data e-TPP",
         "common": "Umum"
       },
-        "etppHint": "Tersedia setelah user import file e-TPP. Isi: {{bulan_ini}}, {{rhk_lainnya}}, {{rhk_iku}}, {{ra}} (nested: {{rhk}} + {{aksi}}).",
+        "etppHint": "Tersedia setelah user import file e-TPP. Isi: {{bulan_ini}}, {{rhk_lainnya}}, {{rhk_iku}}, {{ra}} (nested: {{kode_sumber}}, {{rhk}}, {{aksi}}). Kalau {{ra}} kosong, blok otomatis menampilkan permintaan import ulang.",
       "etppPresetTitle": "Template e-TPP siap pakai",
       "etppPresetHint": "Isi pesan dengan template pengingat target kinerja. Bisa diedit setelahnya.",
       "etppPresetButton": "Pakai Template e-TPP",

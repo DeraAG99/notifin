@@ -31,6 +31,7 @@ import {
 import { ImportVariablesPicker } from "@/components/imports/import-variables-picker";
 import { ETPP_BLOCKS, ETPP_PRESET } from "@/lib/templates/etpp-preset";
 import { templateEngine } from "@/lib/template-engine";
+import type { KodeLabel } from "@/lib/users/etpp-extract";
 import type { NotificationTemplate } from "@/types";
 
 interface TemplateFormProps {
@@ -59,8 +60,11 @@ const NESTED_LIST_VARIABLES = new Set(["ra"]);
 
 interface RaSampleGroup {
   rhk: string;
+  kode_sumber: KodeLabel;
   aksi: string[];
 }
+
+const KODE_LABELS: KodeLabel[] = ["IKU", "Lainnya"];
 
 /**
  * Coerces whatever `sampleDataDefault.ra` holds into the nested shape.
@@ -69,18 +73,26 @@ interface RaSampleGroup {
  * pair with a single action) still round-trips through a cached i18n bundle or
  * a saved editor session. A flat value would preview as a row of undefined and
  * teach the admin the wrong shape.
+ *
+ * `kode_sumber` defaults rather than dropping out: the template prints it as
+ * `[{{kode_sumber}}]`, and a group without one previews as an empty pair of
+ * brackets -- which looks like a rendering bug rather than missing sample data.
  */
 function normalizeRaSample(value: unknown): RaSampleGroup[] {
   if (!Array.isArray(value)) return [];
   return value
     .map((row): RaSampleGroup | null => {
-      if (typeof row === "string") return row.trim() ? { rhk: row.trim(), aksi: [] } : null;
+      if (typeof row === "string") return row.trim() ? { rhk: row.trim(), kode_sumber: "Lainnya", aksi: [] } : null;
       if (!row || typeof row !== "object") return null;
-      const { rhk, aksi } = row as { rhk?: unknown; aksi?: unknown };
+      const { rhk, kode_sumber, aksi } = row as { rhk?: unknown; kode_sumber?: unknown; aksi?: unknown };
       const label = typeof rhk === "string" ? rhk.trim() : "";
       if (!label) return null;
       const list = Array.isArray(aksi) ? aksi : typeof aksi === "string" ? aksi.split("\n") : [];
-      return { rhk: label, aksi: list.map((a) => String(a).trim()).filter(Boolean) };
+      return {
+        rhk: label,
+        kode_sumber: KODE_LABELS.includes(kode_sumber as KodeLabel) ? (kode_sumber as KodeLabel) : "Lainnya",
+        aksi: list.map((a) => String(a).trim()).filter(Boolean),
+      };
     })
     .filter((g): g is RaSampleGroup => g !== null);
 }
@@ -213,7 +225,7 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
 
   const addRaGroup = useCallback(
     (v: string) => {
-      writeRaGroups(v, [...normalizeRaSample(sampleData[v]), { rhk: "", aksi: [] }]);
+      writeRaGroups(v, [...normalizeRaSample(sampleData[v]), { rhk: "", kode_sumber: "Lainnya", aksi: [] }]);
     },
     [sampleData, writeRaGroups]
   );
@@ -605,6 +617,28 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
                               className="flex gap-2 items-start rounded bg-muted/40 p-2"
                             >
                               <div className="flex-1 space-y-1">
+                                <Select
+                                  value={group.kode_sumber}
+                                  onValueChange={(value) =>
+                                    updateRaGroup(v, gi, {
+                                      kode_sumber: value as KodeLabel,
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger
+                                    className="h-8 text-sm"
+                                    aria-label={t.templates.form.sampleRaKodePlaceholder}
+                                  >
+                                    <SelectValue placeholder={t.templates.form.sampleRaKodePlaceholder} />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {KODE_LABELS.map((kode) => (
+                                      <SelectItem key={kode} value={kode}>
+                                        {kode}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                                 <Input
                                   value={group.rhk}
                                   onChange={(e) =>

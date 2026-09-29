@@ -137,6 +137,7 @@
     "keterangan": "Notes/Evaluation",
     "keteranganValidasi": "Validation Notes",
     "noImport": "No imported data for this user yet.",
+    "etppStaleWarning": "This user's e-TPP data was built with the older format, so the Rencana Aksi section is incomplete. Ask the user to re-import their e-TPP file (Data Kinerja Saya).",
     "uploadPrompt": "Click to select file",
     "uploadHint": "Formats: .html (Data Kinerja e-TPP export) or .xlsx",
     "preview": "Preview",
@@ -346,6 +347,7 @@
       "sampleRaHint": "Each group = 1 RHK with its Rencana Aksi listed underneath",
       "sampleRaAddGroup": "Add RHK",
       "sampleRaEmpty": "No groups yet. Add an RHK together with its Rencana Aksi.",
+      "sampleRaKodePlaceholder": "Indicator type",
       "sampleRaRhkPlaceholder": "RHK name (Rencana Hasil Kerja)",
       "sampleRaAksiPlaceholder": "One Rencana Aksi per line",
       "sampleRaRemoveGroup": "Remove this RHK group",
@@ -369,15 +371,26 @@
         "ra": [
           {
             "rhk": "Implementation of SKPD financial administration",
+            "kode_sumber": "IKU",
             "aksi": [
               "Compile the September financial report",
               "Verify financial administration documents"
             ]
           },
           {
-            "rhk": "Preparation of financial management reports",
+            "rhk": "Preparation of the subdistrict financial management report",
+            "kode_sumber": "Lainnya",
             "aksi": [
+              "Collect realisation figures from every data source",
               "Compile the monthly financial management report"
+            ]
+          },
+          {
+            "rhk": "Achievement of the finance section budget target",
+            "kode_sumber": "Lainnya",
+            "aksi": [
+              "Prepare the RKA and DPA for the finance section",
+              "Run the TEMU KAHWA coordination forum"
             ]
           }
         ]
@@ -388,7 +401,7 @@
         "etpp": "e-TPP",
         "common": "General"
       },
-      "etppHint": "Available once a user imports their e-TPP file. Fields: {{bulan_ini}}, {{rhk_lainnya}}, {{rhk_iku}}, {{ra}} (nested: {{rhk}} + {{aksi}}).",
+      "etppHint": "Available once a user imports their e-TPP file. Fields: {{bulan_ini}}, {{rhk_lainnya}}, {{rhk_iku}}, {{ra}} (nested: {{kode_sumber}}, {{rhk}}, {{aksi}}). When {{ra}} is empty the block shows a re-import notice instead.",
       "etppPresetTitle": "Ready-to-use e-TPP template",
       "etppPresetHint": "Fill the message with the performance target reminder. You can edit it afterwards.",
       "etppPresetButton": "Use e-TPP Template",

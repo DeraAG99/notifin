@@ -41,6 +41,7 @@ import {
   type ImportTypeConfig,
 } from "@/lib/imports/engine";
 import type { ImportItem, SourceProfile } from "@/lib/imports/types";
+import { isEtppMetadataStale } from "@/lib/users/etpp-extract";
 import type { User } from "@/types";
 
 interface ImportRow {
@@ -221,6 +222,14 @@ export default function UserImportsPage() {
   const blocks = !isTable && selected ? buildPivot(selected.data) : [];
   const tableBlocks = selected ? buildTableBlocks(selected.data) : [];
 
+  /**
+   * Metadata written before the nested-`ra` shape ships sends a message with
+   * a Rencana Aksi heading and nothing under it -- the user reports "the RA
+   * section is empty" and there is nothing in the app that says why. Surfacing
+   * the stale write here is cheaper than chasing that from a sent message.
+   */
+  const etppStale = user ? isEtppMetadataStale(user.metadata) : false;
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -389,6 +398,13 @@ export default function UserImportsPage() {
           <Database className="h-4 w-4 mr-2" /> {t.importTypes.title}
         </Button>
       </div>
+
+      {etppStale && (
+        <div className="rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300 p-3 text-xs flex items-start gap-2">
+          <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <span>{t.imports.etppStaleWarning}</span>
+        </div>
+      )}
 
       <Card>
         <CardHeader>

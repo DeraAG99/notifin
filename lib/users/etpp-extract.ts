@@ -1,6 +1,29 @@
 import type { ImportItem } from "../imports/types";
 
 /**
+ * Bumped whenever the shape written into `users.metadata` changes.
+ *
+ * 1: flat `ra` (list of strings).
+ * 2: nested `ra` with `kode_sumber` and stripped `RA<n>.` prefixes.
+ *
+ * Metadata written before a bump is still readable -- every field it carries
+ * simply goes through `isEtppMetadataStale`, which is what turns a silent
+ * blank section in a sent message into a warning the admin can act on.
+ */
+export const ETPP_META_VERSION = 2;
+
+/**
+ * How the `kode_sumber` token is spelled in the message.
+ *
+ * Mapped here rather than in the template: the two tokens e-TPP emits read as
+ * codes, not words ("other" in particular is meaningless to a user), and
+ * translating inside `{{#each}}` would mean a conditional in the template body
+ * -- something an admin editing the message can easily break. One place, no
+ * template logic.
+ */
+export type KodeLabel = "IKU" | "Lainnya";
+
+/**
  * Rencana Aksi grouped under the Rencana Hasil Kerja it belongs to.
  *
  * Nested, not flat. The message shows each RHK once as a bullet with its
@@ -10,6 +33,8 @@ import type { ImportItem } from "../imports/types";
  */
 export interface EtppRencanaAksi {
   rhk: string;
+  /** Which kind of indikator this group came from, as the user sees it. */
+  kode_sumber: KodeLabel;
   aksi: string[];
 }
 
@@ -21,9 +46,27 @@ export interface EtppMetadata {
   rhk_lainnya: string[];
   /** `rencanaAksi` nested under their parent RHK, IKU and Lainnya combined. */
   ra: EtppRencanaAksi[];
+  etpp_meta_version: number;
   last_import: string;
   // Spreads into `users.metadata` (jsonb) and merges with unrelated keys.
   [key: string]: unknown;
+}
+
+/**
+ * True when a user has e-TPP metadata that predates the current shape.
+ *
+ * Both symptoms of a stale write are silent, which is what makes this worth
+ * checking rather than assuming: `ra` is absent, so `{{#each ra}}` renders
+ * nothing and the message ships with a section heading and no content under it.
+ * The import page surfaces it as a warning so the admin can ask for a
+ * re-import instead of the user reporting an empty message.
+ */
+export function isEtppMetadataStale(metadata: unknown): boolean {
+  if (!metadata || typeof metadata !== "object") return false;
+  const meta = metadata as Record<string, unknown>;
+  if (meta.etpp_imported !== true) return false;
+  const version = typeof meta.etpp_meta_version === "number" ? meta.etpp_meta_version : 0;
+  return version < ETPP_META_VERSION;
 }
 
 export interface EtppExtraction {
@@ -52,6 +95,12 @@ export interface EtppExtraction {
  */
 type KodeSumber = "iku" | "other" | null;
 
+/** The two tokens above, spelled for the message. */
+const LABEL_KODE: Record<Exclude<KodeSumber, null>, KodeLabel> = {
+  iku: "IKU",
+  other: "Lainnya",
+};
+
 function klasifikasiKode(raw: string | null | undefined): KodeSumber {
   const kode = (raw || "").trim().toLowerCase();
   if (kode === "iku") return "iku";
@@ -66,6 +115,18 @@ function klasifikasiKode(raw: string | null | undefined): KodeSumber {
  */
 function normalize(value: string | null | undefined): string {
   return (value || "").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Drops the `RA1.` / `RA2.` numbering e-TPP stores in the Rencana Aksi cell.
+ *
+ * It is a table index, not part of the action, and it repeats under every RHK
+ * in the export -- keeping it produces a message that reads "RA1. ..." once
+ * per Rencana Hasil Kerja. The template already numbers the bullets, so the
+ * number would also be a second, contradictory one.
+ */
+function stripRaPrefix(value: string): string {
+  return value.replace(/^RA\d+\.\s*/i, "");
 }
 
 function pushUnique(target: string[], seen: Set<string>, value: string): void {
@@ -97,6 +158,11 @@ export function extractEtppMetadata(
 
   // First-seen order for both the RHK groups and the actions inside them, so
   // the message reads top to bottom the way the export does.
+  //
+  // The group is keyed by RHK alone, so a RHK that appears under more than one
+  // kind of indikator keeps the label of its first row rather than appearing
+  // twice. In practice one RHK sits under a single indikator; the split belongs
+  // to the indikator, which is why `kode_sumber` cannot be derived from the RHK.
   const grupRa: EtppRencanaAksi[] = [];
   const grupRaByRhk = new Map<string, EtppRencanaAksi>();
   const seenAksi = new Map<string, Set<string>>();
@@ -123,12 +189,12 @@ export function extractEtppMetadata(
       );
     }
 
-    const aksi = normalize(item.rencanaAksi);
+    const aksi = stripRaPrefix(normalize(item.rencanaAksi));
     if (!rhk || !aksi) continue;
 
     let grup = grupRaByRhk.get(rhk);
     if (!grup) {
-      grup = { rhk, aksi: [] };
+      grup = { rhk, kode_sumber: LABEL_KODE[kode], aksi: [] };
       grupRaByRhk.set(rhk, grup);
       grupRa.push(grup);
       seenAksi.set(rhk, new Set<string>());
@@ -142,6 +208,7 @@ export function extractEtppMetadata(
       rhk_iku: rhkIku,
       rhk_lainnya: rhkLainnya,
       ra: grupRa.filter((g) => g.aksi.length > 0),
+      etpp_meta_version: ETPP_META_VERSION,
       last_import: importDate.toISOString(),
     },
     skippedNoKode,

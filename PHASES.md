@@ -1838,6 +1838,88 @@ a cached i18n bundle or a saved editor session cannot teach the wrong shape.
 
 ---
 
+## Phase 50c - e-TPP: Rencana Aksi labelled, versioned, with a fallback
+
+### Why
+A sent message arrived with the Rencana Aksi section empty. The cause was not
+the extractor: it was a user whose `users.metadata` had been written by Phase 49
+and never re-imported. That shape has no `ra` key at all, so `{{#each ra}}`
+looked up nothing and the section rendered as a heading with nothing under it --
+no error, no log, nothing in the app to point at. The same silent-empty applies
+to any metadata older than the current shape, so this phase makes the staleness
+detectable and makes the message say something useful when it happens.
+
+### 1. `ra` groups carry the indicator label; the `RA<n>.` prefix is dropped
+`lib/users/etpp-extract.ts`
+- `EtppRencanaAksi` is now `{ rhk, kode_sumber, aksi }`, where `kode_sumber` is
+  the message-facing label: `iku` → `IKU`, `other` → `Lainnya`. The raw token is
+  not a word a user should read, and mapping it here rather than in the template
+  keeps `{{#each ra}}` free of conditionals an admin can break.
+- Groups are still keyed by RHK alone, so a RHK sitting under two kinds of
+  indikator keeps its first row's label rather than printing twice. In practice
+  one RHK sits under one indikator; the split belongs to the indikator, which is
+  also why `kode_sumber` can never be derived from the RHK itself.
+- `stripRaPrefix` removes the `RA1.` / `RA2.` numbering e-TPP stores in the cell.
+  It is a table index, it repeats under every RHK, and the template already
+  numbers the bullets -- keeping it produced "RA1. ..." once per RHK.
+- `ra` covers **all** RHK (IKU and Lainnya combined). Actions under a Lainnya
+  RHK are still that user's work.
+
+### 2. A version marker, and a warning instead of a silent empty section
+- `ETPP_META_VERSION = 2` is stamped into `users.metadata` on every import.
+  Bump it whenever the stored shape changes.
+- `isEtppMetadataStale(metadata)` is true for a user with `etpp_imported` whose
+  version is below the current one. The user import page renders a banner from it
+  so the admin can ask for a re-import, rather than learning it from a sent
+  message. It reads a metadata field and is not a template variable, so the
+  template namespace stays clean.
+- The preset's RA block now uses `{{#else}}`: a user with no `ra` gets
+  "⚠️ Silakan import ulang data kinerja Anda untuk melihat Rencana Aksi." instead
+  of a bare heading. The section heading sits outside the guard because both
+  branches produce content, so nothing is left bare.
+
+### 3. Bullet hierarchy
+RHK groups render `• [IKU] Terlaksananya ...`; actions under them render
+`   - Mengoordinasikan ...`. Three spaces, matching the previous indent, with a
+dash for the child level so the nesting reads in WhatsApp.
+
+### Verified
+70 assertions, all passing, run from a temporary script that was deleted
+afterwards (no test-runner file is committed). Against
+`docs/Data Kinerja Saya _ e-TPP.html` (12 items, 0 errors, 0 skipped):
+3 RA groups x 2 actions, labels only `IKU` / `Lainnya`, no surviving `RA<n>.`
+prefix, `etpp_meta_version` stamped; the preset renders with no unreplaced tags,
+one RA heading, 3 labelled bullets, 6 dashed actions, no double blank lines and
+no empty `[]` label; with `ra` removed -- and with `ra: []`, which `isTruthy`
+would otherwise treat as present -- the fallback message appears instead; the
+insertable `ra` block is byte-identical to the preset's own section and carries
+its own fallback; `isEtppMetadataStale` is true for Phase 49 and 50b metadata,
+false for current, never-imported, null and non-object input; an unknown
+`kode_sumber` token is still dropped and adds no group.
+`docs/copy_table.html` (a second user's export, same markup, `iku`/`other` only)
+was parsed in the same run to confirm the extractor stays per-user: 3 groups,
+6 actions, 0 skipped, and the first user's metadata unchanged afterwards.
+
+`tsc --noEmit` clean; `lint` unchanged at 77 problems (27 errors, 50 warnings),
+all pre-existing; `build` succeeds.
+
+### Notes for whoever picks this up
+- Users who imported under Phase 50 or 50b need to re-import. Until then they get
+  the warning banner, and a Phase 50b user whose `ra` exists but predates the
+  label briefly renders `• [] <RHK>`. The `{{#else}}` fallback deliberately does
+  not cover that case: `ra` is non-empty, and suppressing a real list because one
+  field is missing would hide data instead of a gap. There is no backfill -- the
+  source HTML for the affected users is not in the repo.
+- Still open, untouched here: the XLSX e-TPP parser never populates
+  `kodeSumber`, so an `ekinerja-json` import type configured with `format: xlsx`
+  drops every row (the seeded type is `html`); the "1." / "2." section numbers
+  can skip 1 when `rhk_lainnya` is empty; and from the Phase 50 review,
+  `settings.value` is `.notNull()` while the route can write `null`,
+  `workers/etpp-notification.ts` defines `DEFAULT_TIMEZONE` but never passes it
+  to `cron.schedule`, and `perangkatDaerah` is extracted but never persisted.
+
+---
+
 ## Environment Variables
 
 ```bash

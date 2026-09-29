@@ -2,17 +2,27 @@
  * The e-TPP reminder message, shared by the template editor and any test that
  * needs to render the exact text users will receive.
  *
- * Three rules shape the block markup:
+ * Four rules shape the block markup:
  *
- * 1. The heading lives *inside* the `{{#if}}`. With it outside, a user whose
- *    list is empty still receives a bare "1. Target Rencana Hasil Kerja (RHK)
- *    Lainnya:" with nothing under it.
- * 2. The guard tests `.length`, never the variable itself. `isTruthy` in
- *    `lib/template-engine.ts` returns true for an empty array, so `{{#if ra}}`
- *    would always render the section.
- * 3. `ra` is nested -- each group carries its own `rhk` with the `aksi` beneath
- *    it -- so the loops nest. `{{#each ra}}` yields the group, `{{#each aksi}}`
- *    yields its actions. A flat list would repeat the RHK once per action.
+ * 1. `{{#if ra.length}}` guards the list, and `.length` is not optional:
+ *    `isTruthy` in `lib/template-engine.ts` returns true for an empty array, so
+ *    a bare `{{#if ra}}` would render the section for a user with nothing in it.
+ * 2. `{{#else}}` carries an instruction, not an apology. A user whose metadata
+ *    predates the nested-`ra` shape has no `ra` key at all, so the loop would
+ *    otherwise ship a section heading with nothing under it -- the exact failure
+ *    that `ETPP_META_VERSION` exists to surface. Telling them to re-import
+ *    turns an empty message into a recoverable one.
+ * 3. The RA heading sits *outside* the guard. Both branches produce content, so
+ *    nothing is left bare, and the section still names itself for a user who
+ *    only sees the re-import notice.
+ * 4. `ra` is nested -- each group carries its own `kode_sumber` and `rhk` with
+ *    the `aksi` beneath it -- so the loops nest. `{{#each ra}}` yields the
+ *    group, `{{#each aksi}}` yields its actions. A flat list would repeat the
+ *    RHK once per action.
+ *
+ * Every `{{#if}}` / `{{#each}}` closes on the same line as its body: a closing
+ * tag on its own line leaves a literal newline behind and WhatsApp renders it as
+ * a blank line.
  *
  * `{{bulan_ini}}` is resolved at send time, not from the user's metadata; see
  * `formatBulanIni` in `lib/imports/variables.ts`.
@@ -28,10 +38,10 @@ Ini adalah pesan otomatis dari SI-MPOK NORI Kecamatan Palmerah. Memasuki bulan {
 {{#if rhk_lainnya.length}}1. Target Rencana Hasil Kerja (RHK) Lainnya:
 {{#each rhk_lainnya}}{{@number}}. {{this}}
 {{/each}}{{/if}}
-{{#if ra.length}}2. Target Rencana Aksi (RA) dari RHK IKU dan RHK Lainnya:
-{{#each ra}}• {{rhk}}
-{{#each aksi}}   {{this}}
-{{/each}}{{/each}}{{/if}}
+2. Target Rencana Aksi (RA) dari RHK IKU dan RHK Lainnya:
+{{#if ra.length}}{{#each ra}}• [{{kode_sumber}}] {{rhk}}
+{{#each aksi}}   - {{this}}
+{{/each}}{{/each}}{{#else}}⚠️ Silakan import ulang data kinerja Anda untuk melihat Rencana Aksi.{{/if}}
 ⚠️ PERINGATAN PENTING:
 Mohon untuk mulai mempersiapkan pelaksanaan tugas dan dokumen pendukungnya sejak awal periode agar tidak menumpuk di akhir bulan.
 
@@ -62,7 +72,7 @@ export const ETPP_BLOCKS: EtppBlock[] = [
   {
     key: "ra",
     label: "raBlock",
-    body: "{{#if ra.length}}2. Target Rencana Aksi (RA) dari RHK IKU dan RHK Lainnya:\n{{#each ra}}• {{rhk}}\n{{#each aksi}}   {{this}}\n{{/each}}{{/each}}{{/if}}",
+    body: "2. Target Rencana Aksi (RA) dari RHK IKU dan RHK Lainnya:\n{{#if ra.length}}{{#each ra}}• [{{kode_sumber}}] {{rhk}}\n{{#each aksi}}   - {{this}}\n{{/each}}{{/each}}{{#else}}⚠️ Silakan import ulang data kinerja Anda untuk melihat Rencana Aksi.{{/if}}",
   },
   {
     key: "periode",
