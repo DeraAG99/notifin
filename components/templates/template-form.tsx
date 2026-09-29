@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -26,8 +26,11 @@ import {
   X,
   Eye,
   Pencil,
+  Wand2,
 } from "lucide-react";
 import { ImportVariablesPicker } from "@/components/imports/import-variables-picker";
+import { ETPP_BLOCKS, ETPP_PRESET } from "@/lib/templates/etpp-preset";
+import { templateEngine } from "@/lib/template-engine";
 import type { NotificationTemplate } from "@/types";
 
 interface TemplateFormProps {
@@ -35,7 +38,34 @@ interface TemplateFormProps {
   onSuccess: () => void;
 }
 
-const AVAILABLE_VARIABLES = ["name", "email", "phone", "jabatan", "unitKerja", "bulan_ini", "triwulan_ini", "rhk_iku", "rhk_lainnya", "amount", "date", "message", "company"];
+interface VariableGroup {
+  key: "user" | "etpp" | "common";
+  description?: "etppHint";
+  variables: string[];
+}
+
+/** Loop/conditional keywords that appear inside `{{ }}` but name no variable. */
+const BLOCK_TAGS = new Set(["each", "if", "else", "endif", "endeach"]);
+
+/** Variables whose value is a list, so the sample editor uses a textarea shape. */
+const LIST_VARIABLES = new Set(["rhk_iku", "rhk_lainnya", "ra"]);
+
+const VARIABLE_GROUPS: VariableGroup[] = [
+  {
+    key: "user",
+    variables: ["name", "jabatan", "unitKerja", "email", "phone"],
+  },
+  {
+    key: "etpp",
+    description: "etppHint",
+    variables: ["bulan_ini", "triwulan_ini", "rhk_iku", "rhk_lainnya", "ra"],
+  },
+  {
+    key: "common",
+    variables: ["amount", "date", "message", "company"],
+  },
+];
+
 
 export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
   const { t, tx } = useI18n();
@@ -48,14 +78,49 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
   const [loading, setLoading] = useState(false);
 
   const detectedVariables = useMemo(() => {
-    const matches = contentText.match(/\{\{([\w.]+)\}\}/g);
+    // Must understand block tags, not just `{{name}}`. With a plain `[\w.]+`
+    // pattern the variables inside `{{#each ra}}` / `{{#if ra.length}}` went
+    // undetected, so the sample data never got the list and every block
+    // previewed as empty -- the exact template that looks broken in the editor
+    // but then sends fine in production.
+    const matches = contentText.match(/\{\{([\s\S]*?)\}\}/g);
     if (!matches) return [];
-    return [...new Set(matches.map((v) => v.replace(/\{\{|\}\}/g, "")))];
+    const vars = new Set<string>();
+    for (const match of matches) {
+      const inner = match.slice(2, -2).trim();
+      const token = inner.replace(/^[#/]/, "").split(/\s+/)[0];
+      if (!token) continue;
+      if (token === "this" || token.startsWith("@")) continue;
+      if (BLOCK_TAGS.has(token)) continue;
+      // `#if ra.length` guards a list; the sample data key is the list itself.
+      vars.add(token.endsWith(".length") ? token.slice(0, -7) : token);
+    }
+    return [...vars];
   }, [contentText]);
 
-  const getDefaultSampleData = useCallback((vars: string[]): Record<string, string> => {
+  /**
+   * Drop a variable everywhere it appears. Simple tags are a literal replace;
+   * a variable used as a loop still has its wrapper removed, otherwise the
+   * leftover `{{#each}}` body would render as raw text.
+   */
+  const removeVariable = useCallback((variable: string) => {
+    setContentText((prev) =>
+      prev
+        .replace(
+          new RegExp(`\\{\\{#each ${variable}\\}\\}[\\s\\S]*?\\{\\{/each\\}\\}`, "g"),
+          ""
+        )
+        .replace(
+          new RegExp(`\\{\\{#if ${variable}\\.length\\}\\}[\\s\\S]*?\\{\\{/if\\}\\}`, "g"),
+          ""
+        )
+        .replaceAll(`{{${variable}}}`, "")
+    );
+  }, []);
+
+  const getDefaultSampleData = useCallback((vars: string[]): Record<string, unknown> => {
     const defaults = t.templates.form.sampleDataDefault;
-    const data: Record<string, string> = {};
+    const data: Record<string, unknown> = {};
     vars.forEach((v) => {
       switch (v) {
         case "name": data[v] = defaults.name; break;
@@ -67,13 +132,20 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
         case "date": data[v] = new Date().toLocaleDateString(); break;
         case "message": data[v] = defaults.message; break;
         case "company": data[v] = defaults.company; break;
+        case "bulan_ini": data[v] = defaults.bulan_ini || ""; break;
+        case "triwulan_ini": data[v] = defaults.triwulan_ini ?? 1; break;
+        // Lists stay arrays so `#each` and `.length` behave like they will in
+        // production; a string here would preview as one long run-on line.
+        case "rhk_iku": data[v] = defaults.rhk_iku || []; break;
+        case "rhk_lainnya": data[v] = defaults.rhk_lainnya || []; break;
+        case "ra": data[v] = defaults.ra || []; break;
         default: data[v] = `[${v}]`;
       }
     });
     return data;
   }, [t]);
 
-  const [sampleData, setSampleData] = useState<Record<string, string>>(() =>
+  const [sampleData, setSampleData] = useState<Record<string, unknown>>(() =>
     getDefaultSampleData(template?.variables || [])
   );
 
@@ -82,7 +154,7 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
       const updated = { ...prev };
       detectedVariables.forEach((v) => {
         if (!(v in updated)) {
-          updated[v] = getDefaultSampleData([v])[v] || "";
+          updated[v] = getDefaultSampleData([v])[v] ?? "";
         }
       });
       Object.keys(updated).forEach((k) => {
@@ -94,13 +166,18 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
     });
   }, [detectedVariables, getDefaultSampleData]);
 
-  const renderedPreview = useMemo(() => {
-    let text = contentText;
-    Object.entries(sampleData).forEach(([key, value]) => {
-      text = text.replaceAll(`{{${key}}}`, value);
-    });
-    return text;
-  }, [contentText, sampleData]);
+  // Render through the real engine so `#each` / `#if` / `@number` preview the
+  // same way the notification worker will. A plain `replaceAll` left the loop
+  // tags visible in the preview and hid the fact that a block was malformed.
+  const renderedPreview = useMemo(
+    () => templateEngine.preview(contentText, sampleData),
+    [contentText, sampleData]
+  );
+
+  const renderedSubject = useMemo(
+    () => templateEngine.preview(subject, sampleData),
+    [subject, sampleData]
+  );
 
   const insertVariable = useCallback((variable: string) => {
     const insertText = variable.includes("{{") ? variable : `{{${variable}}}`;
@@ -253,9 +330,7 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
                     {`{{${v}}}`}
                     <button
                       type="button"
-                      onClick={() => {
-                        setContentText(contentText.replaceAll(`{{${v}}}`, ""));
-                      }}
+                      onClick={() => removeVariable(v)}
                       className="ml-1 hover:text-destructive"
                     >
                       <X className="h-3 w-3" />
@@ -266,21 +341,77 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
                 <span className="text-xs text-muted-foreground">{t.templates.form.noVariables}</span>
               )}
             </div>
-            <div className="flex flex-wrap gap-1 mt-1">
-              <span className="text-xs text-muted-foreground mr-1">{t.templates.form.insert}</span>
-              {AVAILABLE_VARIABLES.filter((v) => !detectedVariables.includes(v)).map((v) => (
+
+            {/* e-TPP preset: fills the whole message with a working template */}
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+              <Label className="text-xs">{t.templates.form.etppPresetTitle}</Label>
+              <p className="text-[11px] text-muted-foreground">
+                {t.templates.form.etppPresetHint}
+              </p>
+              <div className="flex flex-wrap gap-1">
                 <Button
-                  key={v}
                   type="button"
                   variant="outline"
                   size="sm"
                   className="h-6 text-xs"
-                  onClick={() => insertVariable(v)}
+                  onClick={() => setContentText(ETPP_PRESET)}
                 >
-                  <Plus className="h-3 w-3 mr-1" />
-                  {`{{${v}}}`}
+                  <Wand2 className="h-3 w-3 mr-1" />
+                  {t.templates.form.etppPresetButton}
                 </Button>
-              ))}
+                {ETPP_BLOCKS.map((b) => (
+                  <Button
+                    key={b.key}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-6 text-xs"
+                    onClick={() => insertVariable(b.body)}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    {tx("templates.form.etppBlock", { label: t.templates.form.blocks[b.label] })}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Variable chips, grouped so the e-TPP ones are findable */}
+            <div className="space-y-2">
+              {VARIABLE_GROUPS.map((group) => {
+                const available = group.variables.filter(
+                  (v) => !detectedVariables.includes(v)
+                );
+                if (available.length === 0) return null;
+                return (
+                  <div key={group.key} className="space-y-1">
+                    <div className="text-[10px] text-muted-foreground">
+                      {tx("templates.form.variableGroup", {
+                        group: t.templates.form.groups[group.key],
+                      })}
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {available.map((v) => (
+                        <Button
+                          key={v}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-6 font-mono text-xs"
+                          onClick={() => insertVariable(v)}
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          {`{{${v}}}`}
+                        </Button>
+                      ))}
+                    </div>
+                    {group.description && (
+                      <p className="text-[11px] text-muted-foreground">
+                        {t.templates.form[group.description]}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
             <p className="text-xs text-muted-foreground">
               {t.templates.form.variableHint}
@@ -342,10 +473,7 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
                 </CardTitle>
                 {channel !== "wa" && subject && (
                   <Badge variant="outline" className="text-xs">
-                    {t.templates.form.emailSubject}: {Object.entries(sampleData).reduce(
-                      (s, [k, v]) => s.replaceAll(`{{${k}}}`, v),
-                      subject
-                    )}
+                    {t.templates.form.emailSubject}: {renderedSubject}
                   </Badge>
                 )}
               </div>
@@ -379,8 +507,19 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
                         {`{{${v}}}`}
                       </code>
                       <Input
-                        value={sampleData[v] || ""}
-                        onChange={(e) => setSampleData((prev) => ({ ...prev, [v]: e.target.value }))}
+                        value={Array.isArray(sampleData[v])
+                          ? sampleData[v].join("\n")
+                          : ((sampleData[v] as string) ?? "")}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          // Lists are edited one item per line and stored back
+                          // as an array so `#each` sees the right shape.
+                          const isList = Array.isArray(sampleData[v]) || v in LIST_VARIABLES;
+                          const value = isList
+                            ? raw.split("\n").map((s) => s.trim()).filter(Boolean)
+                            : raw;
+                          setSampleData((prev) => ({ ...prev, [v]: value }));
+                        }}
                         placeholder={v}
                         className="h-8 text-sm"
                       />

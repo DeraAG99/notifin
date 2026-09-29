@@ -1668,6 +1668,64 @@ PHASES.md (this update)
 
 ---
 
+## Phase 50 - Template e-TPP: RHK IKU vs RHK Lainnya, kirim tanggal 5 & 25
+
+### Problem
+Phase 49 shipped a working cron, but every part of it that the user actually notices was wrong:
+
+- The lists were populated from `intervensi`, which is the *program* name. In the real export it is byte-identical for the IKU and Lainnya rows, so the split carried no information at all. The field that differs is `rencanaHasilKerja`.
+- `rencanaAksi` — the "Rencana Aksi" section the message asks for — was never extracted.
+- The cron was `0 8 * * *`: every day, not the 5th and 25th.
+- The message body was a hardcoded `DEFAULT_TEMPLATE`, so a template edited in the admin panel was silently ignored.
+- WhatsApp only, though the requirement is both channels.
+- `metadata.rkh_lainnya` was a typo, so `rhk_lainnya` always rendered as an empty list.
+- The send loop queried every admin's users in one pass with no tenant scoping.
+
+Separately, the template editor made these templates painful to build: chips were one flat list, and the live preview used a naive `replaceAll`, so a message containing `{{#each}}` previewed as literal `{{this}}`.
+
+### What changed
+- **`lib/users/etpp-extract.ts`** — rewritten.
+  - `rhk_iku` and `rhk_lainnya` now come from `rencanaHasilKerja`, split on `kode_sumber`.
+  - `ra` is a new list built from `rencanaAksi` across every row, so the message can number them continuously under one heading instead of restarting at each subset.
+  - `kode_sumber` is matched exactly against the two tokens e-TPP actually emits (`"iku"`, `"other"`). The previous `""` → IKU guess is gone; a missing code now falls to Lainnya.
+  - Whitespace is collapsed. These cells are multi-line in the export, and left alone they render as ragged gaps inside a numbered WhatsApp list.
+- **`lib/templates/etpp-preset.ts`** (new) — the message text and the four insertable blocks, in one place shared by the editor and the verification script. Two rules are encoded here:
+  - The section heading lives *inside* the `{{#if}}`. Outside it, a user with an empty list still gets a bare "1. Target Rencana Hasil Kerja (RHK) Lainnya:" and nothing under it.
+  - The guard is `.length`, never the variable. `isTruthy` in `lib/template-engine.ts` returns true for an empty array, so `{{#if ra}}` would always render.
+- **`components/templates/template-form.tsx`** — chips grouped (Data Pegawai / e-TPP / Umum), a "Pakai Template e-TPP" preset button, per-section block-insert buttons, and a live preview that runs through `templateEngine.preview` so `#each`, `#if` and `@number` render exactly as the worker will render them. Variable detection now parses block tags, so variables inside `{{#each ra}}` are found and the sample editor can populate them; list-valued variables are edited one item per line.
+- **`app/api/users/[id]/imports/route.ts`** — the e-TPP metadata is returned as `metadata`; the jabatan/unit-keras payload moved to `profile` (it was overwriting the metadata slot).
+- **`workers/etpp-notification.ts`** (renamed from `etpp-daily.ts`, which no longer described it) — cron is `0 8 5,25 * *`; the template is read from `settings` key `etpp.templateId` per admin instead of a hardcoded string; each admin is handled under its own tenant with `isAdminActive` checked; variables come from `resolveImportVars`; channels follow `template.channel` the way `lib/scheduler.ts` already does; the send marker is a full `YYYY-MM-DD` rather than a day-of-month, which previously skipped the 5th of the following month; users missing a phone or email are skipped rather than queued into a guaranteed failure.
+- **`app/api/settings/etpp-template/route.ts`** (new) — get/set the configured template, rejecting ids owned by another tenant.
+- **`app/(dashboard)/settings/page.tsx`** — a card to pick the e-TPP template.
+- **`app/(dashboard)/schedules/page.tsx`** — a "Tanggal 5 & 25" cron preset. `describeCron` already renders it as "Setiap tanggal 5, 25 pukul 08:00".
+
+### What the e-TPP export does not contain
+Verified by searching `docs/Data Kinerja Saya _ e-TPP.html`: Dialog Kinerja (6 hits) and Penilaian Perilaku (30 hits) appear only as navigation markup and preloaded JS, and e-Monev does not appear at all. Those are separate pages in the e-TPP application. The message template therefore covers only the target table, and the reminder was reduced to the two sections the data can actually fill.
+
+### Files Created/Modified
+```
+lib/users/etpp-extract.ts (rewritten)
+lib/templates/etpp-preset.ts (new)
+workers/etpp-notification.ts (renamed from workers/etpp-daily.ts, rewritten)
+workers/scheduler-worker.ts
+components/templates/template-form.tsx
+app/api/users/[id]/imports/route.ts
+app/api/settings/etpp-template/route.ts (new)
+app/(dashboard)/settings/page.tsx
+app/(dashboard)/schedules/page.tsx
+lib/i18n/id.json, lib/i18n/en.json
+```
+
+### Verification
+- `bunx tsc --noEmit` — clean.
+- `bun run lint` — 78 problems (27 errors / 51 warnings), identical to the pre-phase baseline; the two new-file warnings found on the first pass were removed.
+- `bun run build` — succeeds.
+- **Extractor and render (22 assertions, all passing)** against `docs/Data Kinerja Saya _ e-TPP.html`: 12 items, 0 errors, 1 IKU and 2 Lainnya RHK entries, 6 action plans; every list value traces back to its source field; the IKU list contains only `iku` rows and the Lainnya list only `other` rows; no embedded newlines survive; a row with no `kode_sumber` lands in Lainnya; the preset renders with no unreplaced tags, each heading exactly once, and action plans numbered 1–6 continuously; empty lists collapse both headings while keeping the warning; all four insertable blocks render standalone and collapse when empty.
+- The rendered message was compared against the requested wording field by field.
+- Existing users who imported e-TPP before this change hold `intervensi`-based metadata and need to re-import once; no backfill script was written for that.
+
+---
+
 ## Environment Variables
 
 ```bash

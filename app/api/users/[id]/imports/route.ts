@@ -139,6 +139,7 @@ export async function POST(
     const overwrite = validated.overwriteProfile === true;
     const profileApplied = { jabatan: false, unitKerja: false };
     let profileAppliedData: { jabatan?: string; unitKerja?: string } | undefined;
+    let appliedMetadata: Record<string, unknown> | null = null;
 
     let profilePayload: { jabatan?: string; unitKerja?: string } | undefined;
     if (profile) {
@@ -175,8 +176,9 @@ export async function POST(
       if (type.engine === "ekinerja-json" && items.length > 0) {
         const etppMeta = extractEtppMetadata(items);
         const existingMeta = (user.metadata as Record<string, unknown>) || {};
-        userPatch.metadata = { ...existingMeta, ...etppMeta };
-        profileAppliedData = profilePayload;
+        const mergedMeta = { ...existingMeta, ...etppMeta };
+        userPatch.metadata = mergedMeta;
+        appliedMetadata = etppMeta;
       }
 
       if (Object.keys(userPatch).length > 0) {
@@ -216,7 +218,8 @@ export async function POST(
         data: imported,
         profileApplied,
         message: `Data "${category.name}" berhasil diimpor (${items.length} item).${profileNotice}${etppMetadataNotice}`,
-        metadata: profileAppliedData || null,
+        metadata: appliedMetadata,
+        profile: profileAppliedData || null,
       },
       { status: 201 }
     );

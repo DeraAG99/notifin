@@ -53,6 +53,7 @@ export default function SchedulesPage() {
     { label: t.schedules.presets.startOfMonth, value: "0 9 1 * *" },
     { label: t.schedules.presets.endOfMonth, value: "0 9 L * *" },
     { label: t.schedules.presets.startEndOfMonth, value: "0 9 1,L * *" },
+    { label: t.schedules.presets.fifthTwentyFifth, value: "0 8 5,25 * *" },
   ];
 
   const cronCheck = useMemo(() => validateCron(cronExpression), [cronExpression]);

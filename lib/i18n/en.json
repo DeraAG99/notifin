@@ -225,7 +225,7 @@
   },
   "importCategories": {
     "title": "Import Categories",
-    "description": "Manage reusable labels for imported data sets (used by templates)",
+    "description": "Description",
     "addCategory": "Add Category",
     "editCategory": "Edit Category",
     "deleteCategory": "Delete Category",
@@ -234,7 +234,6 @@
     "key": "Key",
     "name": "Name",
     "namePlaceholder": "e.g. Monev Kegiatan",
-    "description": "Description",
     "descriptionPlaceholder": "Optional",
     "keyImmutable": "Key cannot be changed after creation.",
     "active": "Active",
@@ -353,7 +352,36 @@
         "amount": "Rp 150,000",
         "date": "Today's date",
         "message": "Your order is being processed",
-        "company": "SI-MPOK NORI"
+        "company": "SI-MPOK NORI",
+        "bulan_ini": "September 2026",
+        "triwulan_ini": 3,
+        "rhk_iku": [
+          "Implementation of SKPD financial administration"
+        ],
+        "rhk_lainnya": [
+          "Preparation of financial management reports"
+        ],
+        "ra": [
+          "Compile the September financial report",
+          "Verify financial administration documents"
+        ]
+      },
+      "variableGroup": "{group} variables",
+      "groups": {
+        "user": "Employee",
+        "etpp": "e-TPP",
+        "common": "General"
+      },
+      "etppHint": "Available once a user imports their e-TPP file. Fields: {{rhk_lainnya}}, {{rhk_iku}}, {{ra}}.",
+      "etppPresetTitle": "Ready-to-use e-TPP template",
+      "etppPresetHint": "Fill the message with the performance target reminder. You can edit it afterwards.",
+      "etppPresetButton": "Use e-TPP Template",
+      "etppBlock": "Insert: {label}",
+      "blocks": {
+        "rhkLainnyaBlock": "RHK Lainnya list",
+        "rhkIkuBlock": "RHK IKU list",
+        "raBlock": "Action Plan list",
+        "periodeBlock": "Month & Quarter"
       }
     },
     "testSend": {
@@ -439,13 +467,14 @@
       "cancel": "Cancel"
     },
     "presets": {
-    "everyMinute": "Every minute",
-    "everyHour": "Every hour",
-    "daily9am": "Daily at 9 AM",
-    "weeklyMonday": "Weekly (Monday)",
-    "startOfMonth": "Start of month",
-    "endOfMonth": "End of month",
-    "startEndOfMonth": "Start & end of month"
+      "everyMinute": "Every minute",
+      "everyHour": "Every hour",
+      "daily9am": "Daily at 9 AM",
+      "weeklyMonday": "Weekly (Monday)",
+      "startOfMonth": "Start of month",
+      "endOfMonth": "End of month",
+      "startEndOfMonth": "Start & end of month",
+      "fifthTwentyFifth": "5th & 25th (e-TPP)"
     }
   },
   "logs": {
@@ -493,7 +522,7 @@
     "emailProvider": "Email Provider",
     "emailProviderSmtp": "SMTP (own)",
     "emailProviderResend": "SI-MPOK NORI Platform",
-      "resendInfo": "Emails are sent through the SI-MPOK NORI platform email service. The sender address is managed by the platform; only the From Name is configurable.",
+    "resendInfo": "Emails are sent through the SI-MPOK NORI platform email service. The sender address is managed by the platform; only the From Name is configurable.",
     "smtpSecureSsl": "SSL/TLS (implicit)",
     "smtpSecureStarttls": "STARTTLS",
     "smtpSecureNone": "None (plain)",

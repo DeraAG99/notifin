@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, XCircle, Save, MessageSquare, Globe, Smartphone, AlertTriangle, Lock, RefreshCw, PhoneOff } from "lucide-react";
+import { CheckCircle, XCircle, Save, MessageSquare, Globe, Smartphone, AlertTriangle, Lock, RefreshCw, PhoneOff, CalendarClock } from "lucide-react";
 import { useI18n } from "@/lib/i18n/context";
 import { useAuth } from "@/lib/auth/context";
 import { TIMEZONE_OPTIONS } from "@/lib/timezones";
@@ -81,6 +81,31 @@ export default function SettingsPage() {
   const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "" });
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState("");
+  const [etppTemplates, setEtppTemplates] = useState<{ id: string; name: string; channel: string }[]>([]);
+  const [etppTemplateId, setEtppTemplateId] = useState<string>("");
+  const [etppSaving, setEtppSaving] = useState(false);
+
+  async function saveEtppTemplate(templateId: string | null) {
+    setEtppSaving(true);
+    try {
+      const res = await fetch("/api/settings/etpp-template", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEtppTemplateId(templateId ?? "");
+        setMessage(data.message || "");
+      } else {
+        setMessage(data.error || "Gagal menyimpan template e-TPP.");
+      }
+    } catch {
+      setMessage("Gagal menyimpan template e-TPP.");
+    } finally {
+      setEtppSaving(false);
+    }
+  }
 
   async function fetchSettings() {
     try {
@@ -125,6 +150,28 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetchSettings();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [listRes, settingRes] = await Promise.all([
+          fetch("/api/templates"),
+          fetch("/api/settings/etpp-template"),
+        ]);
+        const list = await listRes.json();
+        const setting = await settingRes.json();
+        if (cancelled) return;
+        if (list.success) setEtppTemplates(list.data || []);
+        if (setting.success) setEtppTemplateId(setting.data.templateId || "");
+      } catch (error) {
+        console.error("Gagal memuat template e-TPP:", error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -701,6 +748,49 @@ export default function SettingsPage() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarClock className="h-5 w-5" />
+            Notifikasi e-TPP Otomatis
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Template yang dikirim</Label>
+            <Select
+              value={etppTemplateId || "none"}
+              onValueChange={(v) => saveEtppTemplate(v === "none" ? null : v)}
+              disabled={etppSaving}
+            >
+              <SelectTrigger className="w-full">
+                <span>
+                  {etppTemplateId
+                    ? etppTemplates.find((t) => t.id === etppTemplateId)?.name ||
+                      etppTemplateId
+                    : "Nonaktif"}
+                </span>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nonaktif</SelectItem>
+                {etppTemplates.map((tpl) => (
+                  <SelectItem key={tpl.id} value={tpl.id}>
+                    {tpl.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Mengirim otomatis setiap tanggal 5 dan 25 pukul 08:00 ke semua user aktif
+              yang sudah import data e-TPP. Channel mengikuti template (WhatsApp, Email,
+              atau keduanya). Data Dialog Kinerja, Penilaian Perilaku, dan e-Monev tidak
+              tersedia di file e-TPP, jadi template hanya bisa mengisi target RHK dan
+              Rencana Aksi.
+            </p>
           </div>
         </CardContent>
       </Card>

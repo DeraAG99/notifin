@@ -225,7 +225,7 @@
   },
   "importCategories": {
     "title": "Kategori Import",
-    "description": "Kelola label reusable untuk kumpulan data import (dipakai template)",
+    "description": "Deskripsi",
     "addCategory": "Tambah Kategori",
     "editCategory": "Edit Kategori",
     "deleteCategory": "Hapus Kategori",
@@ -234,7 +234,6 @@
     "key": "Key",
     "name": "Nama",
     "namePlaceholder": "mis. Monev Kegiatan",
-    "description": "Deskripsi",
     "descriptionPlaceholder": "Opsional",
     "keyImmutable": "Key tidak bisa diubah setelah dibuat.",
     "active": "Aktif",
@@ -353,7 +352,36 @@
         "amount": "Rp 150.000",
         "date": "Tanggal hari ini",
         "message": "Pesanan Anda sedang diproses",
-        "company": "SI-MPOK NORI"
+        "company": "SI-MPOK NORI",
+        "bulan_ini": "September 2026",
+        "triwulan_ini": 3,
+        "rhk_iku": [
+          "Terlaksananya Penatausahaan Keuangan SKPD"
+        ],
+        "rhk_lainnya": [
+          "Terlaksananya penyusunan Laporan pengelolaan Keuangan"
+        ],
+        "ra": [
+          "Menyusun laporan keuangan bulan September",
+          "Memverifikasi dokumen penatausahaan"
+        ]
+      },
+      "variableGroup": "Variabel {group}",
+      "groups": {
+        "user": "Data Pegawai",
+        "etpp": "Data e-TPP",
+        "common": "Umum"
+      },
+        "etppHint": "Tersedia setelah user import file e-TPP. Isi: {{rhk_lainnya}}, {{rhk_iku}}, {{ra}}.",
+      "etppPresetTitle": "Template e-TPP siap pakai",
+      "etppPresetHint": "Isi pesan dengan template pengingat target kinerja. Bisa diedit setelahnya.",
+      "etppPresetButton": "Pakai Template e-TPP",
+      "etppBlock": "Sisipkan: {label}",
+      "blocks": {
+        "rhkLainnyaBlock": "Daftar RHK Lainnya",
+        "rhkIkuBlock": "Daftar RHK IKU",
+        "raBlock": "Daftar Rencana Aksi",
+        "periodeBlock": "Bulan & Triwulan"
       }
     },
     "testSend": {
@@ -439,13 +467,14 @@
       "cancel": "Batal"
     },
     "presets": {
-    "everyMinute": "Setiap menit",
-    "everyHour": "Setiap jam",
-    "daily9am": "Harian jam 9 pagi",
-    "weeklyMonday": "Mingguan (Senin)",
-    "startOfMonth": "Awal bulan",
-    "endOfMonth": "Akhir bulan",
-    "startEndOfMonth": "Awal & akhir bulan"
+      "everyMinute": "Setiap menit",
+      "everyHour": "Setiap jam",
+      "daily9am": "Harian jam 9 pagi",
+      "weeklyMonday": "Mingguan (Senin)",
+      "startOfMonth": "Awal bulan",
+      "endOfMonth": "Akhir bulan",
+      "startEndOfMonth": "Awal & akhir bulan",
+      "fifthTwentyFifth": "Tanggal 5 & 25 (e-TPP)"
     }
   },
   "logs": {
