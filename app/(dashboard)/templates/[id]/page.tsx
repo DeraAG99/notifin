@@ -7,8 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -33,14 +31,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
-import { TiptapEditor } from "@/components/ui/tiptap-editor";
 import { useI18n } from "@/lib/i18n/context";
 import {
   ArrowLeft, Send, Clock, ScrollText, MessageSquare, Mail, Layers,
-  Pencil, Check, X, Eye, Copy, Trash2, Plus,
+  Pencil, X, Eye, Copy, Trash2, Plus,
 } from "lucide-react";
 import { TemplatePreview } from "@/components/templates/template-preview";
-import { ImportVariablesPicker } from "@/components/imports/import-variables-picker";
+import { TemplateForm } from "@/components/templates/template-form";
 import type { NotificationTemplate, NotificationSchedule, NotificationLog, User } from "@/types";
 
 export default function TemplateDetailPage() {
@@ -60,13 +57,12 @@ export default function TemplateDetailPage() {
   const [testVariables, setTestVariables] = useState<Array<{ key: string; value: string }>>([]);
 
   const [editing, setEditing] = useState(false);
-  const [editName, setEditName] = useState("");
-  const [editChannel, setEditChannel] = useState<"wa" | "email" | "both">("wa");
-  const [editSubject, setEditSubject] = useState("");
-  const [editContentText, setEditContentText] = useState("");
-  const [editContentHtml, setEditContentHtml] = useState("");
-  const [editIsActive, setEditIsActive] = useState(true);
-  const [saving, setSaving] = useState(false);
+
+  const loadTemplate = async () => {
+    const res = await fetch(`/api/templates/${params.id}`);
+    const data = await res.json();
+    if (data.success) setTemplate(data.data);
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -84,14 +80,7 @@ export default function TemplateDetailPage() {
       const usersData = await usersRes.json();
 
       if (templateData.success) {
-        const tmpl = templateData.data;
-        setTemplate(tmpl);
-        setEditName(tmpl.name);
-        setEditChannel(tmpl.channel);
-        setEditSubject(tmpl.subject || "");
-        setEditContentText(tmpl.content?.text || "");
-        setEditContentHtml(tmpl.content?.html || "");
-        setEditIsActive(tmpl.isActive ?? true);
+        setTemplate(templateData.data);
         if (searchParams.get("edit") === "true") {
           setEditing(true);
         }
@@ -102,69 +91,6 @@ export default function TemplateDetailPage() {
     }
     fetchData();
   }, [params.id]);
-
-  const startEditing = () => {
-    if (!template) return;
-    setEditName(template.name);
-    setEditChannel(template.channel);
-    setEditSubject(template.subject || "");
-    setEditContentText(template.content?.text || "");
-    setEditContentHtml(template.content?.html || "");
-    setEditIsActive(template.isActive ?? true);
-    setEditing(true);
-  };
-
-  const cancelEditing = () => {
-    setEditing(false);
-  };
-
-  const insertVariable = (variable: string) => {
-    const insertText = variable.includes("{{") ? variable : `{{${variable}}}`;
-    const textarea = document.getElementById("editContent") as HTMLTextAreaElement | null;
-    if (textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const next = editContentText.substring(0, start) + insertText + editContentText.substring(end);
-      setEditContentText(next);
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(start + insertText.length, start + insertText.length);
-      }, 0);
-    } else {
-      setEditContentText((prev) => prev + insertText);
-    }
-  };
-
-  const saveEditing = async () => {
-    if (!template) return;
-    setSaving(true);
-    const variables = editContentText.match(/\{\{([\w.]+)\}\}/g)?.map((v) => v.replace(/\{\{|\}\}/g, "")) || [];
-    try {
-      const res = await fetch(`/api/templates/${template.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: editName,
-          channel: editChannel,
-          subject: editChannel !== "wa" ? editSubject : null,
-          content: { text: editContentText, html: editContentHtml || undefined },
-          variables: [...new Set(variables)],
-          isActive: editIsActive,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setTemplate(data.data);
-        setEditing(false);
-        toast.add({ title: t.common.success, description: "Template berhasil diperbarui", type: "success" });
-      } else {
-        toast.add({ title: t.common.error, description: data.error || "Gagal menyimpan", type: "error" });
-      }
-    } catch {
-      toast.add({ title: t.common.error, description: "Gagal menyimpan template", type: "error" });
-    }
-    setSaving(false);
-  };
 
   const handleTestSend = async () => {
     if (!selectedUser || !template) return;
@@ -244,60 +170,25 @@ export default function TemplateDetailPage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1">
-          {editing ? (
-            <Input
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              className="text-2xl font-bold h-auto py-1"
-            />
-          ) : (
-            <h1 className="text-2xl font-bold">{template.name}</h1>
-          )}
+          <h1 className="text-2xl font-bold">{template.name}</h1>
           <div className="flex items-center gap-2 mt-1">
-            {editing ? (
-              <>
-                <Select value={editChannel} onValueChange={(v) => setEditChannel(v as "wa" | "email" | "both")}>
-                  <SelectTrigger className="w-[160px] h-7">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="wa"><span className="flex items-center gap-2"><MessageSquare className="h-3 w-3" /> WhatsApp</span></SelectItem>
-                    <SelectItem value="email"><span className="flex items-center gap-2"><Mail className="h-3 w-3" /> Email</span></SelectItem>
-                    <SelectItem value="both"><span className="flex items-center gap-2"><Layers className="h-3 w-3" /> {t.templates.channelLabel.both}</span></SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="flex items-center gap-2">
-                  <Switch checked={editIsActive} onCheckedChange={setEditIsActive} />
-                  <span className="text-sm">{editIsActive ? t.common.active : t.common.inactive}</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <Badge variant={template.channel === "both" ? "outline" : template.channel === "wa" ? "default" : "secondary"}>
-                  <ChannelIcon className="h-3 w-3 mr-1" />
-                  {channelLabel}
-                </Badge>
-                <Badge variant={template.isActive ? "default" : "secondary"}>
-                  {template.isActive ? t.common.active : t.common.inactive}
-                </Badge>
-              </>
-            )}
+            <Badge variant={template.channel === "both" ? "outline" : template.channel === "wa" ? "default" : "secondary"}>
+              <ChannelIcon className="h-3 w-3 mr-1" />
+              {channelLabel}
+            </Badge>
+            <Badge variant={template.isActive ? "default" : "secondary"}>
+              {template.isActive ? t.common.active : t.common.inactive}
+            </Badge>
           </div>
         </div>
         <div className="flex gap-2">
           {editing ? (
-            <>
-              <Button variant="outline" onClick={cancelEditing}>
-                <X className="h-4 w-4 mr-1" /> {t.common.cancel}
-              </Button>
-              <Button onClick={saveEditing} disabled={saving}>
-                <Check className="h-4 w-4 mr-1" />
-                {saving ? t.common.saving : t.common.save}
-              </Button>
-            </>
+            <Button variant="outline" onClick={() => setEditing(false)}>
+              <X className="h-4 w-4 mr-1" /> {t.common.cancel}
+            </Button>
           ) : (
             <>
-              <Button variant="outline" onClick={startEditing}>
+              <Button variant="outline" onClick={() => setEditing(true)}>
                 <Pencil className="h-4 w-4 mr-1" /> {t.common.edit}
               </Button>
               <Button variant="outline" onClick={() => setPreviewOpen(true)}>
@@ -315,6 +206,15 @@ export default function TemplateDetailPage() {
       </div>
 
       {/* Content Area */}
+      {editing ? (
+        <TemplateForm
+          template={template}
+          onSuccess={async () => {
+            setEditing(false);
+            await loadTemplate();
+          }}
+        />
+      ) : (
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Content */}
         <Card className="lg:col-span-2">
@@ -324,48 +224,7 @@ export default function TemplateDetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {editing ? (
-              <>
-                {editChannel !== "wa" && (
-                  <div className="space-y-2">
-                    <Label>{t.templates.form.emailSubject}</Label>
-                    <Input
-                      value={editSubject}
-                      onChange={(e) => setEditSubject(e.target.value)}
-                      placeholder={t.templates.form.emailSubjectPlaceholder}
-                    />
-                  </div>
-                )}
-                <div className="space-y-2">
-                  <Label>{t.templates.form.messageContent}</Label>
-                  <Textarea
-                    id="editContent"
-                    value={editContentText}
-                    onChange={(e) => setEditContentText(e.target.value)}
-                    rows={10}
-                    className="font-mono text-sm"
-                    placeholder={"Halo {{name}},\n\n" + t.templates.form.messagePlaceholder}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {"{{variabel}}"} untuk konten dinamis. Terdeteksi:{" "}
-                    {editContentText.match(/\{\{([\w.]+)\}\}/g)?.map((v) => v.replace(/\{\{|\}\}/g, "")).filter((v, i, a) => a.indexOf(v) === i).join(", ") || "tidak ada"}
-                  </p>
-                </div>
-                <ImportVariablesPicker onInsert={insertVariable} />
-                {editChannel !== "wa" && (
-                  <div className="space-y-2">
-                    <Label>{t.templates.form.htmlTemplate}</Label>
-                    <TiptapEditor
-                      content={editContentHtml}
-                      onChange={setEditContentHtml}
-                      placeholder={t.templates.form.htmlEditorPlaceholder}
-                    />
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                {template.subject && (
+            {template.subject && (
                   <div>
                     <Badge variant="outline" className="text-xs mb-2">{t.templates.form.emailSubject}</Badge>
                     <p className="text-sm font-medium bg-muted p-3 rounded-lg">{template.subject}</p>
@@ -376,20 +235,18 @@ export default function TemplateDetailPage() {
                     {template.content.text}
                   </div>
                 </div>
-                {template.content.html && (
-                  <div>
-                    <Badge variant="outline" className="text-xs mb-2">{t.templates.preview} HTML</Badge>
-                    <div
-                      className="border rounded-lg p-4 bg-white"
-                      dangerouslySetInnerHTML={{ __html: template.content.html }}
-                    />
-                  </div>
-                )}
-              </>
+            {template.content.html && (
+              <div>
+                <Badge variant="outline" className="text-xs mb-2">{t.templates.preview} HTML</Badge>
+                <div
+                  className="border rounded-lg p-4 bg-white"
+                  dangerouslySetInnerHTML={{ __html: template.content.html }}
+                />
+              </div>
             )}
 
             {/* Variables */}
-            {!editing && template.variables && template.variables.length > 0 && (
+            {template.variables && template.variables.length > 0 && (
               <div>
                 <p className="text-sm font-medium mb-2">{t.templates.variables}:</p>
                 <div className="flex gap-2 flex-wrap">
@@ -430,25 +287,23 @@ export default function TemplateDetailPage() {
           </Card>
 
           {/* Quick Actions */}
-          {!editing && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">{t.templates.quickActions}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => {
-                    navigator.clipboard.writeText(template.content.text);
-                    toast.add({ title: t.common.copied, description: t.templates.copyContent, type: "success" });
-                  }}
-                >
-                  <Copy className="h-4 w-4 mr-2" /> {t.templates.copyContent}
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">{t.templates.quickActions}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => {
+                  navigator.clipboard.writeText(template.content.text);
+                  toast.add({ title: t.common.copied, description: t.templates.copyContent, type: "success" });
+                }}
+              >
+                <Copy className="h-4 w-4 mr-2" /> {t.templates.copyContent}
+              </Button>
+            </CardContent>
+          </Card>
 
           {/* Schedules */}
           <Card>
@@ -516,6 +371,7 @@ export default function TemplateDetailPage() {
           </Card>
         </div>
       </div>
+      )}
 
       {/* Preview Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>

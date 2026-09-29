@@ -1698,6 +1698,7 @@ Separately, the template editor made these templates painful to build: chips wer
 - **`app/api/settings/etpp-template/route.ts`** (new) — get/set the configured template, rejecting ids owned by another tenant.
 - **`app/(dashboard)/settings/page.tsx`** — a card to pick the e-TPP template.
 - **`app/(dashboard)/schedules/page.tsx`** — a "Tanggal 5 & 25" cron preset. `describeCron` already renders it as "Setiap tanggal 5, 25 pukul 08:00".
+- **`app/(dashboard)/templates/[id]/page.tsx`** — the edit page had its own copy of the editor, so everything above applied to *creating* a template only. Its variable detection was the same blind `/\{\{([\w.]+)\}\}/g`, and it saved that same blind list to `variables`, so editing a template stripped `rhk_iku` / `rhk_lainnya` / `ra` out of the record — the list rendered on the detail page and the sample data both silently emptied. The inline editor is deleted; the page now renders the shared `TemplateForm` in edit mode (it already POSTs vs PUTs off the `template` prop), which is where the grouped chips, preset, block insert and live preview live. Editing and creating are now the same code path and cannot drift apart again. Net −90 lines.
 
 ### What the e-TPP export does not contain
 Verified by searching `docs/Data Kinerja Saya _ e-TPP.html`: Dialog Kinerja (6 hits) and Penilaian Perilaku (30 hits) appear only as navigation markup and preloaded JS, and e-Monev does not appear at all. Those are separate pages in the e-TPP application. The message template therefore covers only the target table, and the reminder was reduced to the two sections the data can actually fill.
@@ -1709,6 +1710,7 @@ lib/templates/etpp-preset.ts (new)
 workers/etpp-notification.ts (renamed from workers/etpp-daily.ts, rewritten)
 workers/scheduler-worker.ts
 components/templates/template-form.tsx
+app/(dashboard)/templates/[id]/page.tsx
 app/api/users/[id]/imports/route.ts
 app/api/settings/etpp-template/route.ts (new)
 app/(dashboard)/settings/page.tsx
@@ -1720,6 +1722,7 @@ lib/i18n/id.json, lib/i18n/en.json
 - `bunx tsc --noEmit` — clean.
 - `bun run lint` — 78 problems (27 errors / 51 warnings), identical to the pre-phase baseline; the two new-file warnings found on the first pass were removed.
 - `bun run build` — succeeds.
+- **Edit page (checked by reading the diff):** no second editor remains, so the e-TPP preset and block insert are reachable from *Edit* as well as *New*, and `variables` written by a PUT now comes from the block-aware detector instead of the regex.
 - **Extractor and render (22 assertions, all passing)** against `docs/Data Kinerja Saya _ e-TPP.html`: 12 items, 0 errors, 1 IKU and 2 Lainnya RHK entries, 6 action plans; every list value traces back to its source field; the IKU list contains only `iku` rows and the Lainnya list only `other` rows; no embedded newlines survive; a row with no `kode_sumber` lands in Lainnya; the preset renders with no unreplaced tags, each heading exactly once, and action plans numbered 1–6 continuously; empty lists collapse both headings while keeping the warning; all four insertable blocks render standalone and collapse when empty.
 - The rendered message was compared against the requested wording field by field.
 - Existing users who imported e-TPP before this change hold `intervensi`-based metadata and need to re-import once; no backfill script was written for that.
