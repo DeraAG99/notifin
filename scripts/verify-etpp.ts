@@ -19,6 +19,9 @@ import { ETPP_PRESET } from "../lib/templates/etpp-preset";
 import type { ImportItem } from "../lib/imports/types";
 
 const TW3 = new Date("2026-10-08T08:00:00+07:00");
+/** A date inside TW4, so `ra_output_tw` can be checked against a quarter that
+ *  is not the first one. Mid-month keeps it clear of month boundaries. */
+const TW4 = new Date("2026-11-15T08:00:00+07:00");
 const SCALARS = { name: "Preview", bulan_ini: "Oktober 2026", triwulan_ini: 3, dialog_periode: 2 };
 
 let failures = 0;
@@ -38,6 +41,7 @@ function structure(v: ReturnType<typeof extractEtppVariables>["variables"]) {
       g.output.map((o) => [o.kode, o.nama, o.triwulan]),
     ]),
     flat: v.ra_output,
+    flatTw: v.ra_output_tw,
   });
 }
 
@@ -117,6 +121,56 @@ for (const row of stored) {
   console.log(`\n  ${row.fileName} (${row.createdAt?.toISOString().slice(0, 10) ?? "unknown date"})${preChange ? " [pre-change]" : ""}`);
   console.log(`    ${rows.length} stored rows -> ${variables.rhk.length} RHK, ${variables.ra_output.length} outputs`);
   check(`    renders clean (${rendered.length} chars)`, !/\{\{[^}]+\}\}/.test(rendered));
+
+  // --- 4. ra_output vs ra_output_tw --------------------------------------
+  // `ra_output` keeps every quarter; `ra_output_tw` is the current quarter only.
+  // Both are checked per-quarter so a filter that happened to hardcode one
+  // quarter would fail rather than pass on a single date.
+  const perTw = [1, 2, 3, 4].map((tw) => {
+    const now = new Date(`2026-${String((tw - 1) * 3 + 2).padStart(2, "0")}-15T08:00:00+07:00`);
+    const v = extractEtppVariables(rows, now).variables;
+    return {
+      tw,
+      all: v.ra_output.length,
+      cur: v.ra_output_tw.length,
+      everyRowIsCurrent: v.ra_output_tw.every((r) => r.tw === tw),
+      hasBlankTarget: v.ra_output_tw.some((r) => r.target === "-" || r.target === ""),
+      hasBlankSatuan: v.ra_output_tw.some((r) => r.satuan === ""),
+      // every current-quarter row must also exist in the full list
+      subsetOfAll: v.ra_output_tw.every((r) => v.ra_output.includes(r)),
+    };
+  });
+
+  check(
+    "    ra_output_tw is only the quarter in progress",
+    perTw.every((r) => r.everyRowIsCurrent && r.subsetOfAll),
+    perTw.map((r) => `TW${r.tw}:${r.cur}/${r.all}`).join(" ")
+  );
+  check(
+    "    no placeholder targets or missing satuan in ra_output_tw",
+    perTw.every((r) => !r.hasBlankTarget && !r.hasBlankSatuan)
+  );
+  check(
+    "    every quarter contributes rows (not hardcoded to one quarter)",
+    perTw.every((r) => r.cur > 0)
+  );
+}
+
+// --- 5. ra_output_tw rendering --------------------------------------------
+console.log("\n=== ra_output_tw render ===");
+{
+  const rows = (stored[0]?.data ?? []) as ImportItem[];
+  const { variables } = extractEtppVariables(rows, TW4);
+  const tpl = `{{#if ra_output_tw.length}}{{#each ra_output_tw}}• _[{{kode_sumber}}] Output RA:_ {{output_ra}}
+   _Target TW{{tw}}:_ {{target}} {{satuan}}{{#if realisasi}} | _Realisasi:_ {{realisasi}}{{/if}}{{#if validasi}} | _Validasi:_ {{validasi}}{{/if}}
+{{/each}}{{#else}}⚠️ Belum ada output di triwulan ini.{{/if}}`;
+  const out = templateEngine.render(tpl, { ...variables, triwulan_ini: 4 });
+  console.log(out);
+  check(
+    "renders without leftover tags",
+    !/\{\{[^}]+\}\}/.test(out),
+    `${variables.ra_output_tw.length} rows, ${out.length} chars`
+  );
 }
 
 console.log(`\n${failures === 0 ? "ALL CHECKS PASSED" : `${failures} CHECK(S) FAILED`}`);

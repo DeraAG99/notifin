@@ -413,7 +413,11 @@
           }
         ],
         "ra_output": [
-          { "rhk": "Implementation of SKPD financial administration", "kode_sumber": "IKU", "output_ra": "SKPD Financial Administration Verification Documents", "target": "1 Document" }
+          { "rhk": "Implementation of SKPD financial administration", "kode_sumber": "IKU", "output_ra": "SKPD Financial Administration Verification Documents", "tw": 3, "target": "1", "satuan": "Document", "realisasi": null, "validasi": null },
+          { "rhk": "Implementation of SKPD financial administration", "kode_sumber": "IKU", "output_ra": "SKPD Financial Administration Verification Documents", "tw": 4, "target": "2", "satuan": "Document", "realisasi": "2", "validasi": "Validated" }
+        ],
+        "ra_output_tw": [
+          { "rhk": "Implementation of SKPD financial administration", "kode_sumber": "IKU", "output_ra": "SKPD Financial Administration Verification Documents", "tw": 3, "target": "1", "satuan": "Document", "realisasi": null, "validasi": null }
         ]
       },      "variableGroup": "{group} variables",
       "groups": {
@@ -421,7 +425,7 @@
         "etpp": "e-TPP",
         "common": "General"
       },
-      "etppHint": "Available once a user imports their e-TPP file. Fields: {{bulan_ini}}, {{triwulan_ini}}, {{dialog_periode}}, {{rhk_iku}}, {{rhk_lainnya}}, {{ra}}, {{ra_output}}. Nested inside {{ra}}: {{rhk}}, {{indikator}}, {{kode_sumber}}, {{target}}, {{#each aksi}} {{teks}} ({{kode}}) KK: {{kriteria_keberhasilan}}, {{#each output}} {{nama}} {{#each triwulan}} TW{{tw}}: {{target}} {{satuan}} {{/each}}. {{ra_output}} is flat: rhk, kode_sumber, output_ra, target.",
+      "etppHint": "Available once a user imports their e-TPP file. Fields: {{bulan_ini}}, {{triwulan_ini}}, {{dialog_periode}}, {{rhk_iku}}, {{rhk_lainnya}}, {{ra}}, {{ra_output}}, {{ra_output_tw}}. Nested inside {{ra}}: {{rhk}}, {{indikator}}, {{kode_sumber}}, {{target}}, {{#each aksi}} {{teks}} ({{kode}}) KK: {{kriteria_keberhasilan}}, {{#each output}} {{nama}} {{#each triwulan}} TW{{tw}}: {{target}} {{satuan}} {{/each}}. {{ra_output}} is flat, one row per Output per triwulan: rhk, kode_sumber, output_ra, tw, target, satuan, realisasi, validasi. {{ra_output_tw}} holds the same shape but only for the triwulan in progress.",
       "etppPresetTitle": "Ready-to-use e-TPP template",
       "etppPresetHint": "Fill the message with the performance target reminder. You can edit it afterwards.",
       "etppPresetButton": "Use e-TPP Template",

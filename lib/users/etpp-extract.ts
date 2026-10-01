@@ -54,14 +54,24 @@ export interface EtppRhk {
 }
 
 /**
- * Flat per-Output view, for templates that iterate Outputs instead of RHKs.
- * `target` is filled only for the triwulan in progress.
+ * Flat per-Output-per-triwulan view, for templates that iterate Outputs instead
+ * of RHKs. One row per (Output, triwulan) pair that the source actually filled
+ * in, so there are no placeholder rows: an Output carrying only a TW2 target
+ * appears in `ra_output` exactly once and never shows up in `ra_output_tw`
+ * during TW3.
+ *
+ * `target` and `satuan` are kept apart so a template can render them in its own
+ * format ("{{target}} {{satuan}}", "target TW{{tw}}: {{target}}", ...).
  */
 export interface EtppFlatRa {
   rhk: string;
   kode_sumber: KodeLabel;
   output_ra: string;
+  tw: number;
   target: string;
+  satuan: string;
+  realisasi: string | null;
+  validasi: string | null;
 }
 
 export interface EtppVariables {
@@ -69,7 +79,10 @@ export interface EtppVariables {
   rhk_iku: EtppRhk[];
   rhk_lainnya: EtppRhk[];
   ra: EtppRhk[];
+  /** Every Output/triwulan pair, all quarters. */
   ra_output: EtppFlatRa[];
+  /** Only the rows for the triwulan in progress. */
+  ra_output_tw: EtppFlatRa[];
 }
 
 export interface EtppExtraction {
@@ -206,22 +219,31 @@ export function extractEtppVariables(
   const rhkIku = rhk.filter((g) => g.kode_sumber === "IKU");
   const rhkLainnya = rhk.filter((g) => g.kode_sumber === "Lainnya");
 
+  // Flat view: one row per (Output, triwulan) the source filled in. Rows the
+  // e-TPP export left blank are skipped instead of being emitted as "-", so a
+  // template iterating `ra_output` never has to hide placeholders itself.
   const raOutput: EtppFlatRa[] = [];
   for (const group of rhk) {
     for (const output of group.output) {
-      const active = output.triwulan.find((t) => t.tw === currentTw);
-      const target =
-        active && active.target !== "-" && active.satuan
-          ? `${active.target} ${active.satuan}`
-          : "-";
-      raOutput.push({
-        rhk: group.rhk,
-        kode_sumber: group.kode_sumber,
-        output_ra: output.nama,
-        target,
-      });
+      for (const t of output.triwulan) {
+        if (t.target === "-" && !t.satuan && !t.realisasi && !t.validasi) {
+          continue;
+        }
+        raOutput.push({
+          rhk: group.rhk,
+          kode_sumber: group.kode_sumber,
+          output_ra: output.nama,
+          tw: t.tw,
+          target: t.target,
+          satuan: t.satuan,
+          realisasi: t.realisasi,
+          validasi: t.validasi,
+        });
+      }
     }
   }
+
+  const raOutputTw = raOutput.filter((r) => r.tw === currentTw);
 
   return {
     variables: {
@@ -230,6 +252,7 @@ export function extractEtppVariables(
       rhk_lainnya: rhkLainnya,
       ra: rhk,
       ra_output: raOutput,
+      ra_output_tw: raOutputTw,
     },
     skippedNoKode,
   };

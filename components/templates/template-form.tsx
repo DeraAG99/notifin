@@ -65,6 +65,7 @@ const LIST_VARIABLES = new Set(["rhk_iku", "rhk_lainnya"]);
 const NESTED_LIST_VARIABLES = new Set([
   "ra",
   "ra_output",
+  "ra_output_tw",
   "rhk",
   "rhk_iku",
   "rhk_lainnya",
@@ -102,7 +103,16 @@ const VARIABLE_GROUPS: VariableGroup[] = [
   {
     key: "etpp",
     description: "etppHint",
-    variables: ["bulan_ini", "rhk_iku", "rhk_lainnya", "ra"],
+    variables: [
+      "bulan_ini",
+      "triwulan_ini",
+      "dialog_periode",
+      "rhk_iku",
+      "rhk_lainnya",
+      "ra",
+      "ra_output",
+      "ra_output_tw",
+    ],
   },
   {
     key: "common",

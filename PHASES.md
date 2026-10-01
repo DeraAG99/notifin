@@ -2002,11 +2002,73 @@ no-re-import guarantee, and there is no test runner):
 - `ra_output.target` is `-` for every output outside the triwulan in progress, so a rekap over
   all 12 outputs is mostly dashes. That is the intended contract; a rekap meant to be read needs
   the per-triwulan `output[].triwulan[]` from nested `ra` instead.
+- `ra_output` carries no `triwulan_ini` snapshot, so switching to `ra_output_tw` is what scopes a
+  rekap to the running quarter. See Phase 52.
 - `id_indikator` is `null` on every stored import. Grouping currently leans on the context key
   for all real data; the id path only activates on imports made from here on.
 - The XLSX e-TPP parser still never populates `kodeSumber`, so an `ekinerja-json` import type
   configured with `format: xlsx` drops every row (the seeded type is `html`). Untouched.
 - `import_types` having 5 rows is correct — 2 admins x their own set. Not a bug.
+
+---
+
+## Phase 52 — `ra_output` per triwulan + `ra_output_tw`
+
+### Problem
+Phase 51's `ra_output` emitted one row per **Output** with the target filled in only for the
+quarter in progress, `-` everywhere else. A rekap over it was 12 rows of which 9 were dashes —
+exactly the placeholder noise the notification is supposed to avoid. There was also no way to
+reach `realisasi`/`validasi` from a flat variable, and `target` came pre-joined with `satuan`
+(`"1 Dokumen"`), so a template could not control its own spacing.
+
+### Shape change
+`EtppFlatRa` is now one row per **(Output, triwulan)** pair, and `target`/`satuan` are separate:
+
+```ts
+{ rhk, kode_sumber, output_ra, tw, target, satuan, realisasi, validasi }
+```
+
+- `ra_output` — every pair, all four quarters. Rows the e-TPP export left blank on all four
+  fields (`target === "-"`, empty `satuan`, null `realisasi`/`validasi`) are skipped, so a
+  template never has to filter dashes out.
+- `ra_output_tw` — new; `ra_output` filtered to `tw === triwulan_ini`.
+
+Both are derived at send time in `extractEtppVariables`, so this again needs no re-import.
+
+### Template
+```handlebars
+{{#if ra_output_tw.length}}{{#each ra_output_tw}}• _[{{kode_sumber}}] Output RA:_ {{output_ra}}
+   _Target TW{{tw}}:_ {{target}} {{satuan}}{{#if realisasi}} | _Realisasi:_ {{realisasi}}{{/if}}{{#if validasi}} | _Validasi:_ {{validasi}}{{/if}}
+{{/each}}{{#else}}⚠️ Belum ada output di triwulan ini.{{/if}}
+```
+
+The `[{{kode_sumber}}]` label sits on the `{{output_ra}}` line, not merged into the `_Target_`
+line, because the engine resolves a single path per tag and has no concatenation operator.
+`•` rather than `*` because a repeated `*` pairs into WhatsApp bold; `_` is the italic marker.
+
+### Verification (`bun scripts/verify-etpp.ts`)
+Checked against both stored imports (2026-08-10, pre-change):
+- `ra_output` = 12 rows; `ra_output_tw` per quarter = TW1:2, TW2:3, TW3:3, TW4:4.
+- Every `ra_output_tw` row has `tw === currentTw` and is a member of `ra_output`.
+- No `-`/empty `target`, no empty `satuan`.
+- Every quarter contributes rows, so the filter is not hardcoded to one date.
+- The TW4 block renders 4 rows, 605 chars, no leftover tags.
+
+### Also changed
+- `ETPP_PRESET` section 3 and the `rekap` block use `ra_output_tw` and print
+  `{{target}} {{satuan}}`; their empty branch now says the quarter has no output instead of
+  telling the user to re-import (re-importing cannot fix a genuinely empty quarter).
+- `VARIABLE_GROUPS` for `etpp` gained `triwulan_ini`, `dialog_periode`, `ra_output` and
+  `ra_output_tw` — `ra_output` had never been listed as a chip.
+- i18n samples and `etppHint` (id + en) describe both flat lists.
+- `tsc` clean; `verify-etpp` all green; lint on changed files adds nothing beyond the
+  pre-existing `set-state-in-effect` error at `template-form.tsx:204`.
+
+### Manual steps after deploy — still no re-import
+1. Settings → Notifikasi e-TPP Otomatis → `Template Tanggal 5`.
+2. Replace `{{#each ra_output}}` with `{{#each ra_output_tw}}` if the rekap should follow the
+   running quarter; keep `ra_output` for an all-quarters view.
+3. Drop any `{{target}}`-only formatting that assumed `satuan` was already joined in.
 
 ---
 

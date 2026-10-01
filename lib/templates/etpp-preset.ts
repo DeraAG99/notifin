@@ -18,10 +18,10 @@ Periode: {{bulan_ini}} — Triwulan {{triwulan_ini}} (dialog {{dialog_periode}})
 {{/each}}{{/if}}{{#each output}}   Output: {{nama}} —{{#each triwulan}} TW{{tw}}: {{target}} {{satuan}}{{/each}}
 {{/each}}{{/each}}{{#else}}⚠️ Silakan import ulang data kinerja Anda untuk melihat RHK Lainnya.{{/if}}
 
-3. Rekapitulasi Target per Output:
-{{#if ra_output.length}}{{#each ra_output}}• [{{kode_sumber}}] {{rhk}}
-   → {{output_ra}}: {{target}}
-{{/each}}{{#else}}⚠️ Silakan import ulang data kinerja Anda untuk melihat rekap output.{{/if}}
+3. Rekapitulasi Target Output — Triwulan {{triwulan_ini}}:
+{{#if ra_output_tw.length}}{{#each ra_output_tw}}• [{{kode_sumber}}] {{rhk}}
+   → {{output_ra}}: {{target}} {{satuan}}
+{{/each}}{{#else}}⚠️ Belum ada output dengan target di triwulan ini.{{/if}}
 `;
 
 export interface EtppBlock {
@@ -62,7 +62,7 @@ export const ETPP_BLOCKS: EtppBlock[] = [
   {
     key: "rekap",
     label: "rekapBlock",
-    body: "{{#if ra_output.length}}{{#each ra_output}}• [{{kode_sumber}}] {{rhk}}\n   → {{output_ra}}: {{target}}\n{{/each}}{{#else}}⚠️ Silakan import ulang data kinerja Anda untuk melihat rekap output.{{/if}}",
+    body: "{{#if ra_output_tw.length}}{{#each ra_output_tw}}• [{{kode_sumber}}] {{rhk}}\n   → {{output_ra}}: {{target}} {{satuan}}\n{{/each}}{{#else}}⚠️ Belum ada output dengan target di triwulan ini.{{/if}}",
   },
   {
     key: "periode",

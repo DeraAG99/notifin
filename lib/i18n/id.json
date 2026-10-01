@@ -413,7 +413,11 @@
           }
         ],
         "ra_output": [
-          { "rhk": "Penatausahaan Keuangan SKPD", "kode_sumber": "IKU", "output_ra": "Dokumen Penatausahaan dan Verifikasi Keuangan SKPD", "target": "1 Dokumen" }
+          { "rhk": "Penatausahaan Keuangan SKPD", "kode_sumber": "IKU", "output_ra": "Dokumen Penatausahaan dan Verifikasi Keuangan SKPD", "tw": 3, "target": "1", "satuan": "Dokumen", "realisasi": null, "validasi": null },
+          { "rhk": "Penatausahaan Keuangan SKPD", "kode_sumber": "IKU", "output_ra": "Dokumen Penatausahaan dan Verifikasi Keuangan SKPD", "tw": 4, "target": "2", "satuan": "Dokumen", "realisasi": "2", "validasi": "Sudah divalidasi" }
+        ],
+        "ra_output_tw": [
+          { "rhk": "Penatausahaan Keuangan SKPD", "kode_sumber": "IKU", "output_ra": "Dokumen Penatausahaan dan Verifikasi Keuangan SKPD", "tw": 3, "target": "1", "satuan": "Dokumen", "realisasi": null, "validasi": null }
         ]
       },      "variableGroup": "Variabel {group}",
       "groups": {
@@ -421,7 +425,7 @@
         "etpp": "Data e-TPP",
         "common": "Umum"
       },
-      "etppHint": "Tersedia setelah user import file e-TPP. Isi: {{bulan_ini}}, {{triwulan_ini}}, {{dialog_periode}}, {{rhk_iku}}, {{rhk_lainnya}}, {{ra}}, {{ra_output}}. Nested di dalam {{ra}}: {{rhk}}, {{indikator}}, {{kode_sumber}}, {{target}}, {{#each aksi}} {{teks}} ({{kode}}) KK: {{kriteria_keberhasilan}}, {{#each output}} {{nama}} {{#each triwulan}} TW{{tw}}: {{target}} {{satuan}} {{/each}}. {{ra_output}} sudah flat: rhk, kode_sumber, output_ra, target.",
+      "etppHint": "Tersedia setelah user import file e-TPP. Isi: {{bulan_ini}}, {{triwulan_ini}}, {{dialog_periode}}, {{rhk_iku}}, {{rhk_lainnya}}, {{ra}}, {{ra_output}}, {{ra_output_tw}}. Nested di dalam {{ra}}: {{rhk}}, {{indikator}}, {{kode_sumber}}, {{target}}, {{#each aksi}} {{teks}} ({{kode}}) KK: {{kriteria_keberhasilan}}, {{#each output}} {{nama}} {{#each triwulan}} TW{{tw}}: {{target}} {{satuan}} {{/each}}. {{ra_output}} sudah flat satu baris per Output per triwulan: rhk, kode_sumber, output_ra, tw, target, satuan, realisasi, validasi. {{ra_output_tw}} isi yang sama tapi hanya triwulan berjalan.",
       "sampleRhkPlaceholder": "Nama indikator",
       "sampleTargetPlaceholder": "Jumlah target",
       "etppStaleWarning": "Data kinerja Anda perlu di-import ulang untuk fitur terbaru.",
