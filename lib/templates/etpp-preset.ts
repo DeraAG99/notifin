@@ -1,85 +1,72 @@
-/**
- * The e-TPP reminder message, shared by the template editor and any test that
- * needs to render the exact text users will receive.
- *
- * Four rules shape the block markup:
- *
- * 1. `{{#if ra.length}}` guards the list, and `.length` is not optional:
- *    `isTruthy` in `lib/template-engine.ts` returns true for an empty array, so
- *    a bare `{{#if ra}}` would render the section for a user with nothing in it.
- * 2. `{{#else}}` carries an instruction, not an apology. A user whose metadata
- *    predates the nested-`ra` shape has no `ra` key at all, so the loop would
- *    otherwise ship a section heading with nothing under it -- the exact failure
- *    that `ETPP_META_VERSION` exists to surface. Telling them to re-import
- *    turns an empty message into a recoverable one.
- * 3. The RA heading sits *outside* the guard. Both branches produce content, so
- *    nothing is left bare, and the section still names itself for a user who
- *    only sees the re-import notice.
- * 4. `ra` is nested -- each group carries its own `kode_sumber` and `rhk` with
- *    the `aksi` beneath it -- so the loops nest. `{{#each ra}}` yields the
- *    group, `{{#each aksi}}` yields its actions. A flat list would repeat the
- *    RHK once per action.
- *
- * Every `{{#if}}` / `{{#each}}` closes on the same line as its body: a closing
- * tag on its own line leaves a literal newline behind and WhatsApp renders it as
- * a blank line.
- *
- * `{{bulan_ini}}` is resolved at send time, not from the user's metadata; see
- * `formatBulanIni` in `lib/imports/variables.ts`.
- */
-export const ETPP_PRESET = `Halo Bapak/Ibu:
-{{name}}
-{{jabatan}}
-{{unitKerja}},
+export const ETPP_PRESET = `🎯 e-TPP (https://etpp.jakarta.go.id/)
 
-Ini adalah pesan otomatis dari SI-MPOK NORI Kecamatan Palmerah. Memasuki bulan {{bulan_ini}}, berikut adalah target kinerja yang perlu Anda laksanakan:
+Periode: {{bulan_ini}} — Triwulan {{triwulan_ini}} (dialog {{dialog_periode}})
 
-🎯 e-TPP (https://etpp.jakarta.go.id/):
-{{#if rhk_lainnya.length}}1. Target Rencana Hasil Kerja (RHK) Lainnya:
-{{#each rhk_lainnya}}{{@number}}. {{this}}
-{{/each}}{{/if}}
-2. Target Rencana Aksi (RA) dari RHK IKU dan RHK Lainnya:
-{{#if ra.length}}{{#each ra}}• [{{kode_sumber}}] {{rhk}}
-{{#each aksi}}   - {{this}}
-{{/each}}{{#each output}}
-   → Output TW {{tw}}: {{nama}}
-   → Target: {{target}} {{satuan}}
-{{/each}}{{/each}}{{#else}}⚠️ Silakan import ulang data kinerja Anda untuk melihat Rencana Aksi.{{/if}}
-⚠️ PERINGATAN PENTING:
-Mohon untuk mulai mempersiapkan pelaksanaan tugas dan dokumen pendukungnya sejak awal periode agar tidak menumpuk di akhir bulan.
+1. Target Rencana Hasil Kerja (RHK) IKU:
+{{#if rhk_iku.length}}{{#each rhk_iku}}• {{kode_sumber}}: {{rhk}}
+   Indikator: {{indikator}}
+   Target: {{target}}
+{{#if aksi.length}}{{#each aksi}}   - {{#if kode}}[{{kode}}] {{/if}}{{teks}} (KK: {{kriteria_keberhasilan}})
+{{/each}}{{/if}}{{#each output}}   Output: {{nama}} —{{#each triwulan}} TW{{tw}}: {{target}} {{satuan}}{{/each}}
+{{/each}}{{/each}}{{#else}}⚠️ Silakan import ulang data kinerja Anda untuk melihat RHK IKU.{{/if}}
 
-Semangat berkinerja dan wujudkan tata kelola yang profesional!
-Salam,
-Subbagian Keuangan Kecamatan Palmerah
+2. Target Rencana Hasil Kerja (RHK) Lainnya:
+{{#if rhk_lainnya.length}}{{#each rhk_lainnya}}• {{kode_sumber}}: {{rhk}}
+   Indikator: {{indikator}}
+   Target: {{target}}
+{{#if aksi.length}}{{#each aksi}}   - {{#if kode}}[{{kode}}] {{/if}}{{teks}} (KK: {{kriteria_keberhasilan}})
+{{/each}}{{/if}}{{#each output}}   Output: {{nama}} —{{#each triwulan}} TW{{tw}}: {{target}} {{satuan}}{{/each}}
+{{/each}}{{/each}}{{#else}}⚠️ Silakan import ulang data kinerja Anda untuk melihat RHK Lainnya.{{/if}}
 
-Abaikan pesan ini jika Anda sudah menginput realisasi target tersebut ke E-TPP.`;
+3. Rekapitulasi Target per Output:
+{{#if ra_output.length}}{{#each ra_output}}• [{{kode_sumber}}] {{rhk}}
+   → {{output_ra}}: {{target}}
+{{/each}}{{#else}}⚠️ Silakan import ulang data kinerja Anda untuk melihat rekap output.{{/if}}
+`;
 
 export interface EtppBlock {
   key: string;
-  label: "rhkLainnyaBlock" | "rhkIkuBlock" | "raBlock" | "periodeBlock";
+  label:
+    | "rhkLainnyaBlock"
+    | "rhkIkuBlock"
+    | "raBlock"
+    | "periodeBlock"
+    | "rekapBlock";
   body: string;
 }
 
-/** Insertable fragments, one per message section. */
+/** Nested RHK block: aksi and output stay under their Rencana Hasil Kerja. */
+const RHK_GROUP = `• {{kode_sumber}}: {{rhk}}
+   Indikator: {{indikator}}
+   Target: {{target}}
+{{#if aksi.length}}{{#each aksi}}   - {{#if kode}}[{{kode}}] {{/if}}{{teks}} (KK: {{kriteria_keberhasilan}})
+{{/each}}{{/if}}{{#each output}}   Output: {{nama}} —{{#each triwulan}} TW{{tw}}: {{target}} {{satuan}}{{/each}}
+{{/each}}`;
+
 export const ETPP_BLOCKS: EtppBlock[] = [
   {
     key: "rhkLainnya",
     label: "rhkLainnyaBlock",
-    body: "{{#if rhk_lainnya.length}}1. Target Rencana Hasil Kerja (RHK) Lainnya:\n{{#each rhk_lainnya}}{{@number}}. {{this}}\n{{/each}}{{/if}}",
+    body: `{{#if rhk_lainnya.length}}{{#each rhk_lainnya}}${RHK_GROUP}{{/each}}{{#else}}⚠️ Silakan import ulang data kinerja Anda untuk melihat RHK Lainnya.{{/if}}`,
   },
   {
     key: "rhkIku",
     label: "rhkIkuBlock",
-    body: "{{#if rhk_iku.length}}1. Target Rencana Hasil Kerja (RHK) IKU:\n{{#each rhk_iku}}{{@number}}. {{this}}\n{{/each}}{{/if}}",
+    body: `{{#if rhk_iku.length}}{{#each rhk_iku}}${RHK_GROUP}{{/each}}{{#else}}⚠️ Silakan import ulang data kinerja Anda untuk melihat RHK IKU.{{/if}}`,
   },
   {
     key: "ra",
     label: "raBlock",
-    body: "2. Target Rencana Aksi (RA) dari RHK IKU dan RHK Lainnya:\n{{#if ra.length}}{{#each ra}}• [{{kode_sumber}}] {{rhk}}\n{{#each aksi}}   - {{this}}\n{{/each}}{{#each output}}\n   → Output TW {{tw}}: {{nama}}\n   → Target: {{target}} {{satuan}}\n{{/each}}{{/each}}{{#else}}⚠️ Silakan import ulang data kinerja Anda untuk melihat Rencana Aksi.{{/if}}",
+    body: "{{#if ra.length}}{{#each ra}}" + RHK_GROUP + "{{/each}}{{#else}}⚠️ Silakan import ulang data kinerja Anda untuk melihat Rencana Hasil Kerja.{{/if}}",
+  },
+  {
+    key: "rekap",
+    label: "rekapBlock",
+    body: "{{#if ra_output.length}}{{#each ra_output}}• [{{kode_sumber}}] {{rhk}}\n   → {{output_ra}}: {{target}}\n{{/each}}{{#else}}⚠️ Silakan import ulang data kinerja Anda untuk melihat rekap output.{{/if}}",
   },
   {
     key: "periode",
     label: "periodeBlock",
-    body: "{{bulan_ini}}",
+    body: "{{bulan_ini}} — Triwulan {{triwulan_ini}} (dialog {{dialog_periode}})",
   },
 ];

@@ -15,14 +15,22 @@ interface CellRow {
   "row-6"?: string;
   "row-7"?: string;
   "row-8"?: string;
+  value?: string | number;
 }
 
 interface TwTarget {
+  slug_path?: string;
   tw?: string | number;
+  status?: string | number;
   satuan?: string;
   target?: string | number;
   realisasi?: string | number | null;
   validasi?: string | number | null;
+}
+
+interface OutputMeta {
+  id_output?: string | number;
+  status?: string | number;
 }
 
 /** Shape of the `user` object embedded in the e-TPP page payload. */
@@ -199,6 +207,12 @@ export const ekinerjaHtmlParser: ImportParser = {
 
     const html = typeof content === "string" ? content : Buffer.from(content).toString("utf-8");
 
+    // `CELL_REGEX` is module-level and stateful. A natural end to the loop
+    // resets `lastIndex` to 0, but a throw part-way through would leave it
+    // pointing mid-string and silently truncate every later parse in this
+    // process.
+    CELL_REGEX.lastIndex = 0;
+
     let match: RegExpExecArray | null;
     let cellIndex = 0;
 
@@ -210,12 +224,17 @@ export const ekinerjaHtmlParser: ImportParser = {
         continue;
       }
 
-      const intervensi = safeJson<{ intervensi?: string }>(cell["row-0"] || "{}");
-      const rhk = safeJson<{ rencana_hasil_kerja?: string }>(cell["row-1"] || "{}");
+      const intervensi = safeJson<{ id_indikator?: string; intervensi?: string }>(
+        cell["row-0"] || "{}"
+      );
+      const rhk = safeJson<{ id_indikator?: string; rencana_hasil_kerja?: string }>(
+        cell["row-1"] || "{}"
+      );
       const indikator = safeJson<{ indikator?: string; kode_sumber?: string }>(cell["row-2"] || "{}");
       const rencanaAksi = str(cell["row-4"]);
       const kriteriaKeberhasilan = str(cell["row-5"]);
       const output = str(cell["row-6"]);
+      const outputMeta = safeJson<OutputMeta>(cell["row-8"] || "{}");
 
       const targets = safeJson<TwTarget[]>(cell["row-7"] || "[]");
       const twList = Array.isArray(targets) ? targets : [];
@@ -223,6 +242,11 @@ export const ekinerjaHtmlParser: ImportParser = {
       if (twList.length === 0) {
         errors.push(`Baris ${cellIndex}: tidak ada data triwulan`);
         continue;
+      }
+
+      const rawCell: Record<string, string | null> = {};
+      for (const [key, value] of Object.entries(cell)) {
+        rawCell[key] = value === undefined || value === null ? null : String(value);
       }
 
       for (const tw of twList) {
@@ -251,6 +275,14 @@ export const ekinerjaHtmlParser: ImportParser = {
           capaian: null,
           keterangan: null,
           keteranganValidasi: null,
+          idIndikator:
+            str(intervensi?.id_indikator) || str(rhk?.id_indikator) || null,
+          idOutput: str(outputMeta?.id_output) || null,
+          outputStatus: str(outputMeta?.status) || null,
+          slugPath: str(tw.slug_path) || null,
+          twStatus: str(tw.status) || null,
+          nilai: cell.value === undefined ? null : Number(cell.value),
+          raw: { ...rawCell },
         });
       }
     }

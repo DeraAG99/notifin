@@ -6,11 +6,12 @@ import {
   settings,
   users,
 } from "../lib/db/schema";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { templateEngine } from "../lib/template-engine";
 import { addNotificationJob } from "../lib/queue";
 import { isAdminActive } from "../lib/admin-status";
-import { resolveImportVars } from "../lib/imports/variables";
+import { ETPP_ENGINE, resolveImportVars } from "../lib/imports/variables";
+import { dataImports } from "../lib/db/schema";
 import type { NotificationTemplate } from "../types";
 
 const DEFAULT_TIMEZONE = process.env.DEFAULT_TIMEZONE || "Asia/Jakarta";
@@ -111,22 +112,63 @@ class EtppNotificationScheduler {
     }
   }
 
-  private async sendForAdmin(
-    adminId: string,
-    template: NotificationTemplate
-  ): Promise<void> {
-    const today = dayKeyIn(DEFAULT_TIMEZONE);
+  /**
+   * Recipients are the active users who actually have an e-TPP file -- a
+   * per-user import, or everyone when the admin uploaded a global one.
+   *
+   * Deliberately not keyed on a metadata flag: the e-TPP variables are rebuilt
+   * from `data_imports.data` at send time, so the presence of that import is
+   * both the only truthful gate and the one that cannot silently drop to zero.
+   */
+  private async resolveRecipients(adminId: string) {
+    const imports = await db
+      .select({ userId: dataImports.userId, scope: dataImports.scope })
+      .from(dataImports)
+      .where(
+        and(eq(dataImports.adminId, adminId), eq(dataImports.engine, ETPP_ENGINE))
+      );
 
-    const recipients = await db
+    const hasGlobal = imports.some((row) => row.scope === "global");
+
+    const userIds = [
+      ...new Set(
+        imports
+          .map((row) => row.userId)
+          .filter((id): id is string => typeof id === "string" && id.length > 0)
+      ),
+    ];
+
+    const scopeFilter = hasGlobal
+      ? undefined
+      : userIds.length > 0
+        ? inArray(users.id, userIds)
+        : null;
+
+    if (scopeFilter === null) return [];
+
+    return db
       .select()
       .from(users)
       .where(
         and(
           eq(users.adminId, adminId),
           eq(users.isActive, true),
-          sql`${users.metadata}::jsonb ? 'etpp_imported'`
+          ...(scopeFilter ? [scopeFilter] : [])
         )
       );
+  }
+
+  private async sendForAdmin(
+    adminId: string,
+    template: NotificationTemplate
+  ): Promise<void> {
+    const today = dayKeyIn(DEFAULT_TIMEZONE);
+
+    const recipients = await this.resolveRecipients(adminId);
+    if (recipients.length === 0) {
+      console.log(`[etpp] tidak ada user dengan import e-TPP untuk ${adminId}.`);
+      return;
+    }
 
     const channels: ("wa" | "email")[] =
       template.channel === "both" ? ["wa", "email"] : [template.channel];

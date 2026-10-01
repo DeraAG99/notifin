@@ -13,7 +13,7 @@ import {
 import { isAdminActive } from "@/lib/admin-status";
 import type { ImportItem } from "@/lib/imports/types";
 import { buildSummary } from "@/lib/imports/utils";
-import { extractEtppMetadata } from "@/lib/users/etpp-extract";
+import { extractEtppVariables } from "@/lib/users/etpp-extract";
 
 async function loadUser(session: SessionPayload, userId: string) {
   const scoped = isSuperadmin(session) ? undefined : eq(users.adminId, session.adminId);
@@ -139,7 +139,6 @@ export async function POST(
     const overwrite = validated.overwriteProfile === true;
     const profileApplied = { jabatan: false, unitKerja: false };
     let profileAppliedData: { jabatan?: string; unitKerja?: string } | undefined;
-    let appliedMetadata: Record<string, unknown> | null = null;
     let etppSkippedNoKode = 0;
 
     let profilePayload: { jabatan?: string; unitKerja?: string } | undefined;
@@ -166,7 +165,7 @@ export async function POST(
           )
         );
 
-      const userPatch: { jabatan?: string; unitKerja?: string; metadata?: Record<string, unknown> } = {};
+      const userPatch: { jabatan?: string; unitKerja?: string } = {};
 
       if (profilePayload?.jabatan || profilePayload?.unitKerja) {
         if (profilePayload.jabatan) userPatch.jabatan = profilePayload.jabatan;
@@ -174,24 +173,12 @@ export async function POST(
         profileAppliedData = { jabatan: profilePayload.jabatan, unitKerja: profilePayload.unitKerja };
       }
 
+      // No snapshot is written onto `users.metadata`. The e-TPP notification
+      // variables are rebuilt from `data_imports.data` at send time, so this
+      // stays the single source of truth and already-imported files keep
+      // working untouched. Still counted so the admin hears about unusable rows.
       if (type.engine === "ekinerja-json" && items.length > 0) {
-        const extraction = extractEtppMetadata(items);
-        etppSkippedNoKode = extraction.skippedNoKode;
-        const existingMeta = (user.metadata as Record<string, unknown>) || {};
-        const mergedMeta = {
-          ...existingMeta,
-          ...extraction.metadata,
-          // Scrubbed on write. The e-TPP export carries no document period, so
-          // neither of these can be read from the file any more and a leftover
-          // key would only ever hold a stale value. `bulan_ini` is recomputed
-          // live at send time by `resolveImportVars`; `triwulan_ini` is gone
-          // from the notification layer entirely. JSON.stringify drops the
-          // undefined, which removes the key instead of storing a null.
-          bulan_ini: undefined,
-          triwulan_ini: undefined,
-        };
-        userPatch.metadata = mergedMeta;
-        appliedMetadata = extraction.metadata;
+        etppSkippedNoKode = extractEtppVariables(items).skippedNoKode;
       }
 
       if (Object.keys(userPatch).length > 0) {
@@ -222,11 +209,6 @@ export async function POST(
         ? " Jabatan/unit kerja terisi otomatis dari file."
         : "";
 
-    const etppMetadataNotice =
-      type.engine === "ekinerja-json" && items.length > 0
-        ? " (Metadata e-TPP juga terisi otomatis)."
-        : "";
-
     // Logged server-side for the audit trail and echoed in the response so the
     // admin sees the drop instead of a quietly short notification. A row with
     // no `kode_sumber` cannot be placed in IKU or Lainnya, and guessing would
@@ -252,8 +234,7 @@ export async function POST(
         success: true,
         data: imported,
         profileApplied,
-        message: `Data "${category.name}" berhasil diimpor (${items.length} item).${profileNotice}${etppMetadataNotice}${etppSkipNotice}`,
-        metadata: appliedMetadata,
+        message: `Data "${category.name}" berhasil diimpor (${items.length} item).${profileNotice}${etppSkipNotice}`,
         profile: profileAppliedData || null,
         etppSkippedNoKode,
       },

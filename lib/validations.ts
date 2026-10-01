@@ -96,6 +96,20 @@ export const templatePreviewSchema = z.object({
   userId: z.string().uuid("User tidak valid").optional(),
 });
 
+/**
+ * Preview of unsaved template content, for the editor's real-user preview.
+ *
+ * Takes the body instead of a template id so an in-progress edit renders the
+ * same way it will send -- the point is to catch a wrong variable name before
+ * saving, which a saved-template lookup cannot do.
+ */
+export const templateDraftPreviewSchema = z.object({
+  content: z.string().min(1).max(100_000),
+  subject: z.string().max(1_000).optional(),
+  sampleData: z.record(z.string(), z.unknown()).default({}),
+  userId: z.string().uuid("User tidak valid").optional(),
+});
+
 export const logFilterSchema = z.object({
   channel: channelSchema.optional(),
   status: statusSchema.optional(),

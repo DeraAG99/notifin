@@ -1903,6 +1903,113 @@ and the new textarea let admins preview accurate sample data.
 
 ---
 
+## Phase 51 - e-TPP: nested from `data_imports` at send time, no re-import
+
+### Why
+Phase 50c fixed the shape but kept writing it onto `users.metadata` at import time. Three
+problems followed:
+- Every user needed their own copy of the template, because the data was snapshotted per user
+  rather than read from their file when the message goes out.
+- Anyone who imported under Phase 50/50b had to re-import to get the new shape. The
+  `isEtppMetadataStale` banner existed only to tell them that.
+- The recipient gate read that same metadata flag, so the gate and the data could disagree:
+  a user could hold a valid import and still be skipped, or flagged without a usable file.
+
+The template that sent the 25 September message predated the fix (created 26 September) and
+iterated `ra` for per-output rows, which no longer matched the nested shape.
+
+### 1. `lib/users/etpp-extract.ts` rewritten
+`extractEtppVariables(items, now)` rebuilds the variables from parsed items and returns
+`{ variables, skippedNoKode }`. No metadata, no version marker.
+
+- `EtppRhk` = `{ id_indikator, intervensi, rhk, indikator, kode_sumber, target, aksi[], output[] }`
+- `EtppAksi` = `{ teks, kode, kriteria_keberhasilan }` — the `RA1.` / `KK1.1.` prefixes are
+  split off into `kode`, never prepended to the text.
+- `EtppOutput` = `{ nama, kode, triwulan: EtppTriwulan[] }`, where `EtppTriwulan` is
+  `{ tw, target, satuan, realisasi, validasi }`. `nama` strips the `T/O1.1.1.` prefix.
+- `kode_sumber` is the message label: `iku` → `IKU`, `other` → `Lainnya`. Rows with neither are
+  skipped and counted rather than guessed at.
+- `ra` is the nested `EtppRhk[]` (what the delivered message used);
+  `ra_output` is a flat `[{ rhk, kode_sumber, output_ra, target }]` for templates that want one
+  row per output. `ra_output.target` carries the triwulan-in-progress target only, so rows for
+  other triwulan print `-`.
+
+### 2. Grouping works on rows imported before this change
+e-TPP's own `id_indikator` is the reliable key, but it only reaches us on imports made after
+the parser started keeping it. The grouping key is `id_indikator` when present and
+`intervensi | rencanaHasilKerja | indikator | kode_sumber` otherwise. Verified: rows with the
+field stripped produce byte-identical structure to rows with it.
+
+### 3. Parser keeps the fields a future grouping would want
+`lib/imports/parsers/ekinerja/html.ts` now also reads `id_indikator` (row-0/row-1), `id_output`
+and `status` (row-8), `slug_path`/`status` (row-7), the pivot `value`, and the whole cell under
+`raw`. Added `CELL_REGEX.lastIndex = 0` before scanning: the regex is module-level and global,
+so a throw part-way through would otherwise leave `lastIndex` mid-string and truncate every
+later parse in the same process.
+
+### 4. Variables resolved per send, not per import
+`lib/imports/variables.ts` picks the newest `data_imports` row for the user with
+`engine = 'ekinerja-json'`, falling back to the admin's `scope = 'global'` row, and assigns
+the e-TPP variables alongside `bulan_ini`. Added scalars: `triwulan_ini` and
+`dialog_periode` (`triwulan_ini <= 2 ? 1 : 2`).
+
+The `imports.<key>.*` path is untouched — e-TPP does not depend on an import category, so which
+category an admin filed the file under cannot break a template.
+
+### 5. Recipients gated on the import, not a flag
+`workers/etpp-notification.ts` resolves recipients from the presence of an e-TPP import:
+every active user when a global one exists, otherwise the users who have their own.
+
+### 6. Metadata write and staleness warning removed
+`app/api/users/[id]/imports/route.ts` no longer writes e-TPP to `users.metadata`; it still
+counts `skippedNoKode` for the response notice. `isEtppMetadataStale`, `ETPP_META_VERSION`, and
+the banner in `users/[id]/imports/page.tsx` are gone.
+
+### 7. Editor
+- Nested list variables (`ra`, `ra_output`, `rhk`, `rhk_iku`, `rhk_lainnya`) are edited as JSON.
+  A typed editor would only mirror the schema; the JSON is checked for parse failure and falls
+  back to the last good value so a half-typed edit cannot blank the preview.
+- New dropdown previews the unsaved content against a real user's data (600 ms debounce),
+  through the new `POST /api/templates/preview`, which takes the body instead of a template id —
+  the saved-template endpoint reads `content` from the database and cannot show what is about
+  to be saved.
+- `ETPP_PRESET` / `ETPP_BLOCKS` use the nested shape, and gained a rekap block over `ra_output`.
+
+### 8. `{{else}}` was silently ignored
+The engine only recognised `{{#else}}`. The preset shipped `{{else}}`, which fell through as
+literal text, so **every** `#if` printed its warning text even when the condition held. The
+engine now accepts `else` as an alias; the preset uses the canonical `#else`.
+
+### Verified
+`bun scripts/verify-etpp.ts` (kept in the repo — it is the only executable proof of the
+no-re-import guarantee, and there is no test runner):
+- `docs/copy_table.html`: 12 rows, no errors, 3 RHK groups (1 IKU / 2 Lainnya), 2 actions and
+  4 outputs each, 12 `ra_output` rows.
+- Rows with `idIndikator`/`raw` stripped group identically to rows with them.
+- Empty import renders all 3 re-import notices; rows without `kode_sumber` are all skipped and
+  counted; bare `{{else}}` resolves both ways.
+- Both `data_imports` rows in the local DB (imported 2026-08-10, before the parser kept
+  `idIndikator`) render through the shipped preset with no leftover tags.
+- `tsc` clean; `lint` on the changed files adds nothing beyond the two pre-existing findings.
+
+### Manual steps after deploy — no re-import needed
+1. Settings → Notifikasi e-TPP Otomatis → `Template Tanggal 5`.
+2. Save the template again.
+3. `{{#each ra}}` → `{{#each ra_output}}` where per-output rows are wanted.
+4. `{{imports.etpp.currentTw}}` → `{{triwulan_ini}}`; `Periode 1` → `Periode {{dialog_periode}}`.
+
+### Notes for whoever picks this up
+- `ra_output.target` is `-` for every output outside the triwulan in progress, so a rekap over
+  all 12 outputs is mostly dashes. That is the intended contract; a rekap meant to be read needs
+  the per-triwulan `output[].triwulan[]` from nested `ra` instead.
+- `id_indikator` is `null` on every stored import. Grouping currently leans on the context key
+  for all real data; the id path only activates on imports made from here on.
+- The XLSX e-TPP parser still never populates `kodeSumber`, so an `ekinerja-json` import type
+  configured with `format: xlsx` drops every row (the seeded type is `html`). Untouched.
+- `import_types` having 5 rows is correct — 2 admins x their own set. Not a bug.
+
+---
+
 ## Environment Variables
 
 ```bash

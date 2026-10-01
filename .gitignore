@@ -52,3 +52,8 @@ next-env.d.ts
 /Monev 2026 _ Kegiatan Renstra.html
 /Monev 2026 _ Sub Kegiatan Renstra.html
 /copy_table.html
+
+# Real e-TPP / e-Monev exports and client mockups. These hold actual named
+# officials' performance data and belong on a workstation, never in history.
+/docs/
+/ui-mpoknori/

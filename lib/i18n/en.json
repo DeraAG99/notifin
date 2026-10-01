@@ -285,6 +285,7 @@
     "previewUser": "Preview with user",
     "previewUserPlaceholder": "Sample data",
     "previewUserHint": "Pick a user to preview using their real imported data",
+    "previewUserFailed": "Failed to load preview",
     "coverageTitle": "Import coverage",
     "coverage": "{count} of {total} users have this import",
     "previewTitle": "Preview: {name}",
@@ -363,55 +364,64 @@
         "message": "Your order is being processed",
         "company": "SI-MPOK NORI",
         "bulan_ini": "September 2026",
+        "triwulan_ini": 3,
+        "dialog_periode": 2,
+        "etpp_imported": true,
         "rhk_iku": [
-          "Implementation of SKPD financial administration"
+          {
+            "rhk": "Implementation of SKPD financial administration",
+            "indikator": "Number of SKPD financial administration and verification documents",
+            "kode_sumber": "IKU",
+            "target": "4",
+            "aksi": [
+              { "kode": "RA1.", "teks": "Compile the September financial report", "kriteria_keberhasilan": "Report submitted" },
+              { "kode": "RA2.", "teks": "Verify financial administration documents", "kriteria_keberhasilan": "All documents verified" }
+            ],
+            "output": [
+              { "kode": "T/O1.1.1.", "nama": "SKPD Financial Administration Verification Documents", "triwulan": [ { "tw": 3, "target": "1", "satuan": "Document", "realisasi": null, "validasi": null } ] }
+            ]
+          }
         ],
         "rhk_lainnya": [
-          "Preparation of financial management reports"
+          {
+            "rhk": "Preparation of the subdistrict financial management report",
+            "indikator": "Number of subdistrict financial management report documents",
+            "kode_sumber": "Lainnya",
+            "target": "4",
+            "aksi": [
+              { "kode": "RA1.", "teks": "Collect realisation figures from every data source", "kriteria_keberhasilan": "Figures collected" },
+              { "kode": "RA2.", "teks": "Compile the monthly financial management report", "kriteria_keberhasilan": "Report published" }
+            ],
+            "output": [
+              { "kode": "T/O2.1.1.", "nama": "Subdistrict Financial Management Report", "triwulan": [ { "tw": 3, "target": "1", "satuan": "Report", "realisasi": null, "validasi": null } ] }
+            ]
+          }
         ],
         "ra": [
           {
+            "intervensi": "",
             "rhk": "Implementation of SKPD financial administration",
+            "indikator": "Number of SKPD financial administration and verification documents",
             "kode_sumber": "IKU",
+            "target": "4",
             "aksi": [
-              "Compile the September financial report",
-              "Verify financial administration documents"
+              { "kode": "RA1.", "teks": "Compile the September financial report", "kriteria_keberhasilan": "Report submitted" }
             ],
             "output": [
-              { "tw": "3", "nama": "SKPD Financial Administration Verification Documents", "target": "1", "satuan": "Document" }
-            ]
-          },
-          {
-            "rhk": "Preparation of the subdistrict financial management report",
-            "kode_sumber": "Lainnya",
-            "aksi": [
-              "Collect realisation figures from every data source",
-              "Compile the monthly financial management report"
-            ],
-            "output": [
-              { "tw": "3", "nama": "Subdistrict Financial Management Report", "target": "1", "satuan": "Report" }
-            ]
-          },
-          {
-            "rhk": "Achievement of the finance section budget target",
-            "kode_sumber": "Lainnya",
-            "aksi": [
-              "Prepare the RKA and DPA for the finance section",
-              "Run the TEMU KAHWA coordination forum"
-            ],
-            "output": [
-              { "tw": "3", "nama": "Finance Section Budget Target Achievement", "target": "1", "satuan": "Unit" }
+              { "kode": "T/O1.1.1.", "nama": "SKPD Financial Administration Verification Documents", "triwulan": [ { "tw": 3, "target": "1", "satuan": "Document", "realisasi": null, "validasi": null } ] }
             ]
           }
+        ],
+        "ra_output": [
+          { "rhk": "Implementation of SKPD financial administration", "kode_sumber": "IKU", "output_ra": "SKPD Financial Administration Verification Documents", "target": "1 Document" }
         ]
-      },
-      "variableGroup": "{group} variables",
+      },      "variableGroup": "{group} variables",
       "groups": {
         "user": "Employee",
         "etpp": "e-TPP",
         "common": "General"
       },
-      "etppHint": "Available once a user imports their e-TPP file. Fields: {{bulan_ini}}, {{rhk_lainnya}}, {{rhk_iku}}, {{ra}} (nested: {{kode_sumber}}, {{rhk}}, {{aksi}}). When {{ra}} is empty the block shows a re-import notice instead.",
+      "etppHint": "Available once a user imports their e-TPP file. Fields: {{bulan_ini}}, {{triwulan_ini}}, {{dialog_periode}}, {{rhk_iku}}, {{rhk_lainnya}}, {{ra}}, {{ra_output}}. Nested inside {{ra}}: {{rhk}}, {{indikator}}, {{kode_sumber}}, {{target}}, {{#each aksi}} {{teks}} ({{kode}}) KK: {{kriteria_keberhasilan}}, {{#each output}} {{nama}} {{#each triwulan}} TW{{tw}}: {{target}} {{satuan}} {{/each}}. {{ra_output}} is flat: rhk, kode_sumber, output_ra, target.",
       "etppPresetTitle": "Ready-to-use e-TPP template",
       "etppPresetHint": "Fill the message with the performance target reminder. You can edit it afterwards.",
       "etppPresetButton": "Use e-TPP Template",
@@ -419,7 +429,8 @@
       "blocks": {
         "rhkLainnyaBlock": "RHK Lainnya list",
         "rhkIkuBlock": "RHK IKU list",
-        "raBlock": "Action Plan list",
+        "raBlock": "Insert: All RHKs",
+        "rekapBlock": "Insert: Output Recap",
         "periodeBlock": "Month & Quarter"
       }
     },

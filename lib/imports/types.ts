@@ -17,6 +17,20 @@ export type ImportItem = {
   capaian: string | null;
   keterangan: string | null;
   keteranganValidasi: string | null;
+  /**
+   * e-TPP's own indicator id (`row-0` / `row-1`). The most reliable grouping
+   * key for the notification variables, but only present on rows imported
+   * after the parser started keeping it.
+   */
+  idIndikator?: string | null;
+  /** e-TPP output id and status, from `row-8`. */
+  idOutput?: string | null;
+  outputStatus?: string | null;
+  /** e-TPP's opaque per-quarter key, from `row-7`. */
+  slugPath?: string | null;
+  twStatus?: string | null;
+  /** Pivot cell count, from `value`. */
+  nilai?: number | null;
   raw?: Record<string, string | null>;
 };
 

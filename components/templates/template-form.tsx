@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -25,15 +25,14 @@ import {
   Plus,
   X,
   Eye,
+  Loader2,
   Pencil,
   Wand2,
 } from "lucide-react";
 import { ImportVariablesPicker } from "@/components/imports/import-variables-picker";
 import { ETPP_BLOCKS, ETPP_PRESET } from "@/lib/templates/etpp-preset";
-import { type EtppOutput } from "@/lib/users/etpp-extract";
 import { templateEngine } from "@/lib/template-engine";
-import type { KodeLabel } from "@/lib/users/etpp-extract";
-import type { NotificationTemplate } from "@/types";
+import type { NotificationTemplate, User } from "@/types";
 
 interface TemplateFormProps {
   template?: NotificationTemplate | null;
@@ -57,65 +56,42 @@ const LIST_VARIABLES = new Set(["rhk_iku", "rhk_lainnya"]);
  * Rencana Hasil Kerja with its Rencana Aksi beneath it -- so it cannot be edited
  * as one line per item; the sample editor gives it a row per group instead.
  */
-const NESTED_LIST_VARIABLES = new Set(["ra"]);
+/**
+ * e-TPP list variables are nested structures (RHK -> aksi/output -> triwulan),
+ * so they are edited as JSON rather than through per-field inputs. A typed
+ * editor would only mirror the schema, and the schema is still moving -- while
+ * a stale JSON sample shows up instantly in the preview.
+ */
+const NESTED_LIST_VARIABLES = new Set([
+  "ra",
+  "ra_output",
+  "rhk",
+  "rhk_iku",
+  "rhk_lainnya",
+]);
 
-interface RaSampleGroup {
-  rhk: string;
-  kode_sumber: KodeLabel;
-  aksi: string[];
-  output: EtppOutput[];
-}
-
-const KODE_LABELS: KodeLabel[] = ["IKU", "Lainnya"];
-
-function parseOutput(raw: unknown): EtppOutput[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((row): EtppOutput | null => {
-      if (!row || typeof row !== "object") return null;
-      const r = row as Record<string, unknown>;
-      const nama = typeof r.nama === "string" && r.nama.trim() ? r.nama.trim() : "";
-      if (!nama) return null;
-      const tw = typeof r.tw === "string" ? r.tw : "";
-      const satuan = typeof r.satuan === "string" ? r.satuan.trim() : "";
-      const target = typeof r.target === "string" ? r.target.trim() : "";
-      if (!tw) return null;
-      return { nama, tw, satuan, target };
-    })
-    .filter((o): o is EtppOutput => o !== null);
+/** Pretty-prints a sample value for the JSON editor. Never throws. */
+function toJsonText(value: unknown): string {
+  try {
+    return JSON.stringify(value ?? [], null, 2);
+  } catch {
+    return "[]";
+  }
 }
 
 /**
- * Coerces whatever `sampleDataDefault.ra` holds into the nested shape.
- *
- * Defensive because a legacy flat entry (a bare string, or a `{rhk, aksi}`
- * pair with a single action) still round-trips through a cached i18n bundle or
- * a saved editor session. A flat value would preview as a row of undefined and
- * teach the admin the wrong shape.
- *
- * `kode_sumber` defaults rather than dropping out: the template prints it as
- * `[{{kode_sumber}}]`, and a group without one previews as an empty pair of
- * brackets -- which looks like a rendering bug rather than missing sample data.
+ * Parses the JSON editor's text, falling back to the last good value so a
+ * half-typed edit cannot wipe the sample out of the preview.
  */
-function normalizeRaSample(value: unknown): RaSampleGroup[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((row): RaSampleGroup | null => {
-      if (typeof row === "string") return row.trim() ? { rhk: row.trim(), kode_sumber: "Lainnya", aksi: [], output: [] } : null;
-      if (!row || typeof row !== "object") return null;
-      const r = row as Record<string, unknown>;
-      const { rhk, kode_sumber, aksi, output } = r;
-      const label = typeof rhk === "string" ? rhk.trim() : "";
-      if (!label) return null;
-      const list = Array.isArray(aksi) ? aksi : typeof aksi === "string" ? aksi.split("\n") : [];
-      return {
-        rhk: label,
-        kode_sumber: KODE_LABELS.includes(kode_sumber as KodeLabel) ? (kode_sumber as KodeLabel) : "Lainnya",
-        aksi: list.map((a) => String(a).trim()).filter(Boolean),
-        output: parseOutput(output),
-      };
-    })
-    .filter((g): g is RaSampleGroup => g !== null);
+function fromJsonText(text: string, fallback: unknown): unknown {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+  try {
+    const parsed = JSON.parse(trimmed);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 const VARIABLE_GROUPS: VariableGroup[] = [
@@ -189,27 +165,23 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
   const getDefaultSampleData = useCallback((vars: string[]): Record<string, unknown> => {
     const defaults = t.templates.form.sampleDataDefault;
     const data: Record<string, unknown> = {};
+    const table = defaults as unknown as Record<string, unknown>;
     vars.forEach((v) => {
-      switch (v) {
-        case "name": data[v] = defaults.name; break;
-        case "email": data[v] = defaults.email; break;
-        case "phone": data[v] = defaults.phone; break;
-        case "jabatan": data[v] = defaults.jabatan || ""; break;
-        case "unitKerja": data[v] = defaults.unitKerja || ""; break;
-        case "amount": data[v] = defaults.amount; break;
-        case "date": data[v] = new Date().toLocaleDateString(); break;
-        case "message": data[v] = defaults.message; break;
-        case "company": data[v] = defaults.company; break;
-        case "bulan_ini": data[v] = defaults.bulan_ini || ""; break;
+      if (v in table) {
+        data[v] = table[v];
+        return;
+      }
+      if (v in NESTED_LIST_VARIABLES || v in LIST_VARIABLES) {
         // Lists stay arrays so `#each` and `.length` behave like they will in
         // production; a string here would preview as one long run-on line.
-        case "rhk_iku": data[v] = defaults.rhk_iku || []; break;
-        case "rhk_lainnya": data[v] = defaults.rhk_lainnya || []; break;
-        // Nested, like the real extractor: one group per RHK, actions beneath.
-        // A flat list here would preview fine but then break in production.
-        case "ra": data[v] = normalizeRaSample(defaults.ra); break;
-        default: data[v] = `[${v}]`;
+        data[v] = [];
+        return;
       }
+      if (v === "date") {
+        data[v] = new Date().toLocaleDateString();
+        return;
+      }
+      data[v] = `[${v}]`;
     });
     return data;
   }, [t]);
@@ -235,41 +207,20 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
     });
   }, [detectedVariables, getDefaultSampleData]);
 
-  const getRaGroups = useCallback(
-    (v: string): RaSampleGroup[] => normalizeRaSample(sampleData[v]),
-    [sampleData]
+  const [jsonDrafts, setJsonDrafts] = useState<Record<string, string>>({});
+
+  const jsonDraftFor = useCallback(
+    (v: string): string => jsonDrafts[v] ?? toJsonText(sampleData[v]),
+    [jsonDrafts, sampleData]
   );
 
-  const writeRaGroups = useCallback((v: string, groups: RaSampleGroup[]) => {
-    setSampleData((prev) => ({ ...prev, [v]: groups }));
+  const setJsonDraft = useCallback((v: string, text: string) => {
+    setJsonDrafts((prev) => ({ ...prev, [v]: text }));
+    setSampleData((prev) => ({
+      ...prev,
+      [v]: fromJsonText(text, prev[v]),
+    }));
   }, []);
-
-  const addRaGroup = useCallback(
-    (v: string) => {
-      writeRaGroups(v, [...normalizeRaSample(sampleData[v]), { rhk: "", kode_sumber: "Lainnya", aksi: [], output: [] }]);
-    },
-    [sampleData, writeRaGroups]
-  );
-
-  const updateRaGroup = useCallback(
-    (v: string, index: number, patch: Partial<RaSampleGroup>) => {
-      const groups = normalizeRaSample(sampleData[v]).map((g, i) =>
-        i === index ? { ...g, ...patch } : g
-      );
-      writeRaGroups(v, groups);
-    },
-    [sampleData, writeRaGroups]
-  );
-
-  const removeRaGroup = useCallback(
-    (v: string, index: number) => {
-      writeRaGroups(
-        v,
-        normalizeRaSample(sampleData[v]).filter((_, i) => i !== index)
-      );
-    },
-    [sampleData, writeRaGroups]
-  );
 
   // Render through the real engine so `#each` / `#if` / `@number` preview the
   // same way the notification worker will. A plain `replaceAll` left the loop
@@ -283,6 +234,83 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
     () => templateEngine.preview(subject, sampleData),
     [subject, sampleData]
   );
+
+  // --- Real-user preview -------------------------------------------------
+  // The sample data above proves the syntax; this proves the variables. A
+  // sample hand-written to match the docs will happily render a typo-free
+  // preview of a message no user will ever receive.
+  const [previewUsers, setPreviewUsers] = useState<User[]>([]);
+  const [previewUserId, setPreviewUserId] = useState("");
+  const [realPreview, setRealPreview] = useState<{
+    text: string;
+    subject?: string;
+  } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/users?pageSize=100")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && data.success) {
+          setPreviewUsers(data.data.items as User[]);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const loadRealPreview = useCallback(
+    async (userId: string, content: string, subj: string) => {
+      setPreviewLoading(true);
+      try {
+        const res = await fetch("/api/templates/preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content,
+            subject: channel === "wa" ? undefined : subj,
+            userId,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setRealPreview(data.data.rendered);
+        } else {
+          toast.add({
+            title: t.templates.previewUserFailed,
+            description: data.error,
+            type: "error",
+          });
+          setRealPreview(null);
+        }
+      } catch {
+        setRealPreview(null);
+      } finally {
+        setPreviewLoading(false);
+      }
+    },
+    [channel, t.templates.previewUserFailed]
+  );
+
+  // Re-fetch as the admin types, but only once a user is picked. Without the
+  // debounce this fires on every keystroke.
+  useEffect(() => {
+    if (!previewUserId || !contentText) return;
+    const timer = setTimeout(() => {
+      loadRealPreview(previewUserId, contentText, subject);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [previewUserId, contentText, subject, loadRealPreview]);
+
+  const handlePreviewUserChange = useCallback((value: string) => {
+    setPreviewUserId(value);
+    if (!value) setRealPreview(null);
+  }, []);
+
+  const previewText = realPreview?.text ?? renderedPreview;
 
   const insertVariable = useCallback((variable: string) => {
     const insertText = variable.includes("{{") ? variable : `{{${variable}}}`;
@@ -562,12 +590,40 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
               variant="ghost"
               size="sm"
               onClick={() => {
-                navigator.clipboard.writeText(renderedPreview);
+                navigator.clipboard.writeText(previewText);
                 toast.add({ title: t.common.copied, description: t.templates.form.previewCopied, type: "success" });
               }}
             >
               <Copy className="h-4 w-4 mr-1" /> {t.common.copy}
             </Button>
+          </div>
+
+          {/* Real-user preview: renders the unsaved content through the same
+              server path a send takes, so a wrong variable name shows up here
+              instead of in the user's inbox. */}
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">
+              {t.templates.previewUser}
+            </Label>
+            <Select value={previewUserId} onValueChange={(v) => handlePreviewUserChange(v ?? "")}>
+              <SelectTrigger aria-label={t.templates.previewUserPlaceholder}>
+                <SelectValue placeholder={t.templates.previewUserPlaceholder} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">
+                  {t.templates.previewUserPlaceholder}
+                </SelectItem>
+                {previewUsers.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.name}
+                    {u.jabatan ? ` — ${u.jabatan}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {t.templates.previewUserHint}
+            </p>
           </div>
 
           <Card>
@@ -576,18 +632,24 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
                 <CardTitle className="text-sm">
                   {channelLabel}
                 </CardTitle>
-                {channel !== "wa" && subject && (
-                  <Badge variant="outline" className="text-xs">
-                    {t.templates.form.emailSubject}: {renderedSubject}
-                  </Badge>
+                {previewLoading && (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                 )}
               </div>
+              {channel !== "wa" && subject && (
+                <div className="flex items-center justify-between">
+                  <Badge variant="outline" className="text-xs">
+                    {t.templates.form.emailSubject}:{" "}
+                    {realPreview?.subject ?? renderedSubject}
+                  </Badge>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               {contentText ? (
                 <div className="bg-emerald-400/10 border border-emerald-400/20 rounded-lg p-4">
                   <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {renderedPreview}
+                    {previewText}
                   </div>
                 </div>
               ) : (
@@ -616,108 +678,14 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
                           <span className="text-xs text-muted-foreground">
                             {t.templates.form.sampleRaHint}
                           </span>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="ml-auto h-7 text-xs"
-                            onClick={() => addRaGroup(v)}
-                          >
-                            <Plus className="h-3 w-3" />
-                            {t.templates.form.sampleRaAddGroup}
-                          </Button>
                         </div>
-                        {getRaGroups(v).length === 0 ? (
-                          <p className="text-xs text-muted-foreground">
-                            {t.templates.form.sampleRaEmpty}
-                          </p>
-                        ) : (
-                          getRaGroups(v).map((group, gi) => (
-                            <div
-                              key={`${v}-${gi}`}
-                              className="flex gap-2 items-start rounded bg-muted/40 p-2"
-                            >
-                              <div className="flex-1 space-y-1">
-                                <Select
-                                  value={group.kode_sumber}
-                                  onValueChange={(value) =>
-                                    updateRaGroup(v, gi, {
-                                      kode_sumber: value as KodeLabel,
-                                    })
-                                  }
-                                >
-                                  <SelectTrigger
-                                    className="h-8 text-sm"
-                                    aria-label={t.templates.form.sampleRaKodePlaceholder}
-                                  >
-                                    <SelectValue placeholder={t.templates.form.sampleRaKodePlaceholder} />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {KODE_LABELS.map((kode) => (
-                                      <SelectItem key={kode} value={kode}>
-                                        {kode}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <Input
-                                  value={group.rhk}
-                                  onChange={(e) =>
-                                    updateRaGroup(v, gi, { rhk: e.target.value })
-                                  }
-                                  placeholder={t.templates.form.sampleRaRhkPlaceholder}
-                                  className="h-8 text-sm"
-                                />
-                                <Textarea
-                                  value={group.aksi.join("\n")}
-                                  onChange={(e) =>
-                                    updateRaGroup(v, gi, {
-                                      aksi: e.target.value
-                                        .split("\n")
-                                        .map((s) => s.trim())
-                                        .filter(Boolean),
-                                    })
-                                  }
-                                  placeholder={t.templates.form.sampleRaAksiPlaceholder}
-                                  rows={2}
-                                  className="text-sm"
-                                />
-                                <Textarea
-                                  value={group.output.map((o) => `${o.tw} | ${o.nama} | ${o.target} | ${o.satuan}`).join("\n")}
-                                  onChange={(e) => {
-                                    const lines = e.target.value
-                                      .split("\n")
-                                      .map((s) => s.trim())
-                                      .filter(Boolean);
-                                    const newOutput: EtppOutput[] = lines.map((line) => {
-                                      const parts = line.split("|").map((p) => p.trim());
-                                      return {
-                                        tw: parts[0] || "",
-                                        nama: parts[1] || "",
-                                        target: parts[2] || "",
-                                        satuan: parts[3] || "",
-                                      };
-                                    }).filter((o) => o.tw && o.nama);
-                                    updateRaGroup(v, gi, { output: newOutput });
-                                  }}
-                                  placeholder={t.templates.form.sampleOutputPlaceholder}
-                                  rows={2}
-                                  className="text-sm font-mono text-muted-foreground"
-                                />
-                              </div>
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 shrink-0"
-                                onClick={() => removeRaGroup(v, gi)}
-                                aria-label={t.templates.form.sampleRaRemoveGroup}
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          ))
-                        )}
+                        <Textarea
+                          value={jsonDraftFor(v)}
+                          onChange={(e) => setJsonDraft(v, e.target.value)}
+                          rows={10}
+                          spellCheck={false}
+                          className="text-xs font-mono"
+                        />
                       </div>
                     ) : (
                     <div key={v} className="flex items-center gap-2">

@@ -43,8 +43,15 @@ function parseNodes(
     const tag = text.slice(open + 2, close).trim();
     pos = close + 2;
 
-    if (tag === "#else" || tag === "/if" || tag === "/each") {
-      return { nodes, pos, stoppedTag: tag };
+    // `else` is accepted as an alias for `#else`. Every other block tag in
+    // this engine carries the `#`, and a bare `{{else}}` used to fall through
+    // as a literal -- so an `#if` rendered its warning text even when the
+    // condition held. Silently printing the wrong branch is worse than a
+    // missing `#`, so the alias is kept.
+    const isElse = tag === "#else" || tag === "else";
+
+    if (isElse || tag === "/if" || tag === "/each") {
+      return { nodes, pos, stoppedTag: isElse ? "#else" : tag };
     }
 
     if (tag.startsWith("#if")) {
