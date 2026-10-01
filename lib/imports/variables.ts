@@ -34,6 +34,33 @@ export function formatBulanIni(now: Date): string {
   return now.toLocaleString("id-ID", { month: "long", year: "numeric" });
 }
 
+/**
+ * The rest of the period pieces `formatBulanIni` already derives, split out
+ * individually so a template can compose its own wording ("Rekap Kinerja
+ * {{nama_bulan}} {{tahun_ini}}", "Per {{tanggal_ini}}") instead of being locked
+ * into the one string `bulan_ini` produces.
+ *
+ * Every one of these is computed from `now` at send time for the same reason as
+ * `bulan_ini`: nothing in the e-TPP export records the document year ("Tahun
+ * Kinerja" is a datepicker input), so a value captured at import time goes
+ * stale for anyone who imports once and never again.
+ */
+export function formatTahunIni(now: Date): string {
+  return now.toLocaleString("id-ID", { year: "numeric" });
+}
+
+export function formatNamaBulan(now: Date): string {
+  return now.toLocaleString("id-ID", { month: "long" });
+}
+
+export function formatNamaHari(now: Date): string {
+  return now.toLocaleString("id-ID", { weekday: "long" });
+}
+
+export function formatTanggalIni(now: Date): string {
+  return now.toLocaleString("id-ID", { day: "numeric" });
+}
+
 function formatEkinerjaLine(item: ImportItem, idx: number): string {
   const satuan = item.satuan
     ? ` (${item.satuan}${item.targetValue ? `: ${item.targetValue}` : ""})`
@@ -109,13 +136,18 @@ export async function resolveImportVars(
   custom?: Record<string, unknown>,
   now: Date = new Date()
 ): Promise<Record<string, unknown>> {
-  // `bulan_ini` is spread after `mergeVariables` on purpose: `mergeVariables`
-  // lets `metadata` override the user defaults, so a value stored at import
-  // time would win and defeat the point of computing it live.
+  // The whole period block is spread after `mergeVariables` on purpose:
+  // `mergeVariables` lets `metadata` override the user defaults, so a value
+  // stored at import time would win and defeat the point of computing these
+  // live. Keep every period variable on this side of the spread.
   const triwulanIni = currentTriwulan(now);
   const base: Record<string, unknown> = {
     ...mergeVariables(user as User, custom),
     bulan_ini: formatBulanIni(now),
+    tahun_ini: formatTahunIni(now),
+    nama_bulan: formatNamaBulan(now),
+    nama_hari: formatNamaHari(now),
+    tanggal_ini: formatTanggalIni(now),
     triwulan_ini: triwulanIni,
     dialog_periode: triwulanIni <= 2 ? 1 : 2,
   };

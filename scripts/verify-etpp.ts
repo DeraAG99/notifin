@@ -1,24 +1,40 @@
 /**
- * Proves the two things the e-TPP change hinges on, without a test runner:
+ * Proves the things the e-TPP change hinges on, without a test runner:
  *
  *  1. A file imported BEFORE this change (no `idIndikator`, no `raw`) groups
  *     into exactly the same structure as a fresh one -- so nothing has to be
  *     re-imported.
  *  2. Rows already sitting in `data_imports.data` render through the shipped
  *     preset with no leftover tags.
+ *  3. `ra_output` / `ra_output_tw` hold what the templates expect per quarter.
+ *  4. The period variables are computed live and cannot be shadowed by a stale
+ *     `users.metadata` entry.
  *
  * Run: bun scripts/verify-etpp.ts
  */
 import { eq } from "drizzle-orm";
 import { db } from "../lib/db";
-import { dataImports } from "../lib/db/schema";
+import { dataImports, users } from "../lib/db/schema";
 import { ekinerjaHtmlParser } from "../lib/imports/parsers/ekinerja/html";
+import {
+  formatBulanIni,
+  formatNamaBulan,
+  formatNamaHari,
+  formatTanggalIni,
+  formatTahunIni,
+  resolveImportVars,
+} from "../lib/imports/variables";
 import { extractEtppVariables } from "../lib/users/etpp-extract";
 import { templateEngine } from "../lib/template-engine";
 import { ETPP_PRESET } from "../lib/templates/etpp-preset";
 import type { ImportItem } from "../lib/imports/types";
 
-const TW3 = new Date("2026-10-08T08:00:00+07:00");
+/**
+ * Mid-TW3 (August). Named by quarter, not by month, so the label cannot drift
+ * away from what `currentTriwulan` returns -- an earlier revision used
+ * 2026-10-08, which is actually TW4.
+ */
+const TW3 = new Date("2026-08-08T08:00:00+07:00");
 /** A date inside TW4, so `ra_output_tw` can be checked against a quarter that
  *  is not the first one. Mid-month keeps it clear of month boundaries. */
 const TW4 = new Date("2026-11-15T08:00:00+07:00");
@@ -171,6 +187,69 @@ console.log("\n=== ra_output_tw render ===");
     !/\{\{[^}]+\}\}/.test(out),
     `${variables.ra_output_tw.length} rows, ${out.length} chars`
   );
+}
+
+// --- 6. Period variables are live -----------------------------------------
+// The e-TPP export carries no document year, so every period variable is
+// derived from `now` at send time. Two things have to hold for that to be worth
+// anything: the pieces have to be right, and a value snapshotted into
+// `users.metadata` at import time must not win over the live one.
+console.log("\n=== period variables ===");
+{
+  const now = new Date("2026-11-15T08:00:00+07:00");
+  check(
+    "period pieces are correct for 2026-11-15",
+    formatBulanIni(now) === "November 2026" &&
+      formatTahunIni(now) === "2026" &&
+      formatNamaBulan(now) === "November" &&
+      formatNamaHari(now) === "Minggu" &&
+      formatTanggalIni(now) === "15",
+    `${formatBulanIni(now)} / ${formatNamaHari(now)}`
+  );
+
+  // Year has to roll over on its own, which a stored value never would.
+  const lastYear = new Date("2026-12-31T23:59:00+07:00");
+  const newYear = new Date("2027-01-01T00:01:00+07:00");
+  check(
+    "tahun_ini rolls over between 2026-12-31 and 2027-01-01",
+    formatTahunIni(lastYear) === "2026" && formatTahunIni(newYear) === "2027",
+    `${formatTahunIni(lastYear)} -> ${formatTahunIni(newYear)}`
+  );
+
+  // `mergeVariables` spreads `metadata` over the user defaults, so anything left
+  // in a user's metadata from an earlier send would shadow these if they were
+  // placed on the other side of that spread.
+  const [sampleUser] = await db
+    .select({ id: users.id, adminId: users.adminId, name: users.name, metadata: users.metadata })
+    .from(users)
+    .limit(1);
+
+  if (sampleUser) {
+    const stale = await resolveImportVars(
+      {
+        ...sampleUser,
+        metadata: {
+          bulan_ini: "Agustus 2020",
+          tahun_ini: "2020",
+          nama_bulan: "Agustus",
+          nama_hari: "Sabtu",
+          tanggal_ini: "1",
+        },
+      },
+      undefined,
+      now
+    );
+    check(
+      "stale users.metadata cannot shadow the live period variables",
+      stale.tahun_ini === "2026" &&
+        stale.nama_bulan === "November" &&
+        stale.bulan_ini === "November 2026" &&
+        stale.tanggal_ini === "15",
+      `metadata said 2020/${String(stale.nama_bulan)} -> got ${stale.tahun_ini}/${String(stale.nama_bulan)}`
+    );
+  } else {
+    console.log("  (no user row to test metadata shadowing against)");
+  }
 }
 
 console.log(`\n${failures === 0 ? "ALL CHECKS PASSED" : `${failures} CHECK(S) FAILED`}`);

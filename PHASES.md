@@ -2072,6 +2072,59 @@ Checked against both stored imports (2026-08-10, pre-change):
 
 ---
 
+## Phase 53 — live period variables
+
+### Problem
+Only `bulan_ini` existed, and it is one pre-joined string ("September 2026"). A template that
+wanted "Rekap Kinerja November 2026" had to either use the month-only string and supply the year
+by hand, or accept `bulan_ini`'s fixed format. The e-TPP export records no document year — "Tahun
+Kinerja" is a datepicker input whose value is not in the HTML — and `data_imports.period` is
+`null` on every stored row, so the year could only come from the send-time clock.
+
+### Added
+All computed from `now` in `resolveImportVars`, alongside `bulan_ini`:
+
+| Variable | Example | Formatter |
+| --- | --- | --- |
+| `tahun_ini` | `2026` | `formatTahunIni` |
+| `nama_bulan` | `November` | `formatNamaBulan` |
+| `nama_hari` | `Minggu` | `formatNamaHari` |
+| `tanggal_ini` | `15` | `formatTanggalIni` |
+
+Each is exported so `verify-etpp` can assert them without a database round trip. Compose freely:
+`Rekap Kinerja {{nama_bulan}} {{tahun_ini}}`.
+
+### Why they stay live
+`mergeVariables` spreads `user.metadata` over the user defaults, so anything placed before that
+call loses to a value snapshotted at import time. The whole period block is spread **after** it,
+and the comment at the call site now says so — this is what keeps the guarantee that
+`bulan_ini` had. A user who imports once in September and is notified in December must not be
+told "Memasuki bulan September 2026".
+
+### Verification (`bun scripts/verify-etpp.ts`)
+- Pieces correct for a known date: `November 2026` / `2026` / `November` / `Minggu` / `15`.
+- `tahun_ini` rolls over across 2026-12-31 → 2027-01-01, which a stored value never would.
+- `resolveImportVars` run against a real user row whose `metadata` is deliberately poisoned with
+  `{ bulan_ini: "Agustus 2020", tahun_ini: "2020", ... }` still returns `2026` / `November`.
+
+### Fix found while verifying
+The verifier's `TW3` constant was `2026-10-08` — October is TW4, so the label had been wrong
+since Phase 51 (the assertions themselves were unaffected). It is now `2026-08-08`, mid-TW3,
+named by quarter so the label cannot drift again.
+
+### Also changed
+- `VARIABLE_GROUPS` for `etpp` lists the four new scalars alongside `bulan_ini`. None of them are
+  in `NESTED_LIST_VARIABLES` — all are scalars.
+- i18n samples and `etppHint` (id + en) gained the new values, with the period block now listed
+  separately from the data block so it reads as "live, computed at send time".
+- `tsc` clean; `verify-etpp` all green; lint on changed files adds nothing beyond the
+  pre-existing `set-state-in-effect` error at `template-form.tsx:208`.
+
+### No manual steps
+Scalars, not template shape changes. Existing templates keep working untouched.
+
+---
+
 ## Environment Variables
 
 ```bash

@@ -105,6 +105,10 @@ const VARIABLE_GROUPS: VariableGroup[] = [
     description: "etppHint",
     variables: [
       "bulan_ini",
+      "tahun_ini",
+      "nama_bulan",
+      "nama_hari",
+      "tanggal_ini",
       "triwulan_ini",
       "dialog_periode",
       "rhk_iku",
