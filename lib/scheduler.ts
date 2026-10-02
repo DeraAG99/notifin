@@ -9,7 +9,7 @@ import {
   notificationLogs,
 } from "./db/schema";
 import { and, eq, or, sql } from "drizzle-orm";
-import { addNotificationJob } from "./queue";
+import { addNotificationJob, htmlForChannel } from "./queue";
 import { templateEngine } from "./template-engine";
 import { resolveImportVars } from "./imports/variables";
 import { isAdminActive } from "./admin-status";
@@ -276,8 +276,16 @@ class SchedulerService {
           template.content.text,
           variables
         );
+        // Email channel only -- WhatsApp takes text. `undefined` rather than ""
+        // keeps the worker's `data.content.html || buildDefaultHtml(...)`
+        // fallback byte-identical for every template without an HTML body.
+        const renderedHtml = template.content.html
+          ? templateEngine.render(template.content.html, variables)
+          : undefined;
 
         for (const ch of channels) {
+          const channelHtml = htmlForChannel(renderedHtml, ch);
+
           const [log] = await db
             .insert(notificationLogs)
             .values({
@@ -286,7 +294,7 @@ class SchedulerService {
               userId: user.id,
               channel: ch,
               priority: "normal",
-              content: { text: renderedContent },
+              content: { text: renderedContent, html: channelHtml },
               status: "pending",
             })
             .returning();
@@ -299,7 +307,7 @@ class SchedulerService {
             userId: user.id,
             channel: ch,
             priority: "normal",
-            content: { text: renderedContent },
+            content: { text: renderedContent, html: channelHtml },
             subject: template.subject || undefined,
             recipientPhone: user.phone || undefined,
             recipientEmail: user.email || undefined,

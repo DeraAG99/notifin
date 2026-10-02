@@ -88,6 +88,20 @@ export function TemplatePreview({ template }: TemplatePreviewProps) {
     return text;
   }, [template.content.text, sampleData, serverPreview]);
 
+  // The server already returns `rendered.html`, but it was being dropped here --
+  // so a template with an HTML body showed only its plain-text fallback. The
+  // local path mirrors `renderedText`: same naive replace, and picking a real
+  // user swaps in the engine-accurate render.
+  const renderedHtml = useMemo(() => {
+    if (!template.content.html) return "";
+    if (serverPreview?.html) return serverPreview.html;
+    let html = template.content.html;
+    Object.entries(sampleData).forEach(([key, value]) => {
+      html = html.replaceAll(`{{${key}}}`, value || `{{${key}}}`);
+    });
+    return html;
+  }, [template.content.html, sampleData, serverPreview]);
+
   const renderedSubject = useMemo(() => {
     if (!template.subject) return null;
     let text = template.subject;
@@ -184,9 +198,20 @@ export function TemplatePreview({ template }: TemplatePreviewProps) {
             </div>
           )}
           <div className="bg-emerald-400/10 border border-emerald-400/20 rounded-lg p-4">
-            <div className="whitespace-pre-wrap text-sm leading-relaxed">
-              {renderedText}
-            </div>
+            {renderedHtml ? (
+              /* sandbox="" keeps untrusted pasted markup off the app origin --
+                 see the same guard in template-form.tsx. */
+              <iframe
+                title={t.templates.form.htmlPreviewLabel}
+                srcDoc={renderedHtml}
+                sandbox=""
+                className="h-[420px] w-full rounded-lg border bg-white"
+              />
+            ) : (
+              <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                {renderedText}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

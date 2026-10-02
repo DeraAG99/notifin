@@ -15,6 +15,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
 import { TiptapEditor } from "@/components/ui/tiptap-editor";
 import { useI18n } from "@/lib/i18n/context";
@@ -28,6 +29,7 @@ import {
   Loader2,
   Pencil,
   Wand2,
+  Code2,
 } from "lucide-react";
 import { ImportVariablesPicker } from "@/components/imports/import-variables-picker";
 import { ETPP_BLOCKS, ETPP_PRESET } from "@/lib/templates/etpp-preset";
@@ -134,6 +136,12 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
   const [subject, setSubject] = useState(template?.subject || "");
   const [contentText, setContentText] = useState(template?.content?.text || "");
   const [contentHtml, setContentHtml] = useState(template?.content?.html || "");
+  /**
+   * Both modes read and write `contentHtml`; this only decides which editor is
+   * mounted. Defaulting to the visual editor keeps the behaviour of every
+   * template saved before this toggle existed.
+   */
+  const [htmlMode, setHtmlMode] = useState<"visual" | "code">("visual");
   const [isActive, setIsActive] = useState(template?.isActive ?? true);
   const [loading, setLoading] = useState(false);
 
@@ -143,7 +151,11 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
     // undetected, so the sample data never got the list and every block
     // previewed as empty -- the exact template that looks broken in the editor
     // but then sends fine in production.
-    const matches = contentText.match(/\{\{([\s\S]*?)\}\}/g);
+    //
+    // Both bodies are scanned: a template may keep its whole message in HTML and
+    // leave `text` as a plain-text fallback, so reading one of them would leave
+    // the other's tags out of the chips and unresolved in the preview.
+    const matches = `${contentText}\n${contentHtml}`.match(/\{\{([\s\S]*?)\}\}/g);
     if (!matches) return [];
     const vars = new Set<string>();
     for (const match of matches) {
@@ -156,16 +168,16 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
       vars.add(token.endsWith(".length") ? token.slice(0, -7) : token);
     }
     return [...vars];
-  }, [contentText]);
+  }, [contentText, contentHtml]);
 
   /**
-   * Drop a variable everywhere it appears. Simple tags are a literal replace;
-   * a variable used as a loop still has its wrapper removed, otherwise the
-   * leftover `{{#each}}` body would render as raw text.
+   * Drop a variable everywhere it appears, in both bodies. Simple tags are a
+   * literal replace; a variable used as a loop still has its wrapper removed,
+   * otherwise the leftover `{{#each}}` body would render as raw text.
    */
   const removeVariable = useCallback((variable: string) => {
-    setContentText((prev) =>
-      prev
+    const strip = (source: string): string =>
+      source
         .replace(
           new RegExp(`\\{\\{#each ${variable}\\}\\}[\\s\\S]*?\\{\\{/each\\}\\}`, "g"),
           ""
@@ -174,8 +186,12 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
           new RegExp(`\\{\\{#if ${variable}\\.length\\}\\}[\\s\\S]*?\\{\\{/if\\}\\}`, "g"),
           ""
         )
-        .replaceAll(`{{${variable}}}`, "")
-    );
+        .replaceAll(`{{${variable}}}`, "");
+
+    // Both bodies carry the tag when a template duplicates its message, so
+    // clearing only one would leave the chip reappearing from the other.
+    setContentText(strip);
+    setContentHtml((prev) => strip(prev));
   }, []);
 
   const getDefaultSampleData = useCallback((vars: string[]): Record<string, unknown> => {
@@ -246,6 +262,14 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
     [contentText, sampleData]
   );
 
+  // Same engine, same sample data -- the HTML preview has to render blocks the
+  // same way the worker will, or a `{{#each}}` inside HTML looks fine here and
+  // ships broken.
+  const renderedHtmlPreview = useMemo(
+    () => (contentHtml ? templateEngine.preview(contentHtml, sampleData) : ""),
+    [contentHtml, sampleData]
+  );
+
   const renderedSubject = useMemo(
     () => templateEngine.preview(subject, sampleData),
     [subject, sampleData]
@@ -259,6 +283,7 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
   const [previewUserId, setPreviewUserId] = useState("");
   const [realPreview, setRealPreview] = useState<{
     text: string;
+    html?: string;
     subject?: string;
   } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -279,7 +304,7 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
   }, []);
 
   const loadRealPreview = useCallback(
-    async (userId: string, content: string, subj: string) => {
+    async (userId: string, content: string, subj: string, html?: string) => {
       setPreviewLoading(true);
       try {
         const res = await fetch("/api/templates/preview", {
@@ -287,6 +312,9 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             content,
+            // Only sent for email channels: WhatsApp never receives HTML, so
+            // previewing it there would show markup that cannot be delivered.
+            html: channel === "wa" ? undefined : html || undefined,
             subject: channel === "wa" ? undefined : subj,
             userId,
           }),
@@ -316,10 +344,10 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
   useEffect(() => {
     if (!previewUserId || !contentText) return;
     const timer = setTimeout(() => {
-      loadRealPreview(previewUserId, contentText, subject);
+      loadRealPreview(previewUserId, contentText, subject, contentHtml);
     }, 600);
     return () => clearTimeout(timer);
-  }, [previewUserId, contentText, subject, loadRealPreview]);
+  }, [previewUserId, contentText, contentHtml, subject, loadRealPreview]);
 
   const handlePreviewUserChange = useCallback((value: string) => {
     setPreviewUserId(value);
@@ -327,23 +355,33 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
   }, []);
 
   const previewText = realPreview?.text ?? renderedPreview;
+  // `htmlMode` decides where a clicked variable chip lands: HTML Code mode edits
+  // the HTML body, every other mode edits the plain-text body. Tiptap is not
+  // reachable through getElementById, so code mode is the only HTML path that
+  // can take a caret-accurate insert.
+  const previewHtml = realPreview?.html ?? (contentHtml ? renderedHtmlPreview : "");
 
-  const insertVariable = useCallback((variable: string) => {
-    const insertText = variable.includes("{{") ? variable : `{{${variable}}}`;
-    const textarea = document.getElementById("content") as HTMLTextAreaElement;
-    if (textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const newText = contentText.substring(0, start) + insertText + contentText.substring(end);
-      setContentText(newText);
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(start + insertText.length, start + insertText.length);
-      }, 0);
-    } else {
-      setContentText((prev) => prev + insertText);
-    }
-  }, [contentText]);
+  const insertVariable = useCallback(
+    (variable: string) => {
+      const insertText = variable.includes("{{") ? variable : `{{${variable}}}`;
+      const targetId = htmlMode === "code" ? "content-html" : "content";
+      const source = htmlMode === "code" ? contentHtml : contentText;
+      const setter = htmlMode === "code" ? setContentHtml : setContentText;
+      const textarea = document.getElementById(targetId) as HTMLTextAreaElement | null;
+      if (textarea) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        setter(source.substring(0, start) + insertText + source.substring(end));
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(start + insertText.length, start + insertText.length);
+        }, 0);
+      } else {
+        setter((prev) => prev + insertText);
+      }
+    },
+    [contentHtml, contentText, htmlMode]
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -573,15 +611,67 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
 
           {channel !== "wa" && (
             <div className="space-y-2">
-              <Label>{t.templates.form.htmlTemplate}</Label>
-              <TiptapEditor
-                content={contentHtml}
-                onChange={setContentHtml}
-                placeholder={t.templates.form.htmlEditorPlaceholder}
-              />
+              <div className="flex items-center justify-between">
+                <Label>{t.templates.form.htmlTemplate}</Label>
+                <Tabs
+                  value={htmlMode}
+                  onValueChange={(v) => setHtmlMode(v as "visual" | "code")}
+                >
+                  <TabsList>
+                    <TabsTrigger value="visual" className="text-xs">
+                      {t.templates.form.htmlModeVisual}
+                    </TabsTrigger>
+                    <TabsTrigger value="code" className="text-xs">
+                      <Code2 className="h-3 w-3 mr-1" />
+                      {t.templates.form.htmlModeCode}
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+
+              {/*
+                Only one editor is mounted at a time. Tiptap parses whatever it
+                is given into a ProseMirror document and re-serialises it, so a
+                designer email built from <table> and inline styles loses those
+                the moment it round-trips. Keeping the raw textarea as a peer
+                (rather than replacing Tiptap) means that HTML can be pasted
+                verbatim, while the visual editor stays available for the simple
+                case.
+              */}
+              {htmlMode === "visual" ? (
+                <TiptapEditor
+                  content={contentHtml}
+                  onChange={setContentHtml}
+                  placeholder={t.templates.form.htmlEditorPlaceholder}
+                />
+              ) : (
+                <Textarea
+                  id="content-html"
+                  value={contentHtml}
+                  onChange={(e) => setContentHtml(e.target.value)}
+                  placeholder={t.templates.form.htmlCodePlaceholder}
+                  rows={16}
+                  spellCheck={false}
+                  className="font-mono text-xs"
+                />
+              )}
+
               <p className="text-xs text-muted-foreground">
-                {t.templates.form.htmlHint}
+                {htmlMode === "visual"
+                  ? t.templates.form.htmlHint
+                  : t.templates.form.htmlCodeHint}
               </p>
+              {htmlMode === "code" && contentHtml && (
+                <p className="text-xs text-muted-foreground bg-muted/50 border rounded-lg p-2">
+                  {t.templates.form.htmlCodeSameStore}
+                </p>
+              )}
+
+              {contentHtml.trim() && (
+                <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2">
+                  {t.templates.form.htmlBrandWarning}
+                </p>
+              )}
             </div>
           )}
 
@@ -662,7 +752,26 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
               )}
             </CardHeader>
             <CardContent>
-              {contentText ? (
+              {/* The HTML body, when there is one, IS the email: the worker's
+                  `data.content.html || buildDefaultHtml(...)` means the wrapper
+                  and its brand header/footer are skipped entirely. Rendering it
+                  in its own frame keeps that honest instead of showing a text
+                  preview that looks nothing like what arrives. */}
+              {previewHtml ? (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t.templates.form.htmlPreviewLabel}</Label>
+                  <iframe
+                    title={t.templates.form.htmlPreviewLabel}
+                    srcDoc={previewHtml}
+                    /* Empty sandbox: no scripts, no forms, no same-origin.
+                       Pasted HTML is untrusted input, and without this a
+                       <script> or <img onerror> would execute against the app's
+                       own origin and cookies. */
+                    sandbox=""
+                    className="h-[420px] w-full rounded-lg border bg-white"
+                  />
+                </div>
+              ) : contentText ? (
                 <div className="bg-emerald-400/10 border border-emerald-400/20 rounded-lg p-4">
                   <div className="whitespace-pre-wrap text-sm leading-relaxed">
                     {previewText}

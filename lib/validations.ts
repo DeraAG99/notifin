@@ -152,6 +152,7 @@ export const templatePreviewSchema = z.object({
  */
 export const templateDraftPreviewSchema = z.object({
   content: z.string().min(1).max(100_000),
+  html: z.string().max(500_000).optional(),
   subject: z.string().max(1_000).optional(),
   sampleData: z.record(z.string(), z.unknown()).default({}),
   userId: z.string().uuid("User tidak valid").optional(),

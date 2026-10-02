@@ -2367,3 +2367,113 @@ Header/footer hanya muncul kalau template **tidak** punya `content.html` — kal
 `app/api/notifications/send/route.ts:89` mengirim `html` sehingga `buildDefaultHtml` dilewati
 seluruhnya. Jalur e-TPP (`workers/etpp-notification.ts:221`) dan scheduler (`lib/scheduler.ts:302`)
 selalu text-only sehingga selalu memakai wrapper.
+
+---
+
+## Phase 57 - Editor HTML mentah + HTML tembus ke e-TPP & jadwal
+
+### Latar belakang
+`content.html` sudah ada di schema sejak awal dan `app/api/notifications/send/route.ts` (manual) serta
+`app/api/notifications/batch/route.ts` (blast) sudah meneruskannya ke job. Tapi tiga hal belum ada,
+sehingga kemampuan itu praktis tidak terjangkau:
+
+1. **UI tidak punya jalan masuk ke `content.html`.** `TemplateForm` hanya punya Tiptap. Admin yang
+   menempel HTML hasil Canva/Mailchimp/dashboard,eTPP·e-mail lama tidak bisa memakainya: Tiptap
+  -readable akan memipihkan `<table>`, `style=` inline, dan `&mdash;`. Persis struktur yang dibutuhkan
+   email SKPD.
+2. **Preview membuang HTML.** `app/api/templates/preview/route.ts` me-render `content.text` saja dan
+   mengembalikan `{ text, data }`; `TemplatePreview` juga tidak pernah menampilkan HTML.
+3. **e-TPP dan scheduler selalu text-only.** `workers/etpp-notification.ts` dan `lib/scheduler.ts`
+   mengirim `{ text: renderedContent }` tanpa `html`, jadi blast yang paling besar justru yang paling
+   tidak bisa memakai HTML. Efek sampingnya, header/footer brand hasil Phase 56 selalu menempel di
+   dua jalur ini.
+
+### Yang diubah
+- **`lib/validations.ts`** — `templateDraftPreviewSchema.content.html` opsional, maks `500_000`
+  karakter. Preview draft harus bisa menerima kode HTML sepanjang itu; batasnya seukuran body email
+  yang masuk akal dan hanya berlaku di draft preview, bukan di penyimpanan.
+- **`app/api/templates/preview/route.ts`** — me-render `content.html` dengan `templateEngine` dan
+  mengembalikannya sebagai `html`. Deteksi variabelChanged dari union token `text` + `html`, supaya
+  `{{#each}}` yang hanya ada di dalam blok HTML tetap ikut terdaftar di panel variabel dan bisa
+  di-insert dari situ.
+- **`lib/queue.ts`** — helper baru `htmlForChannel(renderedHtml, channel)`. Ini satu-satunya tempat
+  aturan split-channel hidup, dipakai bersama oleh e-TPP dan scheduler supaya keduanya tidak bisa
+  berbeda perilaku. Mengembalikan `undefined` — bukan `""` — kalau tidak ada HTML **atau** channel-nya
+  bukan email. Pilihan `undefined` itu yang menjaga regresi: worker memutuskan lewat
+  `data.content.html || buildDefaultHtml(...)`, jadi `undefined` membuat template tanpa HTML tetap
+  melewati jalur yang sama persis seperti sebelum Phase 57.
+- **`workers/etpp-notification.ts`**, **`lib/scheduler.ts`** — `content.html` di-render sekali per
+  user (bukan per channel), laluresults-nya dilewatkan ke `htmlForChannel` untuk job dan untuk baris
+  `notification_logs`, sehingga isi log sama persis dengan yang dikirim ke worker. Job WA tidak pernah
+  menerima `html`.
+- **`components/templates/template-form.tsx`** — tab `Visual` / `Kode HTML`. Mode kode adalah
+  `<textarea>` biasa yang menulis dan membaca `contentHtml` yang sama dengan Tiptap, jadi pindah mode
+  tidak kehilangan apa pun. Preview memakai `<iframe sandbox="">` — tanpa `allow-scripts`, tanpa
+  `allow-same-origin`, jadi HTML admin tidak bisa menyentuh origin aplikasi. Muncul peringatan saat
+  HTML terisi: header/footer brand memang sengaja dilewati, dan itu perlu diketahui sebelum kirim.
+  `insertVariable` dan "remove variable" sekarang bekerja pada body yang sedang aktif, dan variabel
+  terdeteksi dari gabungan text + HTML.
+- **`components/templates/template-preview.tsx`** — preview template tersimpan ikut menampilkan
+  `serverPreview.html` di iframe dengan sandbox yang sama.
+- **`lib/i18n/id.json`**, **`lib/i18n/en.json`** — key untuk kedua mode, hint, peringatan, dan preview.
+- **`scripts/verify-template-html.ts`** — baru; lihat bagian Verifikasi.
+
+### Yang tidak diubah
+- **Tiptap tetap ada** sebagai mode default. Raw HTML adalah jalur tambahan, bukan pengganti;WYSIWYG
+  tetap jalur yang benar untuk orang yang tidak mau menyentuh kode.
+- **Tidak ada migration.** `content` sudah `jsonb` dan `content.html` sudah tersimpan sejak awal.
+- **`workers/notification-worker.ts` tidak disentuh.** Ia sudah menghormati
+  `data.content.html` (Phase 56 bergantung pada itu); yang kurang cuma pengirimnya.
+- **Manual send dan batch send tidak disentuh.** Keduanya sudah benar.
+- **`buildDefaultHtml` tidak berubah.** HTML yang ada memang sengaja melewati wrapper brand; itu
+  perilaku yang diminta, bukan bug.
+- **`dialog_awal` / `dialog_akhir` tidak diubah.** Keduanya sentinel (`[{}]` vs `[]`,
+  `lib/imports/variables.ts:204`) yang hanya boleh dipakai di `{{#if ....length}}`. Percetakan
+  langsung menghasilkan `[object Object]` — perilaku lama, bukan regresi, tapi mudah terpicu saat
+  menulis HTML mentah.
+
+### Verifikasi
+`scripts/verify-template-html.ts` (baru) — 23/23 PASS. Menjalankan lima kelompok pemeriksaan:
+
+1. **Render nyata dari DB.** User aktif yang benar-benar punya baris e-TPP di `data_imports`
+   diambil dari database, `resolveImportVars` dipanggil di atasnya, lalu body HTML berbentuk
+   `<table>` + `style=` inline + `{{#each ra_output_tw}}` + `{{#if dialog_awal.length}}` dirender
+   lewat engine yang produksi pakai. Keluarannya dicetak penuh: 4 baris RA dengan RHK, `output_ra`,
+   `target`/`satuan` asli, nomor urut `{{@number}}` mulai dari 1, dan tepat satu cabang dialog yang
+   muncul sesuai `dialog_periode` hari itu.
+2. **Routing channel.** Template ber-`channel` `both` menghasilkan job WA tanpa `html` dan job email
+   dengan `html`, sedangkan `text` keduanya identik.
+3. **Regresi plain text.** Template tanpa HTML menghasilkan `html === undefined` di channel `wa`
+   maupun `email` — diuji dengan `=== undefined`, bukan `!html`, supaya `""` yang lolos diam-diam
+   juga tertangkap. Ketiga template lama di database yang text-only ikut diuji: semuanya tetap
+   `undefined`.
+4. **Cabang worker.** Meniru keputusan `data.content.html || buildDefaultHtml(...)`: dengan HTML,
+   wrapper dilewati; tanpa HTML, wrapper dipakai.
+5. **Tidak ada sisa token.** Render akhir bebas `{{`, `}}`, `#each`, `#if`, dan `[object Object]`.
+
+Skrip ini tidak menulis baris dan tidak enqueue apa pun — semua payload job dibangun di memori dari
+baris DB asli, jadi aman dijalankan di database yang terisi.
+
+`bun scripts/verify-etpp.ts` — ALL CHECKS PASSED, tidak ada regresi di jalur e-TPP lama.
+`bunx tsc --noEmit` — bersih.
+`bunx eslint` pada seluruh file yang diubah — bersih, kecuali satu error **pre-existing** di
+`components/templates/template-form.tsx:226` (`react-hooks/set-state-in-effect`, effect yang
+menyinkronkan `detectedVariables` ke `sampleData`). Sudah dikonfirmasi pre-existing: error yang sama
+muncul di `HEAD` sebelum Phase 57 pada baris 213, dan tidak berasal dari kode baru. Memperbaikinya
+berarti mengganti state turunan jadi pola render-time, jadi perubahan semantik di luar scope phase ini.
+
+### Dua jebakan yang ketemu saat menulis fixture
+`{{output}}` bukan field yang ada — baris `ra_output_tw` memakai `rhk`, `kode_sumber`, `output_ra`,
+`tw`, `target`, `satuan`, `realisasi`, `validasi`. Fixture sempat menghasilkan sel kosong yang terlihat
+seperti bug render padahal memang tidak ada field-nya. Dan `{{dialog_awal}}` yang dicetak langsung
+menghasilkan `[object Object]`, karena isinya sentinel, bukan tanggal. Keduanya bait untuk yang
+menulis template HTML mentah: di panel variabel keduanya tampil, jadi tidak ada yang memperingatkan
+kalau salah path.
+
+### Catatan untuk verifikasi manual
+Buat template email baru, isi `content.text` tetap sebagai fallback, lalu buka tab `Kode HTML` dan
+tempel HTML ber-`{{#each}}`. Simpan, lalu buka preview tersimpan — hasilnya harus sama dengan yang
+dirender script. Kirim manual ke satu email dan cek header email: tidak boleh ada `<h1>SI-MPOK
+NORI</h1>` dari `buildDefaultHtml`, karena HTML admin yang dikirim utuh. Setelah itu jadwalkan email
+tersebut dan pastikan baris `notification_logs` punya `content.html` terisi, sementara job WA pada
+template `both` tetap `html`-nya kosong.

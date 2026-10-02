@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const session = await getSession();
     if (!session) return unauthorizedResponse();
 
-    const { content, subject, sampleData, userId } =
+    const { content, html, subject, sampleData, userId } =
       templateDraftPreviewSchema.parse(await request.json());
 
     let variables: Record<string, unknown> = sampleData;
@@ -52,6 +52,7 @@ export async function POST(request: Request) {
     }
 
     const renderedText = templateEngine.render(content, variables);
+    const renderedHtml = html ? templateEngine.render(html, variables) : undefined;
     const renderedSubject = subject
       ? templateEngine.render(subject, variables)
       : undefined;
@@ -59,8 +60,16 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       data: {
-        rendered: { text: renderedText, subject: renderedSubject },
-        variables: templateEngine.validateVariables(content),
+        rendered: { text: renderedText, html: renderedHtml, subject: renderedSubject },
+        // Variables live in both bodies: a template can carry its whole message
+        // in HTML and leave `text` as a plain-text fallback, so scanning only
+        // one of them would leave the other one's tags unresolved in preview.
+        variables: Array.from(
+          new Set([
+            ...templateEngine.validateVariables(content),
+            ...(html ? templateEngine.validateVariables(html) : []),
+          ])
+        ),
         sampleData: variables,
       },
     } satisfies ApiResponse);

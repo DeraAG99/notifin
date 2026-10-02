@@ -8,7 +8,7 @@ import {
 } from "../lib/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { templateEngine } from "../lib/template-engine";
-import { addNotificationJob } from "../lib/queue";
+import { addNotificationJob, htmlForChannel } from "../lib/queue";
 import { isAdminActive } from "../lib/admin-status";
 import { ETPP_ENGINE, resolveImportVars } from "../lib/imports/variables";
 import { dataImports } from "../lib/db/schema";
@@ -195,8 +195,17 @@ class EtppNotificationScheduler {
 
       const variables = await resolveImportVars(user);
       const renderedContent = templateEngine.render(template.content.text, variables);
+      // Rendered once per user, attached only to the email channel. WhatsApp
+      // takes text only, so a template on `both` must not carry HTML into a
+      // WA job. `undefined` (not "") keeps the worker's plain-text fallback
+      // path intact for every template that has no HTML body.
+      const renderedHtml = template.content.html
+        ? templateEngine.render(template.content.html, variables)
+        : undefined;
 
       for (const channel of channels) {
+        const channelHtml = htmlForChannel(renderedHtml, channel);
+
         const [log] = await db
           .insert(notificationLogs)
           .values({
@@ -205,7 +214,7 @@ class EtppNotificationScheduler {
             userId: user.id,
             channel,
             priority: "normal",
-            content: { text: renderedContent },
+            content: { text: renderedContent, html: channelHtml },
             status: "pending",
           })
           .returning();
@@ -218,7 +227,7 @@ class EtppNotificationScheduler {
           userId: user.id,
           channel,
           priority: "normal",
-          content: { text: renderedContent },
+          content: { text: renderedContent, html: channelHtml },
           subject: template.subject || undefined,
           recipientPhone: user.phone || undefined,
           recipientEmail: user.email || undefined,

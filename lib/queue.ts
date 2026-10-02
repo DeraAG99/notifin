@@ -28,6 +28,23 @@ export type NotificationJobData = {
   recipientName?: string;
 };
 
+/**
+ * Picks which rendered HTML body a given channel may carry.
+ *
+ * WhatsApp has no HTML body, so a template on `both` must not smuggle markup
+ * into a WA job. `undefined` (never `""`) is the deliberate choice: the worker
+ * decides with `data.content.html || buildDefaultHtml(...)`, so an undefined
+ * html leaves every template without an HTML body on exactly the code path it
+ * used before HTML support existed -- byte-identical output, no regression.
+ */
+export function htmlForChannel(
+  renderedHtml: string | undefined,
+  channel: "wa" | "email" | "both"
+): string | undefined {
+  if (!renderedHtml) return undefined;
+  return channel === "email" ? renderedHtml : undefined;
+}
+
 export type BaileysJobData = {
   type: "baileys-connect" | "baileys-disconnect";
   adminId: string;
