@@ -15,7 +15,6 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
 import { TiptapEditor } from "@/components/ui/tiptap-editor";
 import { useI18n } from "@/lib/i18n/context";
@@ -34,6 +33,7 @@ import {
 import { ImportVariablesPicker } from "@/components/imports/import-variables-picker";
 import { ETPP_BLOCKS, ETPP_PRESET } from "@/lib/templates/etpp-preset";
 import { templateEngine } from "@/lib/template-engine";
+import { cn } from "@/lib/utils";
 import type { NotificationTemplate, User } from "@/types";
 
 interface TemplateFormProps {
@@ -613,20 +613,49 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>{t.templates.form.htmlTemplate}</Label>
-                <Tabs
-                  value={htmlMode}
-                  onValueChange={(v) => setHtmlMode(v as "visual" | "code")}
+                {/*
+                  A segmented control rather than Base UI Tabs. No panel is
+                  ever rendered here -- only a value switch -- and the shared
+                  Tabs primitive styles itself off `data-horizontal`, an
+                  attribute Base UI never emits (it sends `data-orientation`),
+                  so the list silently lost its height while the trigger kept
+                  `flex-basis: 0` inside a `w-fit` parent. The result rendered
+                  but the click target collapsed to an unclickable sliver.
+                  `size="sm"` pins an explicit height so that cannot come back.
+                */}
+                <div
+                  role="group"
+                  aria-label={t.templates.form.htmlTemplate}
+                  className="inline-flex items-center gap-1 rounded-lg bg-muted p-[3px]"
                 >
-                  <TabsList>
-                    <TabsTrigger value="visual" className="text-xs">
-                      {t.templates.form.htmlModeVisual}
-                    </TabsTrigger>
-                    <TabsTrigger value="code" className="text-xs">
-                      <Code2 className="h-3 w-3 mr-1" />
-                      {t.templates.form.htmlModeCode}
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
+                  <Button
+                    type="button"
+                    size="sm"
+                    aria-pressed={htmlMode === "visual"}
+                    onClick={() => setHtmlMode("visual")}
+                    className={cn(
+                      "text-xs",
+                      htmlMode !== "visual" &&
+                        "bg-transparent text-muted-foreground shadow-none hover:bg-transparent hover:text-muted-foreground"
+                    )}
+                  >
+                    {t.templates.form.htmlModeVisual}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    aria-pressed={htmlMode === "code"}
+                    onClick={() => setHtmlMode("code")}
+                    className={cn(
+                      "text-xs",
+                      htmlMode !== "code" &&
+                        "bg-transparent text-muted-foreground shadow-none hover:bg-transparent hover:text-muted-foreground"
+                    )}
+                  >
+                    <Code2 className="h-3 w-3" />
+                    {t.templates.form.htmlModeCode}
+                  </Button>
+                </div>
               </div>
 
               {/*
