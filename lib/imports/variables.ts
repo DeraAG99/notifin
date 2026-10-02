@@ -3,7 +3,12 @@ import { dataImports, importCategories } from "@/lib/db/schema";
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import { mergeVariables } from "@/lib/variables";
 import { extractEtppVariables } from "@/lib/users/etpp-extract";
-import { isEmptyRealisasi } from "./utils";
+import {
+  DEFAULT_TIMEZONE,
+  isEmptyRealisasi,
+  resolveTimezone,
+  triwulanOf,
+} from "./utils";
 import type { ImportItem } from "./types";
 import type { User } from "@/types";
 
@@ -13,10 +18,6 @@ import type { User } from "@/types";
  * to file the file under cannot break a template.
  */
 export const ETPP_ENGINE = "ekinerja-json";
-
-function currentTriwulan(now: Date): number {
-  return Math.floor((now.getMonth() + 1 - 1) / 3) + 1;
-}
 
 /**
  * Month label for notification text, e.g. "September 2026".
@@ -30,8 +31,12 @@ function currentTriwulan(now: Date): number {
  * and, because it lands after `mergeVariables`, it also overwrites a stale
  * `bulan_ini` already sitting in `users.metadata` without a backfill.
  */
-export function formatBulanIni(now: Date): string {
-  return now.toLocaleString("id-ID", { month: "long", year: "numeric" });
+export function formatBulanIni(now: Date, timezone?: string): string {
+  return now.toLocaleString("id-ID", {
+    month: "long",
+    year: "numeric",
+    timeZone: resolveTimezone(timezone),
+  });
 }
 
 /**
@@ -44,21 +49,60 @@ export function formatBulanIni(now: Date): string {
  * `bulan_ini`: nothing in the e-TPP export records the document year ("Tahun
  * Kinerja" is a datepicker input), so a value captured at import time goes
  * stale for anyone who imports once and never again.
+ *
+ * `timezone` is threaded through so these agree with `triwulan_ini` and
+ * `dialog_periode`; omit it and `Intl` falls back to the host zone.
  */
-export function formatTahunIni(now: Date): string {
-  return now.toLocaleString("id-ID", { year: "numeric" });
+export function formatTahunIni(now: Date, timezone?: string): string {
+  return now.toLocaleString("id-ID", {
+    year: "numeric",
+    timeZone: resolveTimezone(timezone),
+  });
 }
 
-export function formatNamaBulan(now: Date): string {
-  return now.toLocaleString("id-ID", { month: "long" });
+export function formatNamaBulan(now: Date, timezone?: string): string {
+  return now.toLocaleString("id-ID", {
+    month: "long",
+    timeZone: resolveTimezone(timezone),
+  });
 }
 
-export function formatNamaHari(now: Date): string {
-  return now.toLocaleString("id-ID", { weekday: "long" });
+export function formatNamaHari(now: Date, timezone?: string): string {
+  return now.toLocaleString("id-ID", {
+    weekday: "long",
+    timeZone: resolveTimezone(timezone),
+  });
 }
 
-export function formatTanggalIni(now: Date): string {
-  return now.toLocaleString("id-ID", { day: "numeric" });
+export function formatTanggalIni(now: Date, timezone?: string): string {
+  return now.toLocaleString("id-ID", {
+    day: "numeric",
+    timeZone: resolveTimezone(timezone),
+  });
+}
+
+/**
+ * Which half of the month the notification lands in: days 1-15 are periode 1,
+ * days 16-31 are periode 2.
+ *
+ * The e-TPP cron fires on the 5th and the 25th (`0 8 5,25 * *`), so this is
+ * what tells a template which of the two windows it is looking at. It used to
+ * be derived from the triwulan (`triwulan_ini <= 2 ? 1 : 2`), which was simply
+ * wrong: TW1 and TW2 both returned 1, so a reminder sent on the 25th of TW2
+ * still announced "periode 1".
+ *
+ * `tanggal_ini` is read in the same timezone as the day, otherwise a UTC host
+ * would call the 1st of the month at 01:00 WIB "the last day of the previous
+ * month" and land on the wrong half.
+ */
+export function dialogPeriode(now: Date, timezone?: string): number {
+  const day = Number(
+    now.toLocaleString("en-GB", {
+      day: "numeric",
+      timeZone: resolveTimezone(timezone),
+    })
+  );
+  return day <= 15 ? 1 : 2;
 }
 
 function formatEkinerjaLine(item: ImportItem, idx: number): string {
@@ -83,8 +127,9 @@ function buildImportVars(
   categoryKey: string,
   categoryName: string,
   now: Date,
+  timezone?: string,
 ) {
-  const tw = currentTriwulan(now);
+  const tw = triwulanOf(now, timezone);
   const items = (Array.isArray(imp.data) ? imp.data : []) as ImportItem[];
   const twItems = items.filter((item) => item.triwulan === tw);
   const pending = twItems.filter((item) => isEmptyRealisasi(item.realisasi));
@@ -134,22 +179,30 @@ function buildImportVars(
 export async function resolveImportVars(
   user: { id: string; adminId: string } & Partial<User>,
   custom?: Record<string, unknown>,
-  now: Date = new Date()
+  now: Date = new Date(),
+  timezone: string = DEFAULT_TIMEZONE
 ): Promise<Record<string, unknown>> {
   // The whole period block is spread after `mergeVariables` on purpose:
   // `mergeVariables` lets `metadata` override the user defaults, so a value
   // stored at import time would win and defeat the point of computing these
   // live. Keep every period variable on this side of the spread.
-  const triwulanIni = currentTriwulan(now);
+  const triwulanIni = triwulanOf(now, timezone);
+  const periode = dialogPeriode(now, timezone);
   const base: Record<string, unknown> = {
     ...mergeVariables(user as User, custom),
-    bulan_ini: formatBulanIni(now),
-    tahun_ini: formatTahunIni(now),
-    nama_bulan: formatNamaBulan(now),
-    nama_hari: formatNamaHari(now),
-    tanggal_ini: formatTanggalIni(now),
+    bulan_ini: formatBulanIni(now, timezone),
+    tahun_ini: formatTahunIni(now, timezone),
+    nama_bulan: formatNamaBulan(now, timezone),
+    nama_hari: formatNamaHari(now, timezone),
+    tanggal_ini: formatTanggalIni(now, timezone),
     triwulan_ini: triwulanIni,
-    dialog_periode: triwulanIni <= 2 ? 1 : 2,
+    dialog_periode: periode,
+    // The template engine has no `==` and its truthiness check treats both 1
+    // and 2 as true, so `{{#if dialog_periode}}` cannot branch on this. These
+    // two carry the same answer in a form the engine can branch on: exactly one
+    // holds a single row, the other is empty.
+    dialog_awal: periode === 1 ? [{}] : [],
+    dialog_akhir: periode === 2 ? [{}] : [],
   };
 
   const rows = await db
@@ -179,7 +232,7 @@ export async function resolveImportVars(
     const items = Array.isArray(etppRow.imp.data)
       ? (etppRow.imp.data as ImportItem[])
       : [];
-    Object.assign(base, extractEtppVariables(items, now).variables, {
+    Object.assign(base, extractEtppVariables(items, now, timezone).variables, {
       etpp_imported: true,
     });
   }
@@ -198,6 +251,7 @@ export async function resolveImportVars(
       key,
       row.categoryName,
       now,
+      timezone,
     );
   }
 

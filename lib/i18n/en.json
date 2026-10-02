@@ -370,6 +370,8 @@
         "tanggal_ini": "16",
         "triwulan_ini": 3,
         "dialog_periode": 2,
+        "dialog_awal": [],
+        "dialog_akhir": [{}],
         "etpp_imported": true,
         "rhk_iku": [
           {
@@ -429,7 +431,7 @@
         "etpp": "e-TPP",
         "common": "General"
       },
-      "etppHint": "Available once a user imports their e-TPP file. Period (live, computed at send time): {{bulan_ini}}, {{tahun_ini}}, {{nama_bulan}}, {{nama_hari}}, {{tanggal_ini}}, {{triwulan_ini}}, {{dialog_periode}}. Data: {{rhk_iku}}, {{rhk_lainnya}}, {{ra}}, {{ra_output}}, {{ra_output_tw}}. Nested inside {{ra}}: {{rhk}}, {{indikator}}, {{kode_sumber}}, {{target}}, {{#each aksi}} {{teks}} ({{kode}}) KK: {{kriteria_keberhasilan}}, {{#each output}} {{nama}} {{#each triwulan}} TW{{tw}}: {{target}} {{satuan}} {{/each}}. {{ra_output}} is flat, one row per Output per triwulan: rhk, kode_sumber, output_ra, tw, target, satuan, realisasi, validasi. {{ra_output_tw}} holds the same shape but only for the triwulan in progress.",
+      "etppHint": "Available once a user imports their e-TPP file. Period (live, computed at send time): {{bulan_ini}}, {{tahun_ini}}, {{nama_bulan}}, {{nama_hari}}, {{tanggal_ini}}, {{triwulan_ini}}. {{dialog_periode}} = 1 for days 1-15, 2 for days 16-31 (matching the cron that fires on the 5th and 25th); the engine has no == operator, so branch on {{dialog_awal}} / {{dialog_akhir}} instead (one holds a single row, the other is empty). Data: {{rhk_iku}}, {{rhk_lainnya}}, {{ra}}, {{ra_output}}, {{ra_output_tw}}. Nested inside {{ra}}: {{rhk}}, {{indikator}}, {{kode_sumber}}, {{target}}, {{#each aksi}} {{teks}} ({{kode}}) KK: {{kriteria_keberhasilan}}, {{#each output}} {{nama}} {{#each triwulan}} TW{{tw}}: {{target}} {{satuan}} {{/each}}. {{ra_output}} is flat, one row per Output per triwulan: rhk, kode_sumber, output_ra, tw, target, satuan, realisasi, validasi. {{ra_output_tw}} holds the same shape but only for the triwulan in progress.",
       "etppPresetTitle": "Ready-to-use e-TPP template",
       "etppPresetHint": "Fill the message with the performance target reminder. You can edit it afterwards.",
       "etppPresetButton": "Use e-TPP Template",

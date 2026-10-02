@@ -17,6 +17,7 @@ import { db } from "../lib/db";
 import { dataImports, users } from "../lib/db/schema";
 import { ekinerjaHtmlParser } from "../lib/imports/parsers/ekinerja/html";
 import {
+  dialogPeriode,
   formatBulanIni,
   formatNamaBulan,
   formatNamaHari,
@@ -24,6 +25,7 @@ import {
   formatTahunIni,
   resolveImportVars,
 } from "../lib/imports/variables";
+import { DEFAULT_TIMEZONE as WIB, triwulanOf } from "../lib/imports/utils";
 import { extractEtppVariables } from "../lib/users/etpp-extract";
 import { templateEngine } from "../lib/template-engine";
 import { ETPP_PRESET } from "../lib/templates/etpp-preset";
@@ -38,7 +40,14 @@ const TW3 = new Date("2026-08-08T08:00:00+07:00");
 /** A date inside TW4, so `ra_output_tw` can be checked against a quarter that
  *  is not the first one. Mid-month keeps it clear of month boundaries. */
 const TW4 = new Date("2026-11-15T08:00:00+07:00");
-const SCALARS = { name: "Preview", bulan_ini: "Oktober 2026", triwulan_ini: 3, dialog_periode: 2 };
+const SCALARS = {
+  name: "Preview",
+  bulan_ini: "Agustus 2026",
+  triwulan_ini: 3,
+  dialog_periode: 2,
+  dialog_awal: [],
+  dialog_akhir: [{}],
+};
 
 let failures = 0;
 function check(label: string, ok: boolean, detail = "") {
@@ -189,7 +198,108 @@ console.log("\n=== ra_output_tw render ===");
   );
 }
 
-// --- 6. Period variables are live -----------------------------------------
+// --- 6. dialog_periode is a half-month, not a semester --------------------
+// The e-TPP cron fires on the 5th and the 25th, so the variable that tells a
+// template which window it is looking at has to be days 1-15 vs 16-31. It used
+// to come from the triwulan, which put the 25th of TW2 in "periode 1".
+console.log("\n=== dialog_periode ===");
+{
+  // December: the only month long enough to probe day 31. November would roll
+  // 11-31 over into December and quietly report day 1.
+  const at = (day: number, month = 12) =>
+    new Date(`2026-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T08:00:00+07:00`);
+
+  const boundary = [1, 14, 15, 16, 17, 25, 30, 31].map((d) => ({
+    d,
+    p: dialogPeriode(at(d), WIB),
+  }));
+  check(
+    "days 1-15 are periode 1, days 16-31 are periode 2",
+    boundary.every((r) => r.p === (r.d <= 15 ? 1 : 2)),
+    boundary.map((r) => `${r.d}:${r.p}`).join(" ")
+  );
+
+  // The regression the triwulan-based version had.
+  const twentyFifthOfTw2 = at(25, 5);
+  check(
+    "the 25th of TW2 is periode 2 (the triwulan-based version said 1)",
+    dialogPeriode(twentyFifthOfTw2, WIB) === 2,
+    `TW${triwulanOf(twentyFifthOfTw2, WIB)} / ${new Intl.DateTimeFormat("id-ID", { day: "numeric", timeZone: WIB }).format(twentyFifthOfTw2)}`
+  );
+
+  // The two cron windows must land on opposite sides.
+  check(
+    "the cron's own days (5 and 25) are on opposite sides",
+    dialogPeriode(at(5), WIB) === 1 && dialogPeriode(at(25), WIB) === 2
+  );
+
+  // The engine has no `==` and treats 1 and 2 alike as truthy, so the branchable
+  // pair has to be exactly one row on one side and empty on the other.
+  const [early] = await db
+    .select({ id: users.id, adminId: users.adminId, name: users.name, metadata: users.metadata })
+    .from(users)
+    .limit(1);
+  if (early) {
+    const p1 = await resolveImportVars(early, undefined, at(5), WIB);
+    const p2 = await resolveImportVars(early, undefined, at(25), WIB);
+    const rows = (v: Record<string, unknown>, key: string): number =>
+      ((v[key] as unknown[]) || []).length;
+    check(
+      "dialog_awal / dialog_akhir are one row on one side, empty on the other",
+      rows(p1, "dialog_awal") === 1 &&
+        rows(p1, "dialog_akhir") === 0 &&
+        rows(p2, "dialog_awal") === 0 &&
+        rows(p2, "dialog_akhir") === 1,
+      `tgl5: awal=${rows(p1, "dialog_awal")} akhir=${rows(p1, "dialog_akhir")} | tgl25: awal=${rows(p2, "dialog_awal")} akhir=${rows(p2, "dialog_akhir")}`
+    );
+    const rendered = templateEngine.render(
+      "{{#if dialog_awal.length}}AWAL{{/if}}{{#if dialog_akhir.length}}AKHIR{{/if}}",
+      p2
+    );
+    check("a template can branch on it", rendered === "AKHIR", `tgl25 renders "${rendered}"`);
+  }
+}
+
+// --- 7. Period variables are timezone-correct ------------------------------
+// `dialog_periode` flips on a single day, so reading the day in the host zone
+// would put a UTC container a whole half-month out during the small hours WIB.
+console.log("\n=== timezone ===");
+{
+  // 2026-12-31 17:00 UTC is 2027-01-01 00:05 WIB: still December in UTC,
+  // already the new year -- and the new month's first day, in WIB.
+  const newYearWib = new Date("2026-12-31T17:00:00Z");
+  check(
+    "year and month are read in WIB, not the host zone",
+    formatTahunIni(newYearWib, WIB) === "2027" &&
+      formatNamaBulan(newYearWib, WIB) === "Januari" &&
+      formatBulanIni(newYearWib, WIB) === "Januari 2027" &&
+      // the host zone reads the same instant as December
+      formatBulanIni(newYearWib, "UTC") === "Desember 2026",
+    `WIB says ${formatBulanIni(newYearWib, WIB)}, UTC says ${formatBulanIni(newYearWib, "UTC")}`
+  );
+
+  // The 15/16 cutoff happens at 00:00 WIB, which is 17:00 UTC the day before.
+  // One second either side of it must fall on opposite sides, and a host that
+  // is not WIB would read both instants as the 15th.
+  const beforeCutoff = new Date("2026-11-15T16:59:00Z"); // 23:59 WIB, still the 15th
+  const afterCutoff = new Date("2026-11-15T17:01:00Z"); // 00:01 WIB, now the 16th
+  check(
+    "the day is read in WIB, so the 15/16 cutoff lands correctly",
+    dialogPeriode(beforeCutoff, WIB) === 1 && dialogPeriode(afterCutoff, WIB) === 2,
+    `23:59 WIB (15th) -> ${dialogPeriode(beforeCutoff, WIB)}, 00:01 WIB (16th) -> ${dialogPeriode(afterCutoff, WIB)}`
+  );
+
+  // A bad `DEFAULT_TIMEZONE` in the environment must not kill the send: Intl
+  // throws a RangeError rather than degrading, so every formatter resolves the
+  // zone first.
+  check(
+    "an unknown timezone falls back instead of throwing mid-send",
+    formatBulanIni(newYearWib, "Not/AZone") === formatBulanIni(newYearWib, WIB) &&
+      dialogPeriode(afterCutoff, "Not/AZone") === dialogPeriode(afterCutoff, WIB)
+  );
+}
+
+// --- 8. Period variables are live -----------------------------------------
 // The e-TPP export carries no document year, so every period variable is
 // derived from `now` at send time. Two things have to hold for that to be worth
 // anything: the pieces have to be right, and a value snapshotted into
@@ -237,7 +347,8 @@ console.log("\n=== period variables ===");
         },
       },
       undefined,
-      now
+      now,
+      WIB
     );
     check(
       "stale users.metadata cannot shadow the live period variables",

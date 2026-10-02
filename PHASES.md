@@ -1951,7 +1951,7 @@ later parse in the same process.
 `lib/imports/variables.ts` picks the newest `data_imports` row for the user with
 `engine = 'ekinerja-json'`, falling back to the admin's `scope = 'global'` row, and assigns
 the e-TPP variables alongside `bulan_ini`. Added scalars: `triwulan_ini` and
-`dialog_periode` (`triwulan_ini <= 2 ? 1 : 2`).
+`dialog_periode` (later corrected to a half-month — see Phase 54).
 
 The `imports.<key>.*` path is untouched — e-TPP does not depend on an import category, so which
 category an admin filed the file under cannot break a template.
@@ -1996,7 +1996,9 @@ no-re-import guarantee, and there is no test runner):
 1. Settings → Notifikasi e-TPP Otomatis → `Template Tanggal 5`.
 2. Save the template again.
 3. `{{#each ra}}` → `{{#each ra_output}}` where per-output rows are wanted.
-4. `{{imports.etpp.currentTw}}` → `{{triwulan_ini}}`; `Periode 1` → `Periode {{dialog_periode}}`.
+4. `{{imports.etpp.currentTw}}` → `{{triwulan_ini}}`; `Periode 1` → `Periode {{dialog_periode}}`
+   (`dialog_periode` is a half-month from Phase 54 onward, so "Periode 1" was only right for the
+   first half of the month).
 
 ### Notes for whoever picks this up
 - `ra_output.target` is `-` for every output outside the triwulan in progress, so a rekap over
@@ -2122,6 +2124,78 @@ named by quarter so the label cannot drift again.
 
 ### No manual steps
 Scalars, not template shape changes. Existing templates keep working untouched.
+
+---
+
+## Phase 54 — `dialog_periode` is a half-month, and dates are read in WIB
+
+### Problem
+`dialog_periode` was derived from the triwulan: `triwulan_ini <= 2 ? 1 : 2`. That is just "first
+half of the year or second half of the year" wearing a domain name, and it contradicts the job
+that produces the value. The e-TPP cron is `0 8 5,25 * *` (`workers/etpp-notification.ts`) — it
+fires on the **5th** and the **25th**. With the triwulan-based rule, the reminder sent on the 25th
+of TW2 announced "periode 1", and so did the one on the 25th of TW4.
+
+### The rule
+Days 1-15 are periode 1, days 16-31 are periode 2 — the two windows the cron actually targets.
+
+### Timezone
+`resolveImportVars` took `now = new Date()` and read the month with `now.getMonth()`, i.e. the
+**container's** zone. That was tolerable for the triwulan (a quarter is 3 months wide) but not for
+a boundary that falls on a single day: a UTC host calls 2026-07-01 01:00 WIB "30 June", putting
+the message in the wrong quarter and the wrong half-month.
+
+`resolveImportVars` now takes a fourth `timezone` argument, defaulting to `DEFAULT_TIMEZONE`
+(`process.env.DEFAULT_TIMEZONE || "Asia/Jakarta"`), and threads it through every calendar read —
+`formatBulanIni` and friends, `dialogPeriode`, `currentTriwulan`, `buildImportVars`, and
+`extractEtppVariables`. The two local copies of "month to quarter" (`currentTriwulan` in
+`variables.ts`, `getCurrentTw` in `etpp-extract.ts`) collapsed into `triwulanOf` in
+`lib/imports/utils.ts`; they had already disagreed in style (`Math.floor((m + 1 - 1) / 3) + 1` vs
+`Math.ceil((m + 1) / 3)`).
+
+Helper location matters: `DEFAULT_TIMEZONE` lives in `lib/imports/utils.ts`, not
+`variables.ts`, because `variables.ts` imports `etpp-extract.ts` — declaring it there and
+importing it back would be circular.
+
+`resolveTimezone` guards every formatter. `Intl.DateTimeFormat` throws a `RangeError` on an
+unknown zone rather than degrading, so a bad `DEFAULT_TIMEZONE` in the environment would take down
+the send instead of quietly falling back.
+
+### Branching without `==`
+The engine's truthiness check treats `1` and `2` alike, so `{{#if dialog_periode}}` cannot tell
+them apart and there is no `==` to reach for. Two companion lists carry the same answer in a form
+the engine can branch on — exactly one holds a single row, the other is empty:
+
+```handlebars
+{{#if dialog_awal.length}}… periode 1 …{{/if}}
+{{#if dialog_akhir.length}}… periode 2 …{{/if}}
+```
+
+This is the same trick `ra_output_tw` uses for the quarter.
+
+### Verification (`bun scripts/verify-etpp.ts`)
+- Days 1, 14, 15 → 1; days 16, 17, 25, 30, 31 → 2 (probed in December, the only month long enough
+  to test the 31st).
+- The 25th of TW2 is periode 2 — the exact case the triwulan-based version got wrong.
+- The cron's own two days, 5 and 25, land on opposite sides.
+- `dialog_awal`/`dialog_akhir` are 1/0 on the 5th and 0/1 on the 25th, and a real template render
+  branches correctly.
+- `2026-12-31T17:00Z` (2027-01-01 00:05 WIB) reads as "Januari 2027" in WIB and "Desember 2026"
+  in UTC, so the zone is genuinely being used.
+- One second either side of the 15/16 boundary at 00:00 WIB falls on opposite sides.
+- An unknown timezone returns the fallback instead of throwing.
+
+### Two bugs the verifier caught
+1. **November has 30 days.** The first boundary probe used `2026-11-31`, which JavaScript rolls
+   over to 1 December — so the test reported day 31 as periode 1 and it read like a code bug. The
+   probe now uses December.
+2. **The timezone guard did not exist where it was needed.** The first cut validated the zone in
+   `calendarParts` only, while the formatters passed it straight to `toLocaleString`, which throws
+   on a bad zone in Bun. The most-used path was the one that would have crashed a send.
+
+### No manual steps
+Purely a change in what the variables compute. Templates referencing `{{dialog_periode}}` keep
+rendering; the value they get is now the correct one.
 
 ---
 

@@ -111,6 +111,8 @@ const VARIABLE_GROUPS: VariableGroup[] = [
       "tanggal_ini",
       "triwulan_ini",
       "dialog_periode",
+      "dialog_awal",
+      "dialog_akhir",
       "rhk_iku",
       "rhk_lainnya",
       "ra",

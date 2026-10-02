@@ -1,3 +1,4 @@
+import { triwulanOf } from "../imports/utils";
 import type { ImportItem } from "../imports/types";
 
 export type KodeLabel = "IKU" | "Lainnya";
@@ -109,10 +110,6 @@ function splitKode(
   return { kode: match[1].trim(), teks: s.slice(match[0].length).trim() };
 }
 
-function getCurrentTw(now: Date): number {
-  return Math.ceil((now.getMonth() + 1) / 3);
-}
-
 function toNullable(value: string | null | undefined): string | null {
   const s = tidy(value);
   return s && s !== "-" && s !== "--" ? s : null;
@@ -140,9 +137,10 @@ function groupKey(item: ImportItem): string {
  */
 export function extractEtppVariables(
   items: ImportItem[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  timezone?: string
 ): EtppExtraction {
-  const currentTw = getCurrentTw(now);
+  const currentTw = triwulanOf(now, timezone);
   const groups = new Map<string, EtppRhk>();
   const aksiSeen = new Map<string, Set<string>>();
   const outputIndex = new Map<string, Map<string, EtppOutput>>();
