@@ -2212,6 +2212,10 @@ REDIS_URL=redis://localhost:6379
 FONNTE_TOKEN=your_fonnte_token_here
 FONNTE_RATE_LIMIT=100
 
+# Baileys per-message pacing (ms) — DB settings override without restart
+BAILEYS_MIN_DELAY_MS=8000
+BAILEYS_MAX_DELAY_MS=15000
+
 # Email (SMTP/Nodemailer)
 SMTP_HOST=smtp.provider.com
 SMTP_PORT=587
@@ -2223,3 +2227,81 @@ EMAIL_FROM=notifications@yourdomain.com
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 DEFAULT_TIMEZONE=Asia/Jakarta
 ```
+
+---
+
+## Phase 55 — Jadwal "Semua Pengguna" + anti-ban Baileys
+
+### Latar belakang
+Satu jadwal = satu pengguna. `notification_schedules.user_id` was `NOT NULL` with an FK to
+`users.id`, and `SchedulerService.processSchedule` did `WHERE users.id = schedule.userId` then
+`if (!user) return` — so blasting a whole tenant was not expressible at all. Meanwhile Baileys
+paced at 2.5–5s per message with a check-then-act that concurrency silently defeated, and the
+timer lived on a provider instance that `getWaProvider` threw away every 60s.
+
+Kebutuhan: satu admin dengan ~100 user, blast lewat Baileys.
+
+### Migrasi 0012
+- `notification_schedules.user_id` → nullable (drop NOT NULL; FK tetap)
+- `notification_schedules.target` → `text` enum `specific|all`, default `specific`
+- backfill eksplisit `UPDATE ... SET target='specific' WHERE target IS NULL`
+
+Kolom terpisah, bukan `userId === null` sebagai penanda "semua": `null` tidak bisa dibedakan dari
+"pengguna belum dipilih", dan `user_id` punya `ON DELETE CASCADE`, jadi jadwal `target='all'`
+yang menyimpan userId sisa ikut hilang begitu satu user dihapus.
+
+### Kontrak jadwal
+`createScheduleSchema` — `userId` jadi `.optional()`, `target` enum default `specific`, plus
+`superRefine`: `all` → `userId` harus absen, `specific` → `userId` wajib. `updateScheduleSchema`
+dihitung ulang sebagai object penuh (bukan `.partial()`) supaya refinement itu tidak ikut hilang
+dan tidak menolak update yang hanya menyentuh `isActive`.
+
+`ScheduleConfig` → `userId?: string | null`, `target?: "specific" | "all"`. Insert menaruh
+`userId: null` saat `target === "all"`. `updateSchedule` juga **`userId`-nya di-null-kan** saat
+target pindah ke `all` — kalau tidak, userId lama tertinggal dan jadwal yang kembali ke
+`specific` diam-diam menunjuk ke user yang tidak dipilih lagi.
+
+### `processSchedule`
+Recipients bukan lagi satu user melainkan query:
+- `target === "all"` → semua user **aktif** milik `schedule.adminId`
+- selain itu → user tunggal, seperti sebelumnya
+
+Filter kontak mengikuti `workers/etpp-notification.ts`: user tanpa phone dilewati kalau channel
+memakai WA, tanpa email dilewati kalau channel memakai email. `lastSentAt`/`nextRunAt` ditulis
+**sekali per tick**, bukan per user, dan log Nowcast satu baris berisi jumlah job + yang dilewati.
+
+### Anti-ban Baileys ( dua lubang )
+**1. Jeda tidak berlaku saat concurrency 10.** `createWorker` memakai `concurrency: 10` untuk WA.
+`waitForRateLimit()` baca `lastSendTime`, sleep, tulis balik — tanpa mutex. Sepuluh job paralel
+melihat nilai yang sama, menunggu durasi yang sama, lalu **kirim barengan**: jeda 8s yang seemed
+aman sebenarnya jadi 10 pesan sekaligus tiap 8s. `enqueue()` sekarang merangkai job lewat
+`sendChain`, jadi socket tidak pernah dipakai bersamaan; kegagalan satu job tidak meracuni
+rantai karena `.then(task, task)`.
+
+**2. Timer reset tiap 60 detik.** `lastSendTime` ada di instance provider, sedangkan
+`getWaProvider` (`lib/wa/index.ts`) cache-nya 60s. Lewat 60s → provider baru → `lastSendTime = 0`
+→ satu pesan Immediately tanpa jeda, di tengah-tengah blast. Dipindah ke
+`BaileysManager.lastSendTimes` (static Map, hidup selama proses, **per admin**), lewat
+`getLastSendTime`/`setLastSendTime`.
+
+### Delay configurable
+Pola yang sama seperti `fonnteRateLimit` — **DB > env > hardcode**:
+- `settings` per-admin: `baileysMinDelayMs`, `baileysMaxDelayMs` (0/0 = matikan jeda)
+- env fallback: `BAILEYS_MIN_DELAY_MS` / `BAILEYS_MAX_DELAY_MS`, default 8000 / 15000
+
+DB dibaca per pesan, jadi perubahan berlaku tanpa restart worker. Nilai non-numeric diabaikan
+(env atau DB), `min > max` dijepit ke `min`, dan admin berbeda punya jeda sendiri.
+
+### Verifikasi
+`bunx tsc --noEmit` bersih; `bun scripts/verify-etpp.ts` ALL CHECKS PASSED (regresi e-TPP).
+Dicek terpisah: delay env-only dan setiap override DB (termasuk 0/0 dan min>max) menghasilkan
+rentang yang benar; socket tidak pernah konkuren saat 12 job paralel; kegagalan tidak merusak
+rantai; timer terisolasi per admin; `processSchedule` pada 8 user aktif membuat 7 log dan
+melewati 1 yang tanpa phone; `lastSentAt` tercatat sekali. Test DB dibersihkan kembali.
+
+Lint tidak menambah temuan baru — `schedules/page.tsx:98` (`set-state-in-effect`) dan
+`baileys-manager.ts:133` (`useMultiFileAuthState` di class) sudah ada sebelumnya.
+
+### Estimasi
+100 user pada jeda 8–15s (rata-rata 11.5s) ≈ **19 menit** per tick, sepiring dengan antrean
+BullMQ (limiter 100 job/menit tidak mengikat selama rentang itu).

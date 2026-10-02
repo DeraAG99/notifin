@@ -508,6 +508,8 @@
     "cron": "Cron",
     "template": "Template",
     "user": "User",
+    "allUsers": "All Users",
+    "allUsersDesc": "Send to all active users of this admin",
     "nextRun": "Next Run",
     "deleteConfirm": "Delete this schedule?",
     "form": {

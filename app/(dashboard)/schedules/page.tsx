@@ -41,6 +41,7 @@ export default function SchedulesPage() {
   const [editingSchedule, setEditingSchedule] = useState<NotificationSchedule | null>(null);
   const [templateId, setTemplateId] = useState("");
   const [userId, setUserId] = useState("");
+  const [target, setTarget] = useState<"specific" | "all">("specific");
   const [cronExpression, setCronExpression] = useState("0 9 * * *");
   const [templates, setTemplates] = useState<{ id: string; name: string }[]>([]);
   const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
@@ -102,6 +103,7 @@ export default function SchedulesPage() {
     setEditingSchedule(null);
     setTemplateId("");
     setUserId("");
+    setTarget("specific");
     setCronExpression("0 9 * * *");
     setFormOpen(true);
   };
@@ -109,7 +111,8 @@ export default function SchedulesPage() {
   const openEdit = (schedule: NotificationSchedule) => {
     setEditingSchedule(schedule);
     setTemplateId(schedule.templateId);
-    setUserId(schedule.userId);
+    setUserId(schedule.userId ?? "");
+    setTarget(schedule.target ?? "specific");
     setCronExpression(schedule.cronExpression);
     setFormOpen(true);
   };
@@ -117,19 +120,24 @@ export default function SchedulesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cronCheck.valid) return;
+    const payload = {
+      templateId,
+      cronExpression,
+      ...(target === "all" ? { target: "all" as const } : { target: "specific" as const, userId }),
+    };
     try {
       if (editingSchedule) {
         await fetch(`/api/schedules/${editingSchedule.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ templateId, userId, cronExpression }),
+          body: JSON.stringify(payload),
         });
         toast.add({ title: t.common.success, description: "Jadwal berhasil diperbarui", type: "success" });
       } else {
         await fetch("/api/schedules", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ templateId, userId, cronExpression, isActive: true }),
+          body: JSON.stringify({ ...payload, isActive: true }),
         });
         toast.add({ title: t.common.success, description: "Jadwal berhasil dibuat", type: "success" });
       }
@@ -219,7 +227,9 @@ export default function SchedulesPage() {
                       {templateName || schedule.templateId.slice(0, 8) + "..."}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {userName || schedule.userId.slice(0, 8) + "..."}
+                      {schedule.target === "all"
+                        ? t.schedules.allUsers
+                        : userName || schedule.userId?.slice(0, 8) + "..."}
                     </TableCell>
                     <TableCell className="text-sm">
                       {schedule.nextRunAt
@@ -291,17 +301,37 @@ export default function SchedulesPage() {
 
             <div className="space-y-2">
               <Label>{t.schedules.user}</Label>
-              <Select value={userId} onValueChange={(v) => setUserId(v ?? "")}>
+              <Select
+                value={target === "all" ? "all" : userId ? `user:${userId}` : "specific"}
+                onValueChange={(raw) => {
+                  const v = raw ?? "";
+                  if (v === "all") {
+                    setTarget("all");
+                    setUserId("");
+                    return;
+                  }
+                  if (v.startsWith("user:")) {
+                    setTarget("specific");
+                    setUserId(v.slice(5));
+                  }
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder={t.schedules.form.selectUser} />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">{t.schedules.allUsers}</SelectItem>
                   {users.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                    <SelectItem key={u.id} value={`user:${u.id}`}>{u.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                {target === "all" ? t.schedules.allUsersDesc : null}
+              </p>
             </div>
+
+            
 
             <div className="space-y-2">
               <Label>{t.schedules.form.cronExpression}</Label>
@@ -354,7 +384,7 @@ export default function SchedulesPage() {
               <Button type="button" variant="outline" onClick={() => setFormOpen(false)}>
                 {t.schedules.form.cancel}
               </Button>
-              <Button type="submit" disabled={!templateId || !userId || !cronCheck.valid}>
+              <Button type="submit" disabled={!templateId || !cronCheck.valid || (target === "specific" && !userId)}>
                 {editingSchedule ? t.schedules.form.saveButton : t.schedules.form.createButton}
               </Button>
             </div>

@@ -17,7 +17,8 @@ import { isAdminActive } from "./admin-status";
 interface ScheduleConfig {
   adminId: string;
   templateId: string;
-  userId: string;
+  userId?: string | null;
+  target?: "specific" | "all";
   cronExpression: string;
   isActive?: boolean;
 }
@@ -77,6 +78,7 @@ class SchedulerService {
         adminId: notificationSchedules.adminId,
         templateId: notificationSchedules.templateId,
         userId: notificationSchedules.userId,
+        target: notificationSchedules.target,
         cronExpression: notificationSchedules.cronExpression,
         isActive: notificationSchedules.isActive,
       })
@@ -139,13 +141,15 @@ class SchedulerService {
   async createSchedule(config: ScheduleConfig): Promise<void> {
     const timezone = await getAdminTimezone(config.adminId);
     const nextRun = calculateNextRun(config.cronExpression, timezone);
+    const target = config.target ?? "specific";
 
     const [schedule] = await db
       .insert(notificationSchedules)
       .values({
         adminId: config.adminId,
         templateId: config.templateId,
-        userId: config.userId,
+        userId: target === "all" ? null : config.userId ?? null,
+        target,
         cronExpression: config.cronExpression,
         isActive: config.isActive ?? true,
         nextRunAt: nextRun,
@@ -174,6 +178,14 @@ class SchedulerService {
     }
     if (config.isActive !== undefined) {
       updateData.isActive = config.isActive;
+    }
+    if (config.target !== undefined) {
+      updateData.target = config.target;
+    }
+    if (config.target === "all") {
+      updateData.userId = null;
+    } else if (config.userId !== undefined) {
+      updateData.userId = config.userId || null;
     }
 
     await db
@@ -225,51 +237,77 @@ class SchedulerService {
 
       if (!template || !template.isActive) return;
 
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, schedule.userId))
-        .limit(1);
-
-      if (!user || !user.isActive) return;
-
-      const variables = await resolveImportVars(user);
-      const renderedContent = templateEngine.render(
-        template.content.text,
-        variables
-      );
-
       const channels: ("wa" | "email")[] =
         template.channel === "both" ? ["wa", "email"] : [template.channel];
 
-      for (const ch of channels) {
-        const [log] = await db
-          .insert(notificationLogs)
-          .values({
+      const recipients =
+        schedule.target === "all"
+          ? await db
+              .select()
+              .from(users)
+              .where(
+                and(
+                  eq(users.adminId, schedule.adminId),
+                  eq(users.isActive, true)
+                )
+              )
+          : schedule.userId
+            ? await db
+                .select()
+                .from(users)
+                .where(eq(users.id, schedule.userId))
+                .limit(1)
+            : [];
+
+      const eligible = recipients.filter((user) => {
+        if (!user.isActive) return false;
+        const needsPhone = channels.includes("wa");
+        const needsEmail = channels.includes("email");
+        return !((needsPhone && !user.phone) || (needsEmail && !user.email));
+      });
+
+      const skipped = recipients.length - eligible.length;
+
+      let queued = 0;
+
+      for (const user of eligible) {
+        const variables = await resolveImportVars(user);
+        const renderedContent = templateEngine.render(
+          template.content.text,
+          variables
+        );
+
+        for (const ch of channels) {
+          const [log] = await db
+            .insert(notificationLogs)
+            .values({
+              adminId: schedule.adminId,
+              templateId: template.id,
+              userId: user.id,
+              channel: ch,
+              priority: "normal",
+              content: { text: renderedContent },
+              status: "pending",
+            })
+            .returning();
+
+          await addNotificationJob({
+            type: ch === "wa" ? "send-wa" : "send-email",
             adminId: schedule.adminId,
+            logId: log.id,
             templateId: template.id,
             userId: user.id,
             channel: ch,
             priority: "normal",
             content: { text: renderedContent },
-            status: "pending",
-          })
-          .returning();
+            subject: template.subject || undefined,
+            recipientPhone: user.phone || undefined,
+            recipientEmail: user.email || undefined,
+            recipientName: user.name,
+          });
 
-        await addNotificationJob({
-          type: ch === "wa" ? "send-wa" : "send-email",
-          adminId: schedule.adminId,
-          logId: log.id,
-          templateId: template.id,
-          userId: user.id,
-          channel: ch,
-          priority: "normal",
-          content: { text: renderedContent },
-          subject: template.subject || undefined,
-          recipientPhone: user.phone || undefined,
-          recipientEmail: user.email || undefined,
-          recipientName: user.name,
-        });
+          queued += 1;
+        }
       }
 
       const timezone = await getAdminTimezone(schedule.adminId);
@@ -281,7 +319,9 @@ class SchedulerService {
         })
         .where(eq(notificationSchedules.id, scheduleId));
 
-      console.log(`Processed schedule ${scheduleId}`);
+      console.log(
+        `Processed schedule ${scheduleId}: ${queued} job(s) queued, ${skipped} skipped (kontak kurang/tidak aktif)`
+      );
     } catch (error) {
       console.error(`Error processing schedule ${scheduleId}:`, error);
     }

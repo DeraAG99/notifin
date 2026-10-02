@@ -90,6 +90,8 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       RESEND_FROM: ${RESEND_FROM:-}
       BAILEYS_AUTH_DIR: /data/baileys-auth
+      BAILEYS_MIN_DELAY_MS: ${BAILEYS_MIN_DELAY_MS:-8000}
+      BAILEYS_MAX_DELAY_MS: ${BAILEYS_MAX_DELAY_MS:-15000}
     volumes:
       - baileys_auth:/data/baileys-auth
     command: ["bun", "workers/notification-worker.ts"]

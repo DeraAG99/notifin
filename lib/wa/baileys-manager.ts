@@ -97,6 +97,16 @@ export class BaileysManager {
     return this._connected && this.sock !== null;
   }
 
+  private static lastSendTimes = new Map<string, number>();
+
+  static getLastSendTime(adminId: string): number {
+    return BaileysManager.lastSendTimes.get(adminId) ?? 0;
+  }
+
+  static setLastSendTime(adminId: string, at: number): void {
+    BaileysManager.lastSendTimes.set(adminId, at);
+  }
+
   async connect(): Promise<void> {
     if (BaileysManager.instances.get(this.adminId) !== this) return;
     if (this._connected || this.connecting) return;

@@ -83,8 +83,9 @@ export const notificationSchedules = pgTable("notification_schedules", {
   templateId: uuid("template_id")
     .references(() => notificationTemplates.id)
     .notNull(),
-  userId: uuid("user_id")
-    .references(() => users.id, { onDelete: "cascade" })
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  target: text("target", { enum: ["specific", "all"] })
+    .default("specific")
     .notNull(),
   cronExpression: text("cron_expression").notNull(),
   isActive: boolean("is_active").default(true),

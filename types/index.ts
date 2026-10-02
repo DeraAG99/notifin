@@ -60,7 +60,8 @@ export interface NotificationTemplate {
 export interface NotificationSchedule {
   id: string;
   templateId: string;
-  userId: string;
+  userId: string | null;
+  target: "specific" | "all";
   cronExpression: string;
   isActive: boolean | null;
   lastSentAt: Date | null;

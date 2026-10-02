@@ -60,19 +60,66 @@ export const createTemplateSchema = z.object({
 
 export const updateTemplateSchema = createTemplateSchema.partial();
 
-export const createScheduleSchema = z.object({
-  templateId: z.string().uuid("Invalid template ID"),
-  userId: z.string().uuid("Invalid user ID"),
-  cronExpression: z
-    .string()
-    .min(1, "Cron expression is required")
-    .refine((val) => validateCron(val).valid, {
-      message: "Invalid cron expression",
-    }),
-  isActive: z.boolean().default(true),
-});
+export const createScheduleSchema = z
+  .object({
+    templateId: z.string().uuid("Invalid template ID"),
+    userId: z.string().uuid("Invalid user ID").optional(),
+    target: z.enum(["specific", "all"]).default("specific"),
+    cronExpression: z
+      .string()
+      .min(1, "Cron expression is required")
+      .refine((val) => validateCron(val).valid, {
+        message: "Invalid cron expression",
+      }),
+    isActive: z.boolean().default(true),
+  })
+  .superRefine((data, ctx) => {
+    if (data.target === "all" && data.userId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["userId"],
+        message: "userId must be omitted when target is 'all'",
+      });
+    }
+    if (data.target === "specific" && !data.userId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["userId"],
+        message: "userId is required when target is 'specific'",
+      });
+    }
+  });
 
-export const updateScheduleSchema = createScheduleSchema.partial();
+export const updateScheduleSchema = z
+  .object({
+    templateId: z.string().uuid("Invalid template ID").optional(),
+    userId: z.string().uuid("Invalid user ID").optional(),
+    target: z.enum(["specific", "all"]).optional(),
+    cronExpression: z
+      .string()
+      .min(1, "Cron expression is required")
+      .refine((val) => validateCron(val).valid, {
+        message: "Invalid cron expression",
+      })
+      .optional(),
+    isActive: z.boolean().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.target === "all" && data.userId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["userId"],
+        message: "userId must be omitted when target is 'all'",
+      });
+    }
+    if (data.target === "specific" && !data.userId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["userId"],
+        message: "userId is required when target is 'specific'",
+      });
+    }
+  });
 
 export const sendNotificationSchema = z.object({
   templateId: z.string().uuid("Invalid template ID"),

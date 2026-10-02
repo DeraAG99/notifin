@@ -511,6 +511,8 @@
     "cron": "Cron",
     "template": "Template",
     "user": "Pengguna",
+    "allUsers": "Semua Pengguna",
+    "allUsersDesc": "Kirim ke semua pengguna aktif milik admin ini",
     "nextRun": "Jalan Berikutnya",
     "deleteConfirm": "Hapus jadwal ini?",
     "form": {
