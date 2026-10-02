@@ -6,7 +6,20 @@ import { getWaProvider } from "../lib/wa";
 import { sendEmail } from "../lib/email";
 import { isAdminActive } from "../lib/admin-status";
 
-function buildDefaultHtml(title: string, message: string, recipientName?: string): string {
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function buildDefaultHtml(
+  title: string,
+  message: string,
+  recipientName?: string,
+  brandName = "SI-MPOK NORI"
+): string {
+  const brand = escapeHtml(brandName);
   return `<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -21,7 +34,7 @@ function buildDefaultHtml(title: string, message: string, recipientName?: string
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
           <tr>
             <td style="background-color:#18181b;padding:24px 32px;">
-              <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:600;">Notifin</h1>
+              <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:600;">${brand}</h1>
             </td>
           </tr>
           <tr>
@@ -33,7 +46,7 @@ function buildDefaultHtml(title: string, message: string, recipientName?: string
           </tr>
           <tr>
             <td style="padding:20px 32px;border-top:1px solid #e4e4e7;">
-              <p style="margin:0;color:#a1a1aa;font-size:12px;text-align:center;">Dikirim oleh Notifin</p>
+              <p style="margin:0;color:#a1a1aa;font-size:12px;text-align:center;">Dikirim oleh ${brand}</p>
             </td>
           </tr>
         </table>
@@ -206,7 +219,17 @@ async function processEmail(data: NotificationJobData) {
     throw new Error("No email address for email notification");
   }
 
-  const html = data.content.html || buildDefaultHtml(data.subject || "Notifikasi", data.content.text, data.recipientName);
+  let html = data.content.html;
+  if (!html) {
+    const fromName = await getSetting(data.adminId, "emailFromName");
+    const brandName = String(fromName ?? "").trim() || "SI-MPOK NORI";
+    html = buildDefaultHtml(
+      data.subject || "Notifikasi",
+      data.content.text,
+      data.recipientName,
+      brandName
+    );
+  }
 
   const result = await sendEmail(data.adminId, {
     to: data.recipientEmail,

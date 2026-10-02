@@ -2305,3 +2305,53 @@ Lint tidak menambah temuan baru — `schedules/page.tsx:98` (`set-state-in-effec
 ### Estimasi
 100 user pada jeda 8–15s (rata-rata 11.5s) ≈ **19 menit** per tick, sepiring dengan antrean
 BullMQ (limiter 100 job/menit tidak mengikat selama rentang itu).
+
+## Phase 56 — Header & footer email ikut Nama Pengirim dari Settings
+
+### Latar belakang
+`buildDefaultHtml` di `workers/notification-worker.ts` membungkus setiap email text-only dengan
+header `<h1>Notifin</h1>` dan footer `Dikirim oleh Notifin`, keduanya hardcode. Rebranding aplikasi
+ke SI-MPOK NORI sudah selesai di Phase 47 dan UI sudah konsisten memakai nama itu, jadi email
+menjadi satu-satunya sisa branding lama yang masih terlihat pengguna. Nama pengirim sebenarnya
+sudah bisa diatur admin lewat `emailFromName`, tapi selama ini hanya dipakai untuk header From
+(`lib/email.ts:156`), bukan untuk isi email.
+
+### Perubahan
+`buildDefaultHtml` dapat parameter `brandName` (default `"SI-MPOK NORI"`), di-escape sekali di awal
+lalu dipakai di header maupun footer. `escapeHtml` baru (escape `&`, `<`, `>`) dipakai karena
+`emailFromName` masuk ke dalam HTML tanpa proteksi; polanya mengikuti sanitasi yang sudah ada di
+`getFromAddress` (`lib/email.ts:145`).
+
+`processEmail` resolve `emailFromName` dari DB sebelum memanggil template, fallback ke
+`"SI-MPOK NORI"` kalau kosong atau whitespace. Resolusi diletakkan **di dalam** `if (!html)` —
+template yang sudah punya `content.html` tidak akan kena query yang tidak perlu, dan memang tidak
+pernah memakai `buildDefaultHtml`.
+
+Tidak ada migration, tidak ada setting baru, tidak ada perubahan UI: `emailFromName` sudah terdaftar
+di `SETTING_KEYS` (`app/api/settings/route.ts:28`), sudah ada validasinya
+(`lib/validations.ts:194`), dan input-nya sudah ada untuk kedua provider
+(`settings/page.tsx:704-709` untuk SMTP, `:716-720` untuk Resend). Header From di `sendViaResend`
+tetap membaca setting yang sama secara independen.
+
+### Yang tidak diubah
+- `emails/notification.tsx`, `emails/welcome.tsx` — `sendNotificationEmail`/`sendWelcomeEmail`
+  (`lib/email.ts:350,341`) tidak pernah dipanggil dari mana pun. Dead code, tidak pernah sampai ke inbox.
+- `lib/email.ts:143,158,227` fallback `notifications@notifin.app` — hanya terpakai kalau env
+  `RESEND_FROM`/`EMAIL_FROM` kosong; di produksi env itu keisi. Sender address adalah keputusan
+  operasional, bukan branding.
+- `lib/db/seed.ts` `admin@notifin.com` — seed memakainya sebagai lookup `.where(email = ...)`;
+  mengubahnya akan membuat admin kedua, bukan memperbarui yang lama.
+- `docker-compose.yml`, `.env.docker.example`, `package.json`, `bun.lock` — `notifin` di sana adalah
+  nama database/user/container/image, bukan tampilan.
+- `lib/db/migrations/0002_tenant.sql` — migration yang sudah ter-apply tidak boleh disentuh.
+
+### Verifikasi
+`bunx tsc --noEmit` bersih; `bunx eslint workers/notification-worker.ts` bersih. `grep Notifin` di
+worker tidak bersisa. `escapeHtml` diuji: `A & B` → `A &amp; B`, dan
+`X</h1><script>alert(1)</script>` ter-escape utuh.
+
+### Catatan untuk verifikasi manual
+Header/footer hanya muncul kalau template **tidak** punya `content.html` — kalau punya,
+`app/api/notifications/send/route.ts:89` mengirim `html` sehingga `buildDefaultHtml` dilewati
+seluruhnya. Jalur e-TPP (`workers/etpp-notification.ts:221`) dan scheduler (`lib/scheduler.ts:302`)
+selalu text-only sehingga selalu memakai wrapper.
