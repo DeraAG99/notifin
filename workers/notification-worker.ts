@@ -16,7 +16,6 @@ function escapeHtml(value: string): string {
 function buildDefaultHtml(
   title: string,
   message: string,
-  recipientName?: string,
   brandName = "SI-MPOK NORI"
 ): string {
   const brand = escapeHtml(brandName);
@@ -39,7 +38,6 @@ function buildDefaultHtml(
           </tr>
           <tr>
             <td style="padding:32px;">
-              ${recipientName ? `<p style="margin:0 0 16px;color:#52525b;font-size:15px;">Halo ${recipientName},</p>` : ""}
               <h2 style="margin:0 0 16px;color:#18181b;font-size:22px;font-weight:600;">${title}</h2>
               <div style="color:#52525b;font-size:15px;line-height:1.7;white-space:pre-wrap;">${message}</div>
             </td>
@@ -226,7 +224,6 @@ async function processEmail(data: NotificationJobData) {
     html = buildDefaultHtml(
       data.subject || "Notifikasi",
       data.content.text,
-      data.recipientName,
       brandName
     );
   }

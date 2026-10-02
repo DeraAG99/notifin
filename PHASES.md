@@ -2316,6 +2316,13 @@ menjadi satu-satunya sisa branding lama yang masih terlihat pengguna. Nama pengi
 sudah bisa diatur admin lewat `emailFromName`, tapi selama ini hanya dipakai untuk header From
 (`lib/email.ts:156`), bukan untuk isi email.
 
+Bonus yang ketemu waktu menelusuri: baris sapaan `Halo ${recipientName}` di `buildDefaultHtml`
+gaya keras ("Halo Dera Abdul Gani,") padahal isi pesan template sudah diawali sapaan sendiri
+("Halo Bapak/Ibu, ..."), jadi pembaca dapat sapaan dua kali. Baris itu dihapus, dan karena
+`recipientName` di `buildDefaultHtml` **hanya** dipakai untuk baris tersebut, parameternya ikut
+dibuang. Field `NotificationJobData.recipientName` sendiri sengaja dibiarkan — masih diisi
+empat call site dan berguna untuk log/debugging, meski worker tidak lagi membacanya.
+
 ### Perubahan
 `buildDefaultHtml` dapat parameter `brandName` (default `"SI-MPOK NORI"`), di-escape sekali di awal
 lalu dipakai di header maupun footer. `escapeHtml` baru (escape `&`, `<`, `>`) dipakai karena
@@ -2346,9 +2353,14 @@ tetap membaca setting yang sama secara independen.
 - `lib/db/migrations/0002_tenant.sql` — migration yang sudah ter-apply tidak boleh disentuh.
 
 ### Verifikasi
-`bunx tsc --noEmit` bersih; `bunx eslint workers/notification-worker.ts` bersih. `grep Notifin` di
-worker tidak bersisa. `escapeHtml` diuji: `A & B` → `A &amp; B`, dan
+`bunx tsc --noEmit` bersih; `bunx eslint workers/notification-worker.ts` bersih. `grep Notifin` dan
+`grep Halo` di worker tidak bersisa. `escapeHtml` diuji: `A & B` → `A &amp; B`, dan
 `X</h1><script>alert(1)</script>` ter-escape utuh.
+
+Sapaan yang dihapus itu satu-satunya tempat `recipientName` masuk ke HTML tanpa escape, jadi
+perubahan ini sekaligus menutup satu titik injeksi. `title` dan `message` masih disisipkan mentah
+di `buildDefaultHtml`, tapi keduanya konten template milik admin — bukan input pengguna — jadi
+pre-existing dan di luar scope phase ini.
 
 ### Catatan untuk verifikasi manual
 Header/footer hanya muncul kalau template **tidak** punya `content.html` — kalau punya,
