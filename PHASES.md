@@ -2613,3 +2613,106 @@ baru gegen tipe dan snapshot.
 3. Cek satu baris import lama (dibuat sebelum deploy) tetap tampil normal tanpa strip.
 4. Warning "Beda dari profil" diuji dengan sengaja meng-upload file user B lewat halaman import user A.
 5. Jalankan `bun scripts/verify-etpp.ts` di VPS untuk memastikan tidak ada regresi jalur e-TPP.
+
+## Phase 60 - Kolom "Data e-TPP" di tabel Pengguna
+
+### Completed
+- [x] Tipe `UserWithEtpp` di `types/index.ts`
+- [x] Query agregat status e-TPP yang opt-in di `GET /api/users` (`includeEtpp=1`)
+- [x] Kolom "Data e-TPP" di tabel Pengguna: badge + tanggal import terakhir
+- [x] Badge netral "Belum import" untuk user yang belum punya data e-TPP
+- [x] i18n id + en (3/3 key `users.table` sinkron)
+- [x] `bunx tsc --noEmit` dan `bun run build` bersih
+
+### Masalah
+Tidak ada cara melihat user mana yang datanya sudah pernah di-import e-TPP. Satu-satunya tempat
+status itu tersimpan adalah baris `data_imports`, dan tabel itu hanya terlihat per-user lewat
+halaman detail import - jadi admin harus memeriksa satu per satu secara manual. Untuk لمعرفة
+siapa yang belum di-import, tidak ada jalan sama sekali.
+
+### Files
+- **`types/index.ts`** - `UserWithEtpp extends User` dengan `etppLastImportAt?: string | null`.
+- **`app/api/users/route.ts`** - baca flag `includeEtpp`, jalankan query agregat terpisah, isi
+  `items`.
+- **`app/(dashboard)/users/page.tsx`** - kirim `includeEtpp=1`, tambah `<TableHead>` + cell,
+  format tanggal dengan `locale` dan timezone user.
+- **`lib/i18n/id.json` / `lib/i18n/en.json`** - `users.table.etpp`, `users.table.etppNone`.
+
+### Keputusan desain
+- **Query terpisah, bukan join.** `data_imports` unik per `(admin_id, user_id, category_id)`,
+  jadi satu user bisa punya banyak baris. Join ke select user akan mengalikan baris dan diam-diam
+  merusak `limit`/`offset` sekaligus `total` di header paginasi. Query kedua dikelompokkan dengan
+  `group by user_id`; tanpa itu `etppLastImportAt` hanya kategori yang kebetulan diproses
+  Postgres terakhir, bukan import paling baru.
+- **Tidak ada filter `adminId` pada query agregat.** Ini terlihat seperti tenant filter yang
+  kelewatan, tapi memang disengaja: superadmin melihat user lintas admin (`adminFilter` di query
+  utama `undefined` untuk mereka), jadi `adminId = session.adminId` justru akan menyembunyikan
+  persis import user yang sedang dilihat. Batas tenantnya adalah `user_id IN (...)` - id itu
+  sudah difilter tenant oleh query utama.
+- **Opt-in lewat `includeEtpp=1`, bukan selalu.** `/api/users` juga dipakai empat halaman pemilih
+  user (`template-form.tsx`, `template-preview.tsx`, `schedules/page.tsx`,
+  `templates/[id]/page.tsx`). Tanpa flag, query kedua tidak dijalankan sama sekali.
+- **`ETPP_ENGINE` di-import, bukan string literal.** Nilainya `"ekinerja-json"`
+  (`lib/imports/variables.ts`) dan sudah jadi definisi kanonik. Menyalin string-nya berarti nama
+  engine berubah lalu kolom ini diam-diam selalu menampilkan "Belum import" - jenis bug yang
+  tidak akan ketahuan.
+- **Status berarti "pernah ada import", bukan "profil lengkap".** User yang di-import sebelum
+  Phase 59 tetap dapat badge walaupun kolom `profile`-nya null. Itu memang jawaban "sudah import
+  atau belum", tapi jangan dibaca sebagai "profilnya sudah lengkap".
+- **Cek ini live, bukan snapshot.** Kalau admin menghapus datanya lewat halaman import, badge
+  langsung berubah karena yang diperiksa adalah keberadaan baris, bukan field flag.
+- **Tanggal diformat dengan timezone user.** `updatedAt` adalah `timestamp` tanpa timezone;
+  tanpa `timeZone` eksplisit tanggal bisa bergeser sehari pada sebagian jam, tergantung zona
+  browser. Null `timezone` jatuh ke default browser.
+- **Index ditunda atas permintaan.** `data_imports` tidak punya index di `user_id`, dan
+  `data_imports_user_unique` leading column-nya `admin_id`, jadi `user_id IN (...)` tidak bisa
+  memakainya dan query ini akan seq scan. Follow-up kalau tabel Users terasa lambat:
+  ```sql
+  CREATE INDEX data_imports_etpp_user_idx
+    ON data_imports (user_id, updated_at)
+    WHERE engine = 'ekinerja-json';
+  ```
+  Partial index - hanya baris e-TPP yang masuk.
+
+### Verifikasi
+`bunx tsc --noEmit` exit 0. `bun run build` - "Compiled successfully in 15.1s", 2 warning
+Turbopack soal tracing `next.config.ts` yang tidak berkaitan dengan phase ini. `bunx eslint` pada
+tiga file yang diubah tidak menunjukkan temuan baru: `page.tsx:30` (`PaginatedResponse` tak
+terpakai - sudah tak terpakai di HEAD juga), `page.tsx:38` (`loading`), `page.tsx:65`
+(`react-hooks/set-state-in-effect`), `page.tsx:66` (`exhaustive-deps`), `route.ts:7`
+(`ApiResponse`) dan `route.ts:110` (`error`) semuanya pre-existing.
+
+SQL agregat divalidasi tanpa database lewat `drizzle().select(...).toSQL()`, yang tidak mengeksekusi
+apa pun tapi memaksa drizzle membangun statement-nya:
+
+```sql
+select "user_id", max("updated_at") from "data_imports"
+where ("data_imports"."user_id" in ($1, $2) and "data_imports"."engine" = $3)
+group by "data_imports"."user_id"
+```
+
+Satu row per `user_id`, dan `ekinerja-json` muncul sebagai parameter `$3` - bukan string yang
+dirangkai ke SQL. Query utama dicek juga dan tetap 2 params, jadi pagination tidak berubah.
+
+Kesesuaian i18n dicek: 3/3 key `users.table` sinkron antara id dan en.
+
+**Belum teruji terhadap database sungguhan:** tidak ada Docker maupun PostgreSQL di mesin ini.
+Jadi tiga hal berikut murni baru lolos dari tipe dan SQL, belum pernah dijalankan: apakah
+`max(updated_at)` benar-benar balik sebagai objek `Date` (`.toISOString()` di route akan melempar
+kalau tidak), apakah badge muncul untuk user yang benar, dan apakah tanggal tampil di hari yang
+benar.
+
+### Catatan untuk verifikasi manual di VPS
+1. Deploy, buka `/users`, konfirmasi kolom "Data e-TPP" muncul di sebelah kanan
+   "Jabatan / Unit Kerja".
+2. User yang sudah pernah import harus dapat badge dengan tanggal. User yang belum dapat
+   "Belum import".
+3. Cek user yang di-import **sebelum** Phase 59 - tetap harus dapat badge, bukan "Belum import".
+   Ini yang membuktikan statusnya berbasis keberadaan baris, bukan berdasarkan isi `profile`.
+4. Query langsung untuk cross-check:
+   `select user_id, max(updated_at) from data_imports where engine = 'ekinerja-json' group by user_id;`
+   Bandingkan dengan yang tampil di tabel.
+5. Hapus satu import lewat halaman import, reload `/users`, badge user itu harus balik jadi
+   "Belum import" - ini memastikan pengecekan-nya live.
+6. Buka satu halaman pemilih user (misal form template) untuk memastikan tidak ada overhead query
+   tambahan di sana.

@@ -27,12 +27,12 @@ import { Plus, Search, Pencil, Trash2, Upload, MessageSquare, Mail, UserIcon, Cl
 import { UserForm } from "@/components/users/user-form";
 import { CsvImport } from "@/components/users/csv-import";
 import { EmptyState } from "@/components/shared/empty-state";
-import type { User, PaginatedResponse } from "@/types";
+import type { User, PaginatedResponse, UserWithEtpp } from "@/types";
 
 export default function UsersPage() {
-  const { t, tx } = useI18n();
+  const { t, tx, locale } = useI18n();
   const router = useRouter();
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserWithEtpp[]>([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -44,7 +44,7 @@ export default function UsersPage() {
   const fetchUsers = async (page = 1) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/users?page=${page}&search=${search}`);
+      const res = await fetch(`/api/users?page=${page}&search=${search}&includeEtpp=1`);
       const data = await res.json();
       if (data.success) {
         setUsers(data.data.items);
@@ -129,6 +129,7 @@ export default function UsersPage() {
               <TableRow>
                 <TableHead>{t.users.title}</TableHead>
                 <TableHead>{t.users.table.jabatan}</TableHead>
+                <TableHead>{t.users.table.etpp}</TableHead>
                 <TableHead>Kontak</TableHead>
                 <TableHead>Timezone</TableHead>
                 <TableHead>{t.common.status}</TableHead>
@@ -159,6 +160,27 @@ export default function UsersPage() {
                         <div className="text-xs text-muted-foreground">{user.unitKerja}</div>
                       )}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {user.etppLastImportAt ? (
+                      <div className="space-y-0.5">
+                        <Badge variant="secondary" className="text-[10px]">
+                          {t.users.table.etpp}
+                        </Badge>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(user.etppLastImportAt).toLocaleDateString(locale, {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                            timeZone: user.timezone || undefined,
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                        {t.users.table.etppNone}
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1">

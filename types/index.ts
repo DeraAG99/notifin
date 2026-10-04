@@ -45,6 +45,19 @@ export interface User {
   updatedAt: Date | null;
 }
 
+/**
+ * A user row plus whether e-TPP data has ever been imported for them.
+ *
+ * Only returned when `/api/users` is called with `includeEtpp=1`; the four
+ * user-picker callers do not need it and skip the extra query entirely. The
+ * field is a derived fact about `data_imports`, not a column on `users`, which
+ * is why it is absent rather than null when the query did not run.
+ */
+export interface UserWithEtpp extends User {
+  /** Last e-TPP import as an ISO string. */
+  etppLastImportAt?: string | null;
+}
+
 export interface NotificationTemplate {
   id: string;
   name: string;

@@ -489,7 +489,9 @@
     "importUsers": "Impor Pengguna dari CSV",
     "noContactInfo": "Tidak ada info kontak",
     "table": {
-      "jabatan": "Jabatan / Unit Kerja"
+      "jabatan": "Jabatan / Unit Kerja",
+      "etpp": "Data e-TPP",
+      "etppNone": "Belum import"
     },
     "form": {
       "name": "Nama",

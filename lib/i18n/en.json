@@ -486,7 +486,9 @@
     "importUsers": "Import Users from CSV",
     "noContactInfo": "No contact info",
     "table": {
-      "jabatan": "Position / Work Unit"
+      "jabatan": "Position / Work Unit",
+      "etpp": "e-TPP Data",
+      "etppNone": "Not imported"
     },
     "form": {
       "name": "Name",
