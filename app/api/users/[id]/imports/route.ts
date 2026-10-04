@@ -53,6 +53,7 @@ export async function GET(
         period: dataImports.period,
         data: dataImports.data,
         summary: dataImports.summary,
+        profile: dataImports.profile,
         createdAt: dataImports.createdAt,
         updatedAt: dataImports.updatedAt,
       })
@@ -200,6 +201,13 @@ export async function POST(
           period: validated.period || null,
           data: items as unknown as Record<string, unknown>[],
           summary: buildSummary(items, etppSkippedNoKode),
+          /**
+           * The file's profile, verbatim -- not `profileAppliedData`. That
+           * variable only carries the two fields that were actually written to
+           * the user, so persisting it would drop the name and every field the
+           * fill-if-empty rule skipped, which is the whole point of storing it.
+           */
+          profile: profile ?? null,
         })
         .returning();
     });

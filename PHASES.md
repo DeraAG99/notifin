@@ -2536,3 +2536,80 @@ dengan nama user. Kalau baris Namanya kosong, berarti `v_username` tidak ada di 
 langkah berikutnya adalah menambahkan mapping label `nama` ke `LABEL_MAP` di
 `lib/imports/parsers/ekinerja/html.ts`. Warning "Beda dari profil" diuji dengan cara sengaja membuka
 halaman import user A lalu meng-upload file milik user B.
+
+---
+
+## Phase 59 - Data profil file ikut tersimpan dan ditampilkan untuk import lama
+
+### Completed
+- [x] Kolom `data_imports.profile` (jsonb, nullable) + migration 0013
+- [x] Route per-user menyimpan profil file apa adanya dan mengembalikannya di GET
+- [x] Strip profil inline di tiap baris daftar import
+- [x] `hasProfile` jadi type predicate; blok preview dan blok daftar sekarang berbagi satu kondisi
+- [x] `bunx tsc --noEmit` dan `bun run build` bersih
+
+### Masalah
+Card profil hasil parse (Phase 58) hanya hidup di state preview. Begitu page di-reload, isinya
+hilang: `data_imports` tidak punya kolom profil, dan `profile` dari file dipakai sekali di route
+untuk menulis `jabatan` / `unit_kerja` ke tabel `users` lalu dibuang. Akibatnya admin tidak pernah
+bisa melihat "file ini menyatakan orangnya siapa" kecuali sedang meng-upload file.
+
+### Files
+- **`lib/db/schema.ts`** — `profile: jsonb("profile").$type<SourceProfile>()` di `dataImports`, ditulis
+  setelah `summary`. Import type-nya pakai path relatif (`../imports/types`), bukan alias `@/`, karena
+  file ini dimuat drizzle-kit yang tidak tentu menghormati `tsconfig` paths.
+- **`lib/db/migrations/0013_acoustic_doorman.sql`** + **`meta/0013_snapshot.json`** + **`meta/_journal.json`**
+  — satu statement `ALTER TABLE "data_imports" ADD COLUMN "profile" jsonb;`, nullable tanpa default.
+- **`app/api/users/[id]/imports/route.ts`** — POST menyimpan `profile ?? null` (bukan
+  `profileAppliedData`), GET menambahkan `profile` ke select. `profile` di scope POST sudah
+  `type.engine === "ekinerja-json" ? validated.profile : undefined`, jadi engine lain otomatis null.
+- **`app/(dashboard)/users/[id]/imports/page.tsx`** — `ImportRow` dapat `profile?: SourceProfile | null`;
+  strip inline di bawah badge triwulan tiap baris, memakai `t.imports.profileFromFile` sebagai prefix
+  supaya tidak tertukar dengan `categoryName`; badge "Beda dari profil" memakai helper yang sama dengan
+  preview card.
+- **`lib/i18n/id.json`**, **`lib/i18n/en.json`** — key baru `imports.profileFromFile`.
+- **`app/api/imports/global/route.ts`** — **tidak disentuh**. Kolom nullable, dan import global memang
+  tidak punya target user sehingga tidak punya profil.
+
+### Keputusan desain
+- **Profil file disimpan apa adanya, bukan hasil yang diterapkan.** `profileAppliedData` hanya memuat
+  dua field yang benar-benar ditulis ke user; menyimpan itu akan membuang `name` beserta semua field
+  yang dilewati aturan fill-if-empty — justru bagian yang paling penting dibuang.
+- **Baris `users.jabatan` / `unit_kerja` tidak bisa dipakai untuk rekonstruksi.** Nilainya mengikuti
+  fill-if-empty dan bisa saja sudah dikoreksi admin setelahnya, jadi user row tidak merepresentasikan
+  apa yang file itu bilangkan.
+- **Tidak ada backfill untuk baris lama.** Ini disengaja: `profile` tidak pernah tersimpan,
+  jadi data lama tidak punya apa pun untuk dipulihkan, dan menebak dari `users` berisiko memalsukan
+  sumber. Baris lama tetap muncul normal, hanya tanpa strip profil. Ini bukan regresi.
+- **`hasProfile` adalah type predicate.** Dipakai di dua tempat; dengan bentuk `boolean` biasa,
+  TypeScript tidak ikut men-narrow `row.profile` di dalam JSX dan keempat aksesnya butuh `!`.
+- **`normName` / `namesDiffer` dipindah ke module scope.** Semula `const` di dalam component, padahal
+  baris daftar import butuh logika badge yang sama; sekarang card preview dan data tersimpan tidak
+  punya implementasi dua kali.
+
+### Verifikasi
+`bun run db:generate` menghasilkan 0013 dengan isi tepat satu `ADD COLUMN`. Snapshot dicek secara
+programatik: `data_imports` berisi 14 kolom dengan `profile` jsonb nullable, `import_category_id`
+muncul sekali, dan `data_imports_global_unique` masih membawa predicate partial-index-nya
+(`"data_imports"."scope" = 'global'`) — jebakan snapshot Phase 48 tidak terulang.
+
+`bunx tsc --noEmit` — bersih. `bun run build` — `✓ Compiled successfully`, 2 warning Turbopack soal
+tracing `next.config.ts` yang tidak berkaitan dengan phase ini. `bunx eslint` pada tiga file yang diubah
+— tidak ada temuan baru; sisa satu error `react-hooks/set-state-in-effect` di `page.tsx:282` dan satu
+warning `error` tak terpakai di `route.ts:66` keduanya pre-existing.
+
+Kesesuaian i18n dicek: 50/50 key `imports` sinkron.
+
+**Tidak bisa dijalankan di mesin lokal:** `scripts/verify-etpp.ts` dan `db:migrate` butuh PostgreSQL
+nyata, dan tidak ada Docker maupun Postgres di mesin ini — `verify-etpp.ts` gagal dengan
+`ECONNREFUSED`. Jadi isi migration dan persistensinya belum pernah diuji terhadap database sungguhan,
+baru gegen tipe dan snapshot.
+
+### Catatan untuk verifikasi manual di VPS
+1. Deploy, lalu `docker compose logs web | grep -i migrat` untuk memastikan 0013 jalan.
+2. Upload file e-TPP milik user A, reload halamannya, dan pastikan strip "Profil file:" masih ada di
+   baris import. Ini satu-satunya pembuktian persistensi — kalau strip hilang setelah reload berarti
+   kolomnya tidak terisi dan bukan masalah render.
+3. Cek satu baris import lama (dibuat sebelum deploy) tetap tampil normal tanpa strip.
+4. Warning "Beda dari profil" diuji dengan sengaja meng-upload file user B lewat halaman import user A.
+5. Jalankan `bun scripts/verify-etpp.ts` di VPS untuk memastikan tidak ada regresi jalur e-TPP.

@@ -144,6 +144,7 @@
     "parsedCount": "{count} items read successfully",
     "parseErrors": "{count} rows failed to read",
     "profileDetected": "Profile data detected from file",
+    "profileFromFile": "File profile:",
     "profileNameMismatch": "Differs from profile",
     "profileOverwriteHint": "Overwrite position/work unit on the user profile if already set (turn off to keep manual edits)",
     "importButton": "Import Data",

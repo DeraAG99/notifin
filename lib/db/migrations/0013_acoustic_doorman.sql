@@ -1,0 +1,1 @@
+ALTER TABLE "data_imports" ADD COLUMN "profile" jsonb;

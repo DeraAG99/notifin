@@ -54,8 +54,27 @@ interface ImportRow {
   period: string | null;
   data: ImportItem[];
   summary: { itemCount: number; pendingPerTriwulan: Record<number, number> };
+  profile?: SourceProfile | null;
   createdAt: string | null;
   updatedAt: string | null;
+}
+
+/**
+ * e-TPP renders the profile block uppercased, while the user row keeps whatever
+ * the admin typed, so a raw string compare flags almost every file. Collapse
+ * whitespace and case before deciding the two names disagree.
+ */
+function normName(value: string) {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function namesDiffer(detected: string | null | undefined, current: string | null | undefined) {
+  if (!detected || !current) return false;
+  return normName(detected) !== normName(current);
+}
+
+function hasProfile(profile: SourceProfile | null | undefined): profile is SourceProfile {
+  return Boolean(profile && (profile.name || profile.jabatan || profile.unitKerja));
 }
 
 interface TwBlock {
@@ -368,11 +387,7 @@ export default function UserImportsPage() {
     }
   };
 
-  const normName = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
-  const detectedName = preview?.profile?.name ?? null;
-  const nameMismatch = Boolean(
-    detectedName && user?.name && normName(detectedName) !== normName(user.name)
-  );
+const nameMismatch = namesDiffer(preview?.profile?.name, user?.name);
 
   return (
     <div className="space-y-6">
@@ -486,8 +501,7 @@ export default function UserImportsPage() {
                   </ul>
                 </div>
               )}
-              {preview.profile &&
-                (preview.profile.name || preview.profile.jabatan || preview.profile.unitKerja) && (
+              {hasProfile(preview.profile) && (
                 <div className="rounded-lg border border-primary/25 bg-primary/5 p-3 text-xs space-y-2">
                   <div className="font-semibold text-primary">{t.imports.profileDetected}</div>
                   {preview.profile.name && (
@@ -590,6 +604,24 @@ export default function UserImportsPage() {
                           </Badge>
                         ))}
                       </div>
+                      {hasProfile(row.profile) && (
+                        <div className="mt-1.5 flex flex-wrap items-center gap-y-0.5 text-[11px] text-muted-foreground">
+                          <span className="font-medium">{t.imports.profileFromFile}</span>
+                          {row.profile.name && (
+                            <span className="text-foreground/80">&nbsp;{row.profile.name}</span>
+                          )}
+                          {namesDiffer(row.profile.name, user?.name) && (
+                            <Badge
+                              variant="outline"
+                              className="ml-1 h-4 border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] text-amber-700 dark:text-amber-300"
+                            >
+                              {t.imports.profileNameMismatch}
+                            </Badge>
+                          )}
+                          {row.profile.jabatan && <span>&nbsp;·&nbsp;{row.profile.jabatan}</span>}
+                          {row.profile.unitKerja && <span>&nbsp;·&nbsp;{row.profile.unitKerja}</span>}
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(row)}>

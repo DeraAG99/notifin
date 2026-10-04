@@ -144,6 +144,7 @@
     "parsedCount": "{count} item berhasil dibaca",
     "parseErrors": "{count} baris gagal dibaca",
     "profileDetected": "Data profil terdeteksi dari file",
+    "profileFromFile": "Profil file:",
     "profileNameMismatch": "Beda dari profil",
     "profileOverwriteHint": "Timpa jabatan/unit kerja di profil user bila sudah ada (matikan agar data manual aman)",
     "importButton": "Import Data",

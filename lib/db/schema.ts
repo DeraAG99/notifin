@@ -10,6 +10,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import type { SourceProfile } from "../imports/types";
 
 export const channelEnum = pgEnum("channel", ["wa", "email", "both"]);
 export const statusEnum = pgEnum("status", [
@@ -146,6 +147,15 @@ export const dataImports = pgTable(
     period: text("period"),
     data: jsonb("data").$type<Record<string, unknown>[]>().notNull(),
     summary: jsonb("summary").$type<Record<string, unknown>>().notNull(),
+    /**
+     * Identity block scraped from the source file's header (e-TPP "Data Kinerja
+     * Saya"). Kept as the file reported it, NOT as it was applied to the user:
+     * `jabatan` / `unitKerja` on the user row follow fill-if-empty and may have
+     * been corrected by hand afterwards, so the user row cannot be replayed back
+     * into this. Null for imports created before this column existed, and for
+     * sources that carry no profile block (global imports, Monev, PDUKPD).
+     */
+    profile: jsonb("profile").$type<SourceProfile>(),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   },
