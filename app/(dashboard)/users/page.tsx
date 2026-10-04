@@ -30,7 +30,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import type { User, PaginatedResponse, UserWithEtpp } from "@/types";
 
 export default function UsersPage() {
-  const { t, tx, locale } = useI18n();
+  const { t, tx } = useI18n();
   const router = useRouter();
   const [users, setUsers] = useState<UserWithEtpp[]>([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
@@ -52,6 +52,14 @@ export default function UsersPage() {
           page: data.data.page,
           totalPages: data.data.totalPages,
           total: data.data.total,
+        });
+      } else {
+        // Without this the list just renders "no users" on any API failure,
+        // which reads as lost data rather than as a failed request.
+        toast.add({
+          title: t.common.error,
+          description: data.error || "Gagal memuat pengguna",
+          type: "error",
         });
       }
     } catch {
@@ -162,24 +170,12 @@ export default function UsersPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {user.etppLastImportAt ? (
-                      <div className="space-y-0.5">
-                        <Badge variant="secondary" className="text-[10px]">
-                          {t.users.table.etpp}
-                        </Badge>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(user.etppLastImportAt).toLocaleDateString(locale, {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                            timeZone: user.timezone || undefined,
-                          })}
-                        </div>
-                      </div>
-                    ) : (
-                      <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                        {t.users.table.etppNone}
+                    {user.hasEtppImport ? (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {t.users.table.etppBadge}
                       </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
                   <TableCell>

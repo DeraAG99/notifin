@@ -488,7 +488,7 @@
     "table": {
       "jabatan": "Position / Work Unit",
       "etpp": "e-TPP Data",
-      "etppNone": "Not imported"
+      "etppBadge": "Imported"
     },
     "form": {
       "name": "Name",

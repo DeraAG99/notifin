@@ -51,11 +51,10 @@ export interface User {
  * Only returned when `/api/users` is called with `includeEtpp=1`; the four
  * user-picker callers do not need it and skip the extra query entirely. The
  * field is a derived fact about `data_imports`, not a column on `users`, which
- * is why it is absent rather than null when the query did not run.
+ * is why it is absent rather than false when the query did not run.
  */
 export interface UserWithEtpp extends User {
-  /** Last e-TPP import as an ISO string. */
-  etppLastImportAt?: string | null;
+  hasEtppImport?: boolean;
 }
 
 export interface NotificationTemplate {

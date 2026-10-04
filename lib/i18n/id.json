@@ -491,7 +491,7 @@
     "table": {
       "jabatan": "Jabatan / Unit Kerja",
       "etpp": "Data e-TPP",
-      "etppNone": "Belum import"
+      "etppBadge": "Sudah import"
     },
     "form": {
       "name": "Nama",

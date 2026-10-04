@@ -50,51 +50,52 @@ export async function GET(request: Request) {
 
     const items: UserWithEtpp[] = (userList as User[]).map((user) => ({
       ...user,
-      etppLastImportAt: null,
+      hasEtppImport: false,
     }));
 
     /**
-     * Whether each user has ever imported e-TPP data, plus when.
+     * Which of these users have ever imported e-TPP data.
      *
-     * A separate aggregate query, never a join: `data_imports` is unique per
-     * (admin_id, user_id, category_id), so one user can hold a row per import
-     * category. Joining it into the user select would multiply rows and quietly
-     * break both the limit/offset and the total in the pagination header.
+     * Deliberately a plain `selectDistinct` on the id rather than a join or an
+     * aggregate: this column only has to answer "has this user ever imported?",
+     * so there is no date to read, no `group by`, and no Date to serialise.
+     * Distinct is what collapses the per-category rows -- without it a user with
+     * three import categories contributes three rows, which is harmless here but
+     * would break if this ever fed a paginated query.
      *
-     * There is deliberately no `adminId` filter. A superadmin lists users across
-     * admins (`adminFilter` above is undefined for them), so scoping to
+     * No `adminId` filter on purpose. A superadmin lists users across admins
+     * (`adminFilter` above is undefined for them), so scoping to
      * `session.adminId` would hide exactly those users' imports. The
      * `user_id IN (...)` list is the tenant boundary -- those ids already came
      * back from the tenant-scoped user query above.
      *
-     * Grouping is required: `user_id` alone would return one row per category,
-     * and `lastImportAt` would then be whichever category Postgres emitted
-     * last, not the most recent import.
+     * Fault-isolated on purpose: this is a cosmetic column bolted onto the user
+     * list, and it must never be able to blank the list itself. An earlier
+     * revision let this throw into the handler's catch and took the whole page
+     * down with a 500, which rendered as "no users" while the data sat in the
+     * database untouched.
      */
     if (includeEtpp && userList.length > 0) {
-      const rows = await db
-        .select({
-          userId: dataImports.userId,
-          lastImportAt: sql<Date | null>`max(${dataImports.updatedAt})`,
-        })
-        .from(dataImports)
-        .where(
-          and(
-            inArray(
-              dataImports.userId,
-              userList.map((user) => user.id)
-            ),
-            eq(dataImports.engine, ETPP_ENGINE)
-          )
-        )
-        .groupBy(dataImports.userId);
+      try {
+        const rows = await db
+          .selectDistinct({ userId: dataImports.userId })
+          .from(dataImports)
+          .where(
+            and(
+              inArray(
+                dataImports.userId,
+                userList.map((user) => user.id)
+              ),
+              eq(dataImports.engine, ETPP_ENGINE)
+            )
+          );
 
-      const lastImportByUser = new Map(
-        rows.map((row) => [row.userId, row.lastImportAt])
-      );
-      for (const item of items) {
-        const lastImportAt = lastImportByUser.get(item.id);
-        if (lastImportAt) item.etppLastImportAt = lastImportAt.toISOString();
+        const imported = new Set(rows.map((row) => row.userId));
+        for (const item of items) {
+          if (imported.has(item.id)) item.hasEtppImport = true;
+        }
+      } catch (err) {
+        console.error("[api/users] e-TPP import lookup failed:", err);
       }
     }
 
@@ -108,6 +109,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ success: true, data: response });
   } catch (error) {
+    console.error("[api/users] GET failed:", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch users" },
       { status: 500 }
