@@ -2726,3 +2726,76 @@ penyebab insiden di atas tetap belum terkonfirmasi.
 6. Buka satu halaman pemilih user (misal form template) untuk memastikan tidak ada query tambahan
    di sana.
 
+## Phase 61 - Mutex `sendChain` Baileys pindah ke singleton manager
+
+### Completed
+- [x] `BaileysManager` punya `sendChain` instance-level + method `enqueue`
+- [x] `BaileysProvider` buang `sendChain`/`enqueue` miliknya, `sendText`/`sendMedia` diarahkan ke `manager.enqueue`
+- [x] `ensureReady()` dipindah ke luar rantai, di-collapse jadi helper `getManager()`
+- [x] Single-flight di `lib/wa/index.ts`: yang di-cache adalah promise yang sedang dibangun, bukan objeknya
+- [x] `resetWaProvider` ikut membersihkan peta in-flight
+- [x] `bunx tsc --noEmit`, `bun run build`, dan ESLint pada 3 file dicek
+
+### Akar masalah
+`BaileysProvider` memegang `sendChain`, padahal provider itu **dibangun ulang** setiap kali cache
+`getWaProvider` (TTL 60 detik) kedaluwarsa, sedangkan `BaileysManager` hidup selama proses. Rantai
+di provider baru selalu mulai dari `Promise.resolve()`, jadi setelah menit pertama sebuah burst tidak
+lagi diserialisasi.
+
+Yang membuatnya meledak bukan hanya cache, tapi urutan baris di `waitForRateLimit`:
+
+```ts
+const now = Date.now();                    // 1. now diambil lebih awal
+const delay = await this.getDelayMs();     // 2. dua query DB, sempat yield
+const lastSendTime = getLastSendTime(..);  // 3. dibaca dengan now yang sudah basi
+const elapsed = now - lastSendTime;
+if (elapsed < delay) await sleep(delay - elapsed);
+setLastSendTime(..);                       // 4. baru ditulis di akhir
+```
+
+Dengan `concurrency: 10` dan cache dingin, sepuluh job masuk bersamaan dan semuanya membaca
+`lastSendTime` yang **sama** pada langkah 3, menghitung `waitTime` yang sama, lalu tidur selama
+durasi yang sama. Setelah bangun, **sembilan pesan keluar bersamaan**. Job berikutnya justru
+membaca `elapsed` negatif karena `now` diambil sebelum penulisan terjadi, sehingga penundaannya
+justru jadi lebih panjang, bukan lebih pendek.
+
+Perbaikannya satu tempat: rantai pindah ke `BaileysManager` yang persisten. Berapa pun provider
+yang dibangun dan berapa pun job yang masuk bersamaan, semua `waitForRateLimit` berbaris di satu
+rantai dan masing-masing membaca `now` serta `lastSendTime` yang fresh pada gilirannya.
+
+### Bukti
+Tidak ada Redis/PostgreSQL di mesin development, jadi perilaku diuji dengan simulasi yang meniru
+`waitForRateLimit` baris demi baris, termasuk `await` di langkah 2, dan 13 job dengan 10 slot
+concurrency. Metriknya adalah jumlah send yang masih in-flight di socket:
+
+| Bentuk | Max in-flight | Jarak antar kirim | Total |
+| --- | --- | --- | --- |
+| Chain per provider (lama) | **9** | 0 ms | 0.15 s |
+| Chain di manager (baru) | **1** | 58 ms | 0.79 s |
+
+Sembilan pesan pada bentuk lama keluar dalam rentang 0.06 s. Pada bentuk baru tidak pernah ada lebih
+dari satu pesan di socket, dan jarak antar kirim cocok dengan delay plus waktu kirim. Simulasi
+memakai milidetik, bukan detik, supaya bisa dijalankan cepat; yang terbukti adalah perilaku
+serialisasinya, bukan angka absolutnya.
+
+### Files
+- **`lib/wa/baileys-manager.ts`** - `private sendChain` + `enqueue(task)` di atas `sendText`.
+- **`lib/wa/baileys-provider.ts`** - hapus rantai lokal, tambah `getManager()`, dua call site pakai `manager.enqueue`.
+- **`lib/wa/index.ts`** - peta `inflight`, `buildWaProvider()` diekstrak, `getWaProvider()` memakai cache promise.
+
+### Verifikasi setelah deploy
+```bash
+docker compose logs worker | grep "completed in whatsapp-queue"
+```
+Jarak antar baris harus >= 20 detik dan konsisten sampai pesan terakhir. Tes yang lebih tajam:
+**jangan kirim WA manual sebelum cron**. Rantai di manager sudah mencakup cold-start, jadi warm-up
+manual yang sebelumnya dipakai sebagai syarat tidak lagi dibutuhkan.
+
+### Di luar scope
+Phase ini tidak menambah kuota harian/jam, penanganan 429, pacing email, retry tanpa backoff,
+maupun `noOverlap` pada cron. Email masih terkirim tanpa jeda dan memakai satu koneksi SMTP tanpa
+`pool: true`; writer juga belum membaca `EMAIL_MAX_CONCURRENCY` dari env sehingga selalu
+`concurrency: 20`. Catatan untuk langkah berikutnya: 13 pengguna sudah menyentuh ambang
+`concurrency: 10`, jadi setelah phase ini yang jadi bottleneck berikutnya bukan mutex, melainkan total
+durasi pengiriman dan belum adanya kuota harian.
+

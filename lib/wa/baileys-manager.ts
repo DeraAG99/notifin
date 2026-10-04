@@ -62,6 +62,12 @@ export class BaileysManager {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private latestQr: string | null = null;
   private authDir: string;
+  /**
+   * Serialisation chain for this session. Instance-level, not static: there is
+   * exactly one manager per admin (`getInstance`, constructor is private), so an
+   * instance field is already per-admin AND process-lifetime.
+   */
+  private sendChain: Promise<void> = Promise.resolve();
 
   private constructor(adminId: string) {
     this.adminId = adminId;
@@ -247,6 +253,29 @@ export class BaileysManager {
     } finally {
       this.connecting = false;
     }
+  }
+
+  /**
+   * Serialise every send on this session.
+   *
+   * Lives on the manager rather than on `BaileysProvider` because those two have
+   * completely different lifetimes. The provider is rebuilt whenever
+   * `getWaProvider`'s 60s cache lapses; this socket lives for the whole process.
+   * A chain held on the provider therefore stopped serialising part-way through a
+   * burst, and because the WA worker runs with concurrency 10, a cold cache let
+   * all ten first-wave jobs build their own provider -- so ten chains each read
+   * `lastSendTime` as 0, none of them waited, and ten messages went out at once.
+   *
+   * `.then(task, task)` rather than `.then(task)`: a rejected task must not
+   * poison the chain for every send queued behind it.
+   */
+  enqueue<T>(task: () => Promise<T>): Promise<T> {
+    const run = this.sendChain.then(task, task);
+    this.sendChain = run.then(
+      () => undefined,
+      () => undefined
+    );
+    return run;
   }
 
   async sendText(phone: string, message: string): Promise<SendResult> {

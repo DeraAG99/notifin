@@ -13,6 +13,16 @@ interface CachedEntry {
 }
 
 const cached = new Map<string, CachedEntry>();
+/**
+ * In-flight provider construction, keyed by admin.
+ *
+ * `getWaProvider` awaits the `waProvider` setting before it reads the cache, so
+ * in a cold cache every job in the first wave passed the read before any of them
+ * reached the `cached.set` at the bottom -- N concurrent jobs, N providers, N
+ * provider-level state. Caching the promise makes concurrent callers share one
+ * construction instead.
+ */
+const inflight = new Map<string, { providerType: WaProviderType; promise: Promise<WaProvider> }>();
 const CACHE_TTL_MS = 60_000;
 
 async function getSetting(adminId: string, key: string): Promise<string | number | boolean | null> {
@@ -47,24 +57,14 @@ async function makeBaileysProvider(adminId: string): Promise<WaProvider> {
 export function resetWaProvider(adminId?: string): void {
   if (adminId) {
     cached.delete(adminId);
+    inflight.delete(adminId);
   } else {
     cached.clear();
+    inflight.clear();
   }
 }
 
-export async function getWaProvider(adminId: string): Promise<WaProvider> {
-  const providerType = ((await getSetting(adminId, "waProvider")) as WaProviderType) || "fonnte";
-  const entry = cached.get(adminId);
-
-  if (
-    entry &&
-    entry.provider &&
-    entry.providerType === providerType &&
-    Date.now() - entry.at < CACHE_TTL_MS
-  ) {
-    return entry.provider;
-  }
-
+async function buildWaProvider(adminId: string, providerType: WaProviderType): Promise<WaProvider> {
   let provider: WaProvider;
   switch (providerType) {
     case "fonnte": {
@@ -108,8 +108,41 @@ export async function getWaProvider(adminId: string): Promise<WaProvider> {
       throw new Error(`Unknown WhatsApp provider: ${providerType}`);
   }
 
-  cached.set(adminId, { provider, providerType, at: Date.now() });
   return provider;
+}
+
+export async function getWaProvider(adminId: string): Promise<WaProvider> {
+  const providerType = ((await getSetting(adminId, "waProvider")) as WaProviderType) || "fonnte";
+  const entry = cached.get(adminId);
+
+  if (
+    entry &&
+    entry.provider &&
+    entry.providerType === providerType &&
+    Date.now() - entry.at < CACHE_TTL_MS
+  ) {
+    return entry.provider;
+  }
+
+  const pending = inflight.get(adminId);
+  if (pending && pending.providerType === providerType) {
+    return pending.promise;
+  }
+
+  const promise = buildWaProvider(adminId, providerType).then((provider) => {
+    cached.set(adminId, { provider, providerType, at: Date.now() });
+    return provider;
+  });
+
+  inflight.set(adminId, { providerType, promise });
+
+  try {
+    return await promise;
+  } finally {
+    if (inflight.get(adminId)?.promise === promise) {
+      inflight.delete(adminId);
+    }
+  }
 }
 
 export async function getWaHealth(adminId: string): Promise<boolean> {

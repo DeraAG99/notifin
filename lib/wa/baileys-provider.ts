@@ -10,7 +10,6 @@ export class BaileysProvider implements WaProvider {
   private adminId: string;
   private manager: import("./baileys-manager").BaileysManager | null = null;
   private initPromise: Promise<void> | null = null;
-  private sendChain: Promise<void> = Promise.resolve();
 
   constructor(adminId: string) {
     this.adminId = adminId;
@@ -59,6 +58,27 @@ export class BaileysProvider implements WaProvider {
     await this.manager.connect();
   }
 
+  /**
+   * The session to send on. Resolved before entering the send chain, because the
+   * chain lives on the manager and the manager has to exist to reach it.
+   *
+   * Return type is inferred on purpose: naming it would need a top-level import
+   * of `./baileys-manager`, and the dynamic `import()` above exists precisely to
+   * keep that module off the initial load path.
+   */
+  private async getManager() {
+    await this.ensureReady();
+    const manager = this.manager;
+    if (!manager) throw new Error("Baileys provider not initialised");
+    return manager;
+  }
+
+  /**
+   * The zone to actually pace with, and the one piece of state that must not be
+   * duplicated: `BaileysManager` owns both the send chain and `lastSendTime` for
+   * the life of the process, so however many providers get built, every send on
+   * this admin's socket is still serialised against every other one.
+   */
   private async waitForRateLimit(): Promise<void> {
     const mod = await import("./baileys-manager");
     const now = Date.now();
@@ -73,37 +93,28 @@ export class BaileysProvider implements WaProvider {
     mod.BaileysManager.setLastSendTime(this.adminId, Date.now());
   }
 
-  private enqueue<T>(task: () => Promise<T>): Promise<T> {
-    const run = this.sendChain.then(task, task);
-    this.sendChain = run.then(
-      () => undefined,
-      () => undefined
-    );
-    return run;
-  }
-
   async sendText(phone: string, message: string): Promise<SendResult> {
-    return this.enqueue(async () => {
-      try {
-        await this.ensureReady();
+    try {
+      const manager = await this.getManager();
+      return await manager.enqueue(async () => {
         await this.waitForRateLimit();
-        return await this.manager!.sendText(phone, message);
-      } catch (err) {
-        return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
-      }
-    });
+        return manager.sendText(phone, message);
+      });
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+    }
   }
 
   async sendMedia(phone: string, fileUrl: string, caption?: string): Promise<SendResult> {
-    return this.enqueue(async () => {
-      try {
-        await this.ensureReady();
+    try {
+      const manager = await this.getManager();
+      return await manager.enqueue(async () => {
         await this.waitForRateLimit();
-        return await this.manager!.sendMedia(phone, fileUrl, caption);
-      } catch (err) {
-        return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
-      }
-    });
+        return manager.sendMedia(phone, fileUrl, caption);
+      });
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+    }
   }
 
   async checkConnection(): Promise<DeviceStatus> {
