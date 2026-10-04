@@ -368,6 +368,12 @@ export default function UserImportsPage() {
     }
   };
 
+  const normName = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+  const detectedName = preview?.profile?.name ?? null;
+  const nameMismatch = Boolean(
+    detectedName && user?.name && normName(detectedName) !== normName(user.name)
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -480,9 +486,24 @@ export default function UserImportsPage() {
                   </ul>
                 </div>
               )}
-              {preview.profile && (preview.profile.jabatan || preview.profile.unitKerja) && (
+              {preview.profile &&
+                (preview.profile.name || preview.profile.jabatan || preview.profile.unitKerja) && (
                 <div className="rounded-lg border border-primary/25 bg-primary/5 p-3 text-xs space-y-2">
                   <div className="font-semibold text-primary">{t.imports.profileDetected}</div>
+                  {preview.profile.name && (
+                    <div className="flex gap-2 items-start">
+                      <span className="text-muted-foreground min-w-24 shrink-0">{t.users.form.name}</span>
+                      <span className="font-medium">{preview.profile.name}</span>
+                      {nameMismatch && (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                        >
+                          {t.imports.profileNameMismatch}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
                   {preview.profile.jabatan && (
                     <div className="flex gap-2">
                       <span className="text-muted-foreground min-w-24 shrink-0">{t.users.form.jabatan}</span>

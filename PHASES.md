@@ -2477,3 +2477,62 @@ dirender script. Kirim manual ke satu email dan cek header email: tidak boleh ad
 NORI</h1>` dari `buildDefaultHtml`, karena HTML admin yang dikirim utuh. Setelah itu jadwalkan email
 tersebut dan pastikan baris `notification_logs` punya `content.html` terisi, sementara job WA pada
 template `both` tetap `html`-nya kosong.
+
+---
+
+## Phase 58 - Nama ikut tampil di card data profil e-TPP
+
+### Completed
+- [x] Baris `Nama` tampil di card "Data profil terdeteksi dari file"
+- [x] Badge peringatan kalau nama di file beda dengan nama user yang sedang dibuka
+- [x] Judul card diubah dari "Data jabatan & unit kerja terdeteksi dari file" jadi "Data profil terdeteksi dari file"
+- [x] `bunx tsc --noEmit` bersih; lint tidak menambah error baru
+
+### Files
+- **`app/(dashboard)/users/[id]/imports/page.tsx`** — baris Nama dirender di atas Jabatan/Unit Kerja,
+  memakai label `t.users.form.name` supaya konsisten dengan dua baris yang sudah ada. Gate kondisi
+  card (`jabatan || unitKerja`) dilebarkan agar file yang hanya punya Nama tetap menampilkan card.
+  Badge amber "Beda dari profil" muncul kalau nama hasil parse tidak sama dengan `user.name`.
+  Perbandingan dinormalisasi dulu (trim + lipat spasi + lowercase), karena e-TPP merender nama
+  HURUF BESAR sementara profil user bisa "Budi Santoso" — tanpa itu badge false positive terus muncul.
+- **`lib/i18n/id.json`**, **`lib/i18n/en.json`** — `imports.profileDetected` diubah ke wording netral
+  (field yang tampil sudah tidak cuma jabatan/unit kerja, dan tidak harus diubah lagi tiap kali nambah
+  field), plus key baru `imports.profileNameMismatch`. `imports.profileOverwriteHint` tidak diubah
+  karena switch itu memang hanya menulis jabatan/unit kerja.
+
+### Yang tidak diubah
+- **`lib/imports/parsers/ekinerja/html.ts` tidak disentuh.** `SourceProfile.name` sudah diisi dari
+  `v_username` di payload yang tertanam di halaman e-TPP, dan fato ini sudah tercakup di
+  `sourceProfileSchema` serta sudah terkirim ke API — cuma belum pernah dirender. Parser sengaja
+  tidak ditambah mapping label `nama` di `LABEL_MAP`: label HTML `fs-nano` bisa ikut cocok di navbar,
+  dan kalau label menang atas `v_username` itu regresi baru yang lebih sulit dideteksi daripada
+  filename yang cuma kehilangan nama.
+- **`app/api/users/[id]/imports/route.ts` tidak disentuh.** `name` sengaja tidak ditulis ke
+  `users.name`; import tetap hanya mengisi jabatan/unit kerja sesuai aturan fill-if-empty. Nama adalah
+  identitas utama user, bukan data turunan dari file kinerja.
+- **Tidak ada migration dan tidak ada perubahan tipe.** `SourceProfile.name` sudah ada di
+  `lib/imports/types.ts` dan `sourceProfileSchema` di `lib/validations.ts`.
+- **Field profile lain tetap tidak dirender** (`perangkatDaerah`, `eselon`, `email`, `userId`).
+  `perangkatDaerah` sebenarnya kandidat yang wajar, tapi scope phase ini cuma Nama.
+
+### Verifikasi
+`bunx tsc --noEmit` — bersih.
+
+`bunx eslint` pada `app/(dashboard)/users/[id]/imports/page.tsx` — satu error **pre-existing** di
+`263:17` (`react-hooks/set-state-in-effect`, `useEffect` yang memanggil `fetchData()`). Baris itu tidak
+berubah di phase ini — diff di region tersebut nol, dan pola yang sama sudah tercatat sebagai
+pre-existing di Phase 57 untuk `components/templates/template-form.tsx`. `bun run lint` di level repo
+juga masih melaporkan banyak error/warning pre-existing di halaman lain (`admins`, `logs`, `schedules`,
+`settings`, `templates`); tidak ada yang berasal dari kode phase ini.
+
+Kesesuaian i18n diverifikasi dengan membaca kedua JSON: jumlah key `imports` sama (49/49), tidak ada key
+hanya di satu sisi, dan `imports.profileNameMismatch` serta `users.form.name` resolve di `id.json`.
+
+### Catatan untuk verifikasi manual
+Fixture `docs/Data Kinerja Saya _ e-TPP.html` sudah tidak ada di repo (Phase 48 memakainya untuk
+verifikasi parser, lalu dihapus), jadi parser tidak bisa diuji otomatis di phase ini. Buka halaman
+import milik satu user, upload file e-TPP asli, dan pastikan card memuat `Nama` dengan nilai yang sama
+dengan nama user. Kalau baris Namanya kosong, berarti `v_username` tidak ada di file tersebut dan
+langkah berikutnya adalah menambahkan mapping label `nama` ke `LABEL_MAP` di
+`lib/imports/parsers/ekinerja/html.ts`. Warning "Beda dari profil" diuji dengan cara sengaja membuka
+halaman import user A lalu meng-upload file milik user B.
