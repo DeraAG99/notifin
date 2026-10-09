@@ -23,11 +23,12 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n/context";
-import { Plus, Search, Pencil, Trash2, Upload, MessageSquare, Mail, UserIcon, ClipboardList } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Upload, MessageSquare, Mail, UserIcon, ClipboardList, Download } from "lucide-react";
 import { UserForm } from "@/components/users/user-form";
 import { CsvImport } from "@/components/users/csv-import";
 import { EmptyState } from "@/components/shared/empty-state";
-import type { User, PaginatedResponse, UserWithEtpp } from "@/types";
+import { downloadUsersExcel } from "@/lib/users/import-columns";
+import type { User, UserWithEtpp } from "@/types";
 
 export default function UsersPage() {
   const { t, tx } = useI18n();
@@ -102,6 +103,21 @@ export default function UsersPage() {
           <Button variant="outline" onClick={() => setImportOpen(true)}>
             <Upload className="h-4 w-4 mr-2" /> {t.users.importCSV}
           </Button>
+          {users.length > 0 && (
+            <Button variant="outline" onClick={() => downloadUsersExcel(
+              users.map(u => ({
+                name: u.name,
+                jabatan: u.jabatan ?? "",
+                unitKerja: u.unitKerja ?? "",
+                phone: u.phone ?? "",
+                email: u.email ?? "",
+                timezone: u.timezone ?? "",
+                status: u.isActive ? t.common.active : t.common.inactive
+              }))
+            )}>
+              <Download className="h-4 w-4 mr-2" /> {t.users.exportExcel}
+            </Button>
+          )}
           <Button onClick={() => { setSelectedUser(null); setFormOpen(true); }}>
             <Plus className="h-4 w-4 mr-2" /> {t.users.newUser}
           </Button>

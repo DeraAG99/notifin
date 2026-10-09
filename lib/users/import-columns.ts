@@ -289,6 +289,53 @@ export async function downloadUserTemplateXlsx() {
     "template-pengguna-si-mpok-nori.xlsx"
   );
 }
+
+export interface ExportUserRow {
+  name: string;
+  jabatan: string;
+  unitKerja: string;
+  phone: string;
+  email: string;
+  timezone: string;
+  status: string;
+}
+
+export async function downloadUsersExcel(users: ExportUserRow[]) {
+  const XLSX = await import("xlsx");
+
+  const headers = ["Nama", "Jabatan", "Unit Kerja", "Telepon", "Email", "Timezone", "Status"];
+  const data = users.map((u) => [
+    u.name,
+    u.jabatan || "",
+    u.unitKerja || "",
+    u.phone || "",
+    u.email || "",
+    u.timezone || "",
+    u.status,
+  ]);
+
+  const worksheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
+  worksheet["!cols"] = [
+    { wch: 28 },
+    { wch: 30 },
+    { wch: 35 },
+    { wch: 16 },
+    { wch: 25 },
+    { wch: 18 },
+    { wch: 12 },
+  ];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Pengguna");
+
+  const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" }) as ArrayBuffer;
+  triggerDownload(
+    new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }),
+    `data-pengguna-${new Date().toISOString().split("T")[0]}.xlsx`
+  );
+}
 /**
  * Read an uploaded `.csv` / `.xlsx` / `.xls` file into raw records keyed by
  * header, without interpreting the values yet.

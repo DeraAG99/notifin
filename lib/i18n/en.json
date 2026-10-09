@@ -482,6 +482,7 @@
     "noUsersDesc": "Add users to start sending notifications.",
     "searchPlaceholder": "Search by name, phone, or email...",
     "userCount": "{count} users",
+    "exportExcel": "Export Excel",
     "importCSV": "Import CSV",
     "importUsers": "Import Users from CSV",
     "noContactInfo": "No contact info",

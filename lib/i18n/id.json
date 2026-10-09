@@ -485,6 +485,7 @@
     "noUsersDesc": "Tambahkan pengguna untuk mulai mengirim notifikasi.",
     "searchPlaceholder": "Cari berdasarkan nama, telepon, atau email...",
     "userCount": "{count} pengguna",
+    "exportExcel": "Unduh Excel",
     "importCSV": "Impor CSV",
     "importUsers": "Impor Pengguna dari CSV",
     "noContactInfo": "Tidak ada info kontak",
