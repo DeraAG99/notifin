@@ -257,7 +257,7 @@
     "delivered": "Delivered",
     "failed": "Failed",
     "pending": "Pending",
-    "sentToday": "{count} sent today",
+    "sentToday": "{count} sent/delivered today",
     "recentNotifications": "Recent Notifications",
     "noNotifications": "No notifications yet",
     "queueHealth": "Queue Health",

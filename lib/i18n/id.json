@@ -257,7 +257,7 @@
     "delivered": "Terkirim",
     "failed": "Gagal",
     "pending": "Tertunda",
-    "sentToday": "{count} terkirim hari ini",
+    "sentToday": "{count} berhasil terkirim hari ini",
     "recentNotifications": "Notifikasi Terakhir",
     "noNotifications": "Belum ada notifikasi",
     "queueHealth": "Kesehatan Antrean",

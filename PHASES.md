@@ -2799,3 +2799,44 @@ maupun `noOverlap` pada cron. Email masih terkirim tanpa jeda dan memakai satu k
 `concurrency: 10`, jadi setelah phase ini yang jadi bottleneck berikutnya bukan mutex, melainkan total
 durasi pengiriman dan belum adanya kuota harian.
 
+---
+
+## Phase 62 - Hapus fitur "Notifikasi e-TPP Otomatis" dari Settings
+
+### Completed
+- [x] Hapus kartu **Notifikasi e-TPP Otomatis** dari `app/(dashboard)/settings/page.tsx` beserta
+  state (`etppTemplates`, `etppTemplateId`, `etppSaving`), fungsi `saveEtppTemplate`, effect yang
+  men-`fetch` daftar template + setelan, dan ikon `CalendarClock`.
+- [x] Hapus route `app/api/settings/etpp-template/route.ts` (beserta folder kosongnya).
+- [x] Hapus worker `workers/etpp-notification.ts`.
+- [x] Lepas wiring di `workers/scheduler-worker.ts` (`import`, `etppNotificationScheduler.start()`,
+  `.stop()`).
+- [x] Perbarui komentar di `scripts/verify-template-html.ts` yang masih menunjuk worker terhapus.
+- [x] Update panduan: hapus §5.7 (Bab 5) & §8.5 (Bab 8) lalu renumber bab 8; regenerate `.docx`.
+
+### Alasan
+Pengiriman pengingat kinerja tanggal 5 & 25 tetap bisa dibuat manual lewat menu **Jadwal** (preset
+"Tanggal 5 & 25 (e-TPP)"), jadi jalur otomatis khusus ini dianggap redundan dan dihilangkan.
+
+### Catatan
+- Baris setelan `etpp.templateId` di tabel `settings` (bila ada) sengaja dibiarkan; menjadi inert
+  karena tidak ada konsumen lagi.
+- Preset cron `0 8 5,25 * *` di menu Jadwal tetap tersedia (tidak terkait fitur ini).
+- Fase-fase lama di dokumen ini yang menyebut file terhapus dibiarkan sebagai riwayat.
+
+### Files
+- `app/(dashboard)/settings/page.tsx`
+- `app/api/settings/etpp-template/route.ts` (dihapus)
+- `workers/etpp-notification.ts` (dihapus)
+- `workers/scheduler-worker.ts`
+- `scripts/verify-template-html.ts`
+- `docs/panduan/05-data-import-dan-etpp.md`
+- `docs/panduan/08-pengaturan.md`
+- `docs/panduan/export/*`
+
+### Verifikasi
+```bash
+bunx tsc --noEmit
+docker compose build web worker scheduler && docker compose up -d
+```
+

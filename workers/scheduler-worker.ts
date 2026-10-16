@@ -1,12 +1,9 @@
 import { scheduler } from "../lib/scheduler";
-import { etppNotificationScheduler } from "./etpp-notification";
 
 async function main() {
   console.log("Starting scheduler worker...");
 
   await scheduler.loadSchedules();
-
-  etppNotificationScheduler.start();
 
   const activeCount = scheduler.getActiveTaskCount();
   console.log(`Loaded ${activeCount} active schedules`);
@@ -15,7 +12,6 @@ async function main() {
   const shutdown = async () => {
     console.log("\nShutting down scheduler...");
     scheduler.stopAll();
-    etppNotificationScheduler.stop();
     process.exit(0);
   };
 

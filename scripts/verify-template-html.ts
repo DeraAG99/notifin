@@ -46,11 +46,10 @@ function section(title: string) {
 }
 
 /**
- * Mirrors the two production send paths (`workers/etpp-notification.ts` and
- * `lib/scheduler.ts`) for one user. Both read `template.content.text` and
- * `template.content.html` off the same template row and render them per user,
- * so reproducing it here exercises the real template row, the real engine and
- * the real resolved variables.
+ * Mirrors the production send path (`lib/scheduler.ts`) for one user. It reads
+ * `template.content.text` and `template.content.html` off the same template row
+ * and renders them per user, so reproducing it here exercises the real template
+ * row, the real engine and the real resolved variables.
  */
 function buildPayloads(
   template: Pick<NotificationTemplate, "content">,

@@ -31,7 +31,7 @@ export async function GET() {
 
     const [todayStats] = await db
       .select({
-        sentToday: sql<number>`count(*)`,
+        sentToday: sql<number>`count(*) filter (where ${notificationLogs.status} in ('sent','delivered'))`,
       })
       .from(notificationLogs)
       .where(and(...baseConditions, gte(notificationLogs.createdAt, today)));
