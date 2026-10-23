@@ -98,17 +98,17 @@ export default function TemplatesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold">{t.templates.title}</h1>
           <p className="text-muted-foreground">{t.templates.description}</p>
         </div>
-        <Button onClick={() => window.open("/templates/new", "_blank")}>
+        <Button className="shrink-0 self-start sm:self-auto" onClick={() => window.open("/templates/new", "_blank")}>
           <Plus className="h-4 w-4 mr-2" /> {t.templates.newTemplate}
         </Button>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input

@@ -391,11 +391,11 @@ const nameMismatch = namesDiffer(preview?.profile?.name, user?.name);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => router.push("/users")}>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => router.push("/users")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold">
             {tx("imports.title", { name: user?.name || "..." })}
           </h1>
@@ -406,7 +406,7 @@ const nameMismatch = namesDiffer(preview?.profile?.name, user?.name);
             </p>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={() => router.push("/import-types")}>
+        <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => router.push("/import-types")}>
           <Database className="h-4 w-4 mr-2" /> {t.importTypes.title}
         </Button>
       </div>
@@ -634,7 +634,7 @@ const nameMismatch = namesDiffer(preview?.profile?.name, user?.name);
 
               {selected && (isTable ? (
                 <div className="border rounded-lg overflow-x-auto">
-                  <Table>
+                  <Table className="min-w-[900px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead>{t.imports.kegiatan}</TableHead>
@@ -685,7 +685,7 @@ const nameMismatch = namesDiffer(preview?.profile?.name, user?.name);
                 </div>
               ) : (
                 <div className="border rounded-lg overflow-x-auto">
-                  <Table>
+                  <Table className="min-w-[900px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-center">{t.imports.table.colNo}</TableHead>

@@ -17,6 +17,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarSeparator,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard,
@@ -37,6 +38,13 @@ export function AppSidebar() {
   const router = useRouter();
   const { t } = useI18n();
   const { user, logout } = useAuth();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  // The mobile drawer is a Sheet; navigating must dismiss it or it keeps
+  // covering the page that was just opened.
+  const closeMobile = () => {
+    if (isMobile) setOpenMobile(false);
+  };
 
   const mainNav = [
     { href: "/dashboard", label: t.nav.dashboard, icon: LayoutDashboard },
@@ -58,10 +66,13 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="bg-sidebar/90 backdrop-blur-xl border-r border-sidebar-border">
-      <SidebarHeader>
+      <SidebarHeader className={isMobile ? "pr-10" : undefined}>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
+            <SidebarMenuButton
+              size="lg"
+              render={<Link href="/dashboard" onClick={closeMobile} />}
+            >
               <div className="flex aspect-square size-10 items-center justify-center rounded-xl overflow-hidden bg-muted">
                 <BrandLogo className="size-full object-contain" />
               </div>
@@ -95,7 +106,7 @@ export function AppSidebar() {
                       pathname?.startsWith(item.href + "/")
                     }
                     tooltip={item.label}
-                    render={<Link href={item.href} />}
+                    render={<Link href={item.href} onClick={closeMobile} />}
                   >
                     <item.icon />
                     <span>{item.label}</span>
@@ -122,7 +133,7 @@ export function AppSidebar() {
                       pathname?.startsWith(item.href + "/")
                     }
                     tooltip={item.label}
-                    render={<Link href={item.href} />}
+                    render={<Link href={item.href} onClick={closeMobile} />}
                   >
                     <item.icon />
                     <span>{item.label}</span>
@@ -151,6 +162,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={async () => {
+                closeMobile();
                 await logout();
                 router.push("/login");
               }}

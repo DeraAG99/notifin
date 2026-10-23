@@ -198,7 +198,7 @@ export default function LogsPage() {
         />
       ) : (
         <div className="border rounded-lg">
-          <Table>
+          <Table className="min-w-[760px]">
             <TableHeader>
               <TableRow>
                 <TableHead>{t.common.channel}</TableHead>
@@ -289,7 +289,7 @@ export default function LogsPage() {
           </DialogHeader>
           {selectedLog && (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                 <div className="min-w-0">
                   <span className="text-muted-foreground">{t.common.channel}:</span>{" "}
                   <Badge variant={selectedLog.channel === "wa" ? "default" : "secondary"}>

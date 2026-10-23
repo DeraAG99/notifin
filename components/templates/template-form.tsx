@@ -797,7 +797,7 @@ export function TemplateForm({ template, onSuccess }: TemplateFormProps) {
                        <script> or <img onerror> would execute against the app's
                        own origin and cookies. */
                     sandbox=""
-                    className="h-[420px] w-full rounded-lg border bg-white"
+                    className="h-[320px] w-full rounded-lg border bg-white sm:h-[420px]"
                   />
                 </div>
               ) : contentText ? (

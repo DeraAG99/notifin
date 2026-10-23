@@ -427,7 +427,7 @@ export function ImportTypesManager() {
                   <Label>{t.importTypes.columns}</Label>
                   <div className="space-y-2">
                     {form.columns.map((col, i) => (
-                      <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                      <div key={i} className="grid grid-cols-2 items-center gap-2 rounded-md border p-2 sm:grid-cols-12 sm:border-0 sm:p-0">
                         <Select
                           value={col.field}
                           onValueChange={(v) =>
@@ -438,7 +438,7 @@ export function ImportTypesManager() {
                             })
                           }
                         >
-                          <SelectTrigger className="col-span-3 h-8 text-xs">
+                          <SelectTrigger className="col-span-2 h-8 text-xs sm:col-span-3">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -457,7 +457,7 @@ export function ImportTypesManager() {
                             })
                           }
                           placeholder={t.importTypes.match}
-                          className="col-span-3 h-8 text-xs"
+                          className="col-span-2 h-8 text-xs sm:col-span-3"
                         />
                         <Select
                           value={col.mode}
@@ -469,7 +469,7 @@ export function ImportTypesManager() {
                             })
                           }
                         >
-                          <SelectTrigger className="col-span-2 h-8 text-xs">
+                          <SelectTrigger className="col-span-1 h-8 text-xs sm:col-span-2">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -489,13 +489,13 @@ export function ImportTypesManager() {
                               })
                             }
                             placeholder={t.importTypes.exclude}
-                            className="col-span-3 h-8 text-xs"
+                            className="col-span-2 h-8 text-xs sm:col-span-3"
                           />
                         )}
                         <button
                           type="button"
                           onClick={() => setForm((f) => ({ ...f, columns: f.columns.filter((_, j) => j !== i) }))}
-                          className="col-span-1 justify-self-center"
+                          className="col-span-1 justify-self-center sm:justify-self-auto"
                         >
                           <X className="h-4 w-4 text-destructive" />
                         </button>

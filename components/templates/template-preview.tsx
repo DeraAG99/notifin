@@ -205,7 +205,7 @@ export function TemplatePreview({ template }: TemplatePreviewProps) {
                 title={t.templates.form.htmlPreviewLabel}
                 srcDoc={renderedHtml}
                 sandbox=""
-                className="h-[420px] w-full rounded-lg border bg-white"
+                className="h-[320px] w-full rounded-lg border bg-white sm:h-[420px]"
               />
             ) : (
               <div className="whitespace-pre-wrap text-sm leading-relaxed">

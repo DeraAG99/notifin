@@ -10,9 +10,9 @@ export default function Loading() {
           <div key={i} className="h-24 bg-muted animate-pulse rounded-lg" />
         ))}
       </div>
-      <div className="grid gap-4 lg:grid-cols-7">
-        <div className="col-span-4 h-80 bg-muted animate-pulse rounded-lg" />
-        <div className="col-span-3 h-80 bg-muted animate-pulse rounded-lg" />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
+        <div className="h-80 bg-muted animate-pulse rounded-lg lg:col-span-4" />
+        <div className="h-80 bg-muted animate-pulse rounded-lg lg:col-span-3" />
       </div>
     </div>
   );

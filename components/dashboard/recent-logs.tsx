@@ -45,7 +45,7 @@ export function RecentLogs({ logs }: RecentLogsProps) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="min-w-[560px]">
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="font-label uppercase tracking-wider text-xs text-nf-on-surface-variant/70">{t.common.channel}</TableHead>

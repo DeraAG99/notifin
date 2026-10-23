@@ -165,11 +165,11 @@ export default function TemplateDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+      <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold">{template.name}</h1>
           <div className="flex items-center gap-2 mt-1">
             <Badge variant={template.channel === "both" ? "outline" : template.channel === "wa" ? "default" : "secondary"}>
@@ -181,7 +181,7 @@ export default function TemplateDetailPage() {
             </Badge>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           {editing ? (
             <Button variant="outline" onClick={() => setEditing(false)}>
               <X className="h-4 w-4 mr-1" /> {t.common.cancel}

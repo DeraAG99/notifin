@@ -92,7 +92,7 @@ export default function LoginPage() {
 
           {/* Password Field */}
           <div className="flex flex-col gap-2">
-            <div className="flex justify-between items-center ml-1">
+            <div className="flex flex-wrap items-center justify-between gap-2 ml-1">
               <label
                 htmlFor="password"
                 className="font-label text-sm text-nf-on-surface-variant"

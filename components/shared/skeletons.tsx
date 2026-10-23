@@ -19,7 +19,7 @@ export function DashboardSkeleton() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-5 w-full max-w-48" />
           </CardHeader>
           <CardContent>
             <Skeleton className="h-[300px] w-full" />
@@ -27,7 +27,7 @@ export function DashboardSkeleton() {
         </Card>
         <Card>
           <CardHeader>
-            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-5 w-full max-w-48" />
           </CardHeader>
           <CardContent>
             <div className="space-y-3">

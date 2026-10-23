@@ -2840,3 +2840,28 @@ bunx tsc --noEmit
 docker compose build web worker scheduler && docker compose up -d
 ```
 
+
+---
+
+## Phase 63 - Responsive pass: semua menu nyaman di HP/tablet/desktop
+
+### Completed
+- [x] `components/ui/dialog.tsx` — base dialog tidak lagi mengunci `sm:max-w-sm`; sekarang `w-[calc(100%-2rem)] max-w-lg` + `max-h-[90dvh] overflow-y-auto`, jadi dialog punya gutter di HP, form panjang bisa di-scroll, dan `max-w-2xl` milik halaman benar-benar berlaku.
+- [x] `components/ui/sidebar.tsx` + `components/layouts/sidebar.tsx` — tombol close drawer mobile kembali tampil; drawer otomatis tertutup saat menu/brand/logout diklik.
+- [x] `components/ui/select.tsx` — trigger default `w-full min-w-0` (bukan `w-fit`), caller masih bisa override lebar.
+- [x] `app/(dashboard)/layout.tsx` — padding `p-4 sm:p-6 lg:p-8` dan `min-w-0` pada area konten.
+- [x] Header halaman dirapikan jadi `flex-col sm:flex-row` + `min-w-0` + tombol `flex-wrap`: Users, Templates, Template detail, Admins, User imports.
+- [x] `components/layouts/header.tsx` — judul halaman truncate, grup kanan `shrink-0`.
+- [x] `dashboard/loading.tsx` — skeleton `lg:col-span-*` (sebelumnya collapse di mobile).
+- [x] Schedules — baris cron stack di mobile, preset select `w-full sm:w-[180px]`; dialog memakai max-height base.
+- [x] Settings — baris status Baileys wrap dan QR `aspect-square max-w-56`.
+- [x] Tabel lebar diberi `min-w` (users/admins/schedules 720px, logs 760px, imports 900px, dashboard 560px) supaya scroll horizontal tetap terbaca.
+- [x] `import-types-manager` — mapping kolom jadi card 2-kolom di mobile, grid 12 kolom hanya di `sm+`.
+- [x] Preview iframe `h-[320px] sm:h-[420px]`, skeleton `max-w-48`, detail log 1 kolom di mobile, baris label login wrap.
+
+### Verifikasi
+```bash
+bunx tsc --noEmit
+bun run build
+```
+

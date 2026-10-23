@@ -38,14 +38,14 @@ export function Header() {
 
   return (
     <header className="flex items-center h-14 shrink-0 border-b border-border bg-background/60 backdrop-blur-xl px-4 lg:px-6">
-      <div className="flex items-center gap-2">
-        <SidebarTrigger className="-ml-1 size-8" />
-        <span className="font-label text-sm uppercase tracking-wider text-nf-on-surface-variant/80 select-none">
+      <div className="flex min-w-0 items-center gap-2">
+        <SidebarTrigger className="-ml-1 size-8 shrink-0" />
+        <span className="truncate font-label text-sm uppercase tracking-wider text-nf-on-surface-variant/80 select-none">
           {pageTitle}
         </span>
       </div>
 
-      <div className="flex items-center gap-3 ml-auto">
+      <div className="ml-auto flex shrink-0 items-center gap-3">
         <span className="text-xs text-nf-on-surface-variant/70 hidden md:block">
           {new Date().toLocaleDateString(dateLang, {
             weekday: "long",

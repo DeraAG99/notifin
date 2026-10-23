@@ -17,7 +17,7 @@ export default function DashboardLayout({
         <AppSidebar />
         <SidebarInset className="relative z-10">
           <Header />
-          <main className="flex-1 overflow-y-auto p-6 lg:p-8 dashboard-bg">
+          <main className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 lg:p-8 dashboard-bg">
             {children}
           </main>
         </SidebarInset>

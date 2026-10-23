@@ -418,7 +418,7 @@ export default function ImportGlobalPage() {
 
               {selected && (
                 <div className="border rounded-lg overflow-x-auto">
-                  <Table>
+                  <Table className="min-w-[900px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead>{t.imports.kegiatan}</TableHead>

@@ -457,8 +457,8 @@ export default function SettingsPage() {
               </div>
 
               <div className="rounded-lg border p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
                     {baileysStatus.connected ? (
                       <CheckCircle className="h-4 w-4 text-primary" />
                     ) : (
@@ -524,7 +524,7 @@ export default function SettingsPage() {
                     <img
                       src={baileysStatus.qr}
                       alt="WhatsApp QR"
-                      className="w-56 h-56 rounded-lg border bg-white p-2"
+                      className="aspect-square w-full max-w-56 rounded-lg border bg-white p-2"
                     />
                     <p className="text-xs text-muted-foreground text-center max-w-sm">
                       {t.settings.baileysScanHint}

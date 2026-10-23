@@ -193,7 +193,7 @@ export default function SchedulesPage() {
         />
       ) : (
         <div className="border rounded-lg">
-          <Table>
+          <Table className="min-w-[720px]">
             <TableHeader>
               <TableRow>
                 <TableHead>{t.schedules.cron}</TableHead>
@@ -335,7 +335,7 @@ export default function SchedulesPage() {
 
             <div className="space-y-2">
               <Label>{t.schedules.form.cronExpression}</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <Input
                   value={cronExpression}
                   onChange={(e) => setCronExpression(e.target.value)}
@@ -345,7 +345,7 @@ export default function SchedulesPage() {
                   required
                 />
                 <Select value={cronExpression} onValueChange={(v) => setCronExpression(v ?? "")}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder={t.schedules.form.presets} />
                   </SelectTrigger>
                   <SelectContent>
