@@ -86,12 +86,54 @@ const LABEL_MAP: Record<string, keyof SourceProfile> = {
   perangkatdaerah: "perangkatDaerah",
 };
 
+/**
+ * Tailwind classes on the div that renders the person's name in the e-TPP
+ * header, e.g.
+ *   <div class="text-lg font-bold leading-tight tracking-[0.06em]
+ *               text-slate-900" style=""> TRINANDA PUSPITOSARI </div>
+ *
+ * Matched token-by-token instead of as one literal class string: e-TPP has
+ * already reordered classes between releases, and `leading-tight` is not part
+ * of the identity of the element. Requiring all four distinctive tokens keeps
+ * unrelated `text-lg` elements (icons, dropdown items) from matching.
+ */
+const PROFILE_NAME_CLASSES = [
+  "text-lg",
+  "font-bold",
+  "tracking-[0.06em]",
+  "text-slate-900",
+];
+
 function cleanProfileValue(value: string | null | undefined): string | null {
   if (!value) return null;
   // The rendered values are uppercased and contain a leading space from the
   // template; collapse runs of whitespace and drop any HTML entity leftovers.
   const s = value.replace(/&amp;/g, "&").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
   return s && s !== "-" && s !== "--" ? s : null;
+}
+
+/**
+ * Read the person's name from the visible e-TPP header.
+ *
+ * The name block is a single div whose class list is checked against
+ * `PROFILE_NAME_CLASSES`; its text has any inline markup stripped before the
+ * usual whitespace/entity cleanup. Returns null when the file has no matching
+ * block, so the caller can fall back to the embedded payload.
+ */
+function extractHeaderName(html: string): string | null {
+  // Local regex (not module-level) so there is no `lastIndex` state to leak
+  // between parses if this function returns early.
+  const divRe = /<div\b[^>]*\bclass\s*=\s*"([^"]*)"[^>]*>([\s\S]*?)<\/div>/gi;
+
+  for (const match of html.matchAll(divRe)) {
+    const classes = match[1].trim().split(/\s+/);
+    if (!PROFILE_NAME_CLASSES.every((token) => classes.includes(token))) continue;
+
+    const name = cleanProfileValue(match[2].replace(/<[^>]*>/g, " "));
+    if (name) return name;
+  }
+
+  return null;
 }
 
 /**
@@ -143,6 +185,8 @@ function sliceJsonObject(source: string, key: string): string | null {
  *
  * 1. The visible header label-value blocks. This is the authoritative one --
  *    it is what the user actually sees on screen, and its labels are unambiguous.
+ *    The name is read from the header's dedicated name div (`v_username` can be
+ *    the account value or missing, so it is only a fallback).
  * 2. The embedded `"user":{...}` payload. Used only to fill gaps (name, email,
  *    user id, eselon) and as a fallback if the markup around the header changes.
  *
@@ -163,13 +207,20 @@ export function extractProfile(html: string): SourceProfile {
     }
   }
 
+  // 1b. Visible name. Taken before the payload so the rendered header always
+  // wins over `v_username`.
+  const headerName = extractHeaderName(html);
+  if (headerName) profile.name = headerName;
+
   // 2. Embedded payload. Only fills what the header did not provide.
   const raw = sliceJsonObject(html, "user");
   const payload = raw ? safeJson<EtppUserPayload>(raw) : null;
 
   if (payload) {
-    const name = cleanProfileValue(payload.v_username);
-    if (name) profile.name = name;
+    if (!profile.name) {
+      const name = cleanProfileValue(payload.v_username);
+      if (name) profile.name = name;
+    }
 
     const email = cleanProfileValue(payload.email);
     if (email) profile.email = email;

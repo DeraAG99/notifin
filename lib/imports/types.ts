@@ -42,8 +42,9 @@ export type ImportFormat = "html" | "xlsx";
  * as opposed to the performance table.
  *
  * Only the e-TPP "Data Kinerja Saya" export carries this today. The parser
- * scrapes the visible `Jabatan` / `Perangkat Daerah` / `Unit Kerja` label-value
- * pairs and falls back to the page's embedded `user` JSON payload.
+ * scrapes the visible name block plus the `Jabatan` / `Perangkat Daerah` /
+ * `Unit Kerja` label-value pairs, and falls back to the page's embedded `user`
+ * JSON payload for anything the header does not provide.
  */
 export interface SourceProfile {
   name?: string | null;

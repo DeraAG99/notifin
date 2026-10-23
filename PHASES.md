@@ -2865,3 +2865,54 @@ bunx tsc --noEmit
 bun run build
 ```
 
+---
+
+## Phase 64 - Nama profil e-TPP diambil dari header yang terlihat
+
+### Completed
+- [x] `extractProfile()` mengambil `name` dari div nama di header e-TPP, bukan lagi dari `v_username`
+- [x] `v_username` tetap dipakai sebagai fallback kalau div header tidak ada / kosong
+- [x] Pencocokan class dilakukan per-token, bukan satu string literal, supaya tahan urutan class berubah
+- [x] `bunx tsc --noEmit` bersih; uji parser terhadap fixture lokal dan HTML sintetis lulus
+
+### Masalah
+Nama di card "Data profil terdeteksi dari file" diambil dari `v_username` di payload
+`"user":{...}` yang tertanam di halaman e-TPP. Nilai itu adalah nilai akun, bukan selalu nama
+yang dirender di layar, dan bisa kosong. Akibatnya card bisa menampilkan nama yang berbeda dari
+yang terlihat di file (atau tidak menampilkan nama sama sekali).
+
+### Files
+- **`lib/imports/parsers/ekinerja/html.ts`** — `PROFILE_NAME_CLASSES` berisi empat token class
+  pembeda div nama (`text-lg`, `font-bold`, `tracking-[0.06em]`, `text-slate-900`). Helper baru
+  `extractHeaderName()` memindai seluruh `<div class="...">` (regex lokal, bukan module-level,
+  supaya tidak ada `lastIndex` yang bocor antar-parse), mencocokkan token class, membuang tag
+  bersarang, lalu membersihkan entity/spasi lewat `cleanProfileValue()`. `extractProfile()`
+  memanggilnya sebelum payload; blok payload sekarang hanya mengisi `name` kalau header tidak
+  memberi nama. `leading-tight` sengaja tidak diwajibkan karena bukan penanda identitas elemen.
+- **`lib/imports/types.ts`** — komentar `SourceProfile` diperbarui: name berasal dari blok nama
+  yang terlihat, payload hanya fallback.
+- **Tidak ada perubahan** pada route, UI, validasi, schema, atau migration. `SourceProfile.name`
+  dan `sourceProfileSchema` sudah ada; card profil, badge "Beda dari profil", dan strip profil
+  per baris otomatis memakai nilai baru.
+
+### Catatan
+- **Import lama tidak berubah namanya.** HTML asli tidak disimpan, jadi `profile` yang sudah
+  tersimpan tidak bisa di-backfill. Upload ulang file e-TPP akan menulis profil baru (route
+  menghapus import kategori yang sama sebelum insert, jadi tidak ada duplikat).
+- Format nama dibiarkan apa adanya (HURUF BESAR dari e-TPP). Perbandingan dengan `users.name`
+  tetap case-insensitive, jadi badge tidak false positive.
+- `users.name` tetap tidak diisi otomatis dari file; aturan Phase 58 tidak berubah.
+
+### Verifikasi
+```bash
+bunx tsc --noEmit
+```
+
+Uji parser (fixture lokal `docs/Data Kinerja Saya _ e-TPP.html` + HTML sintetis):
+- Fixture asli menghasilkan `IGA FAJAR AMIRULLAH` dari header, `jabatan` tetap terbaca.
+- Header beda dari `v_username` → header menang.
+- Header dihapus → fallback ke `v_username`.
+- Div `text-lg` lain (tanpa tiga token lainnya) tidak ikut tertangkap.
+- Urutan class diacak + spasi ganda → nama tetap bersih.
+- Parse berulang memberi hasil yang sama (tidak ada state regex yang bocor).
+
