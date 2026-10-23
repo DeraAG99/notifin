@@ -21,20 +21,29 @@ export interface CsvRow {
 
 export const USER_IMPORT_COLUMNS = [
   "name",
+  "jabatan",
+  "unit_kerja",
   "phone",
   "email",
   "timezone",
-  "jabatan",
-  "unit_kerja",
+] as const;
+
+export const USER_IMPORT_HEADER_LABELS = [
+  "Nama",
+  "Jabatan",
+  "Unit Kerja",
+  "Telepon",
+  "Email",
+  "Timezone",
 ] as const;
 
 export const TEMPLATE_SAMPLE_ROW: Record<string, string> = {
   name: "Ahmad Rizki",
+  jabatan: "KEPALA SUB BAGIAN KEUANGAN",
+  unit_kerja: "KECAMATAN PALMERAH KOTA ADM. JAKARTA BARAT",
   phone: "6281234567890",
   email: "ahmad@contoh.com",
   timezone: "Asia/Jakarta",
-  jabatan: "KEPALA SUB BAGIAN KEUANGAN",
-  unit_kerja: "KECAMATAN PALMERAH KOTA ADM. JAKARTA BARAT",
 };
 
 /**
@@ -175,7 +184,7 @@ function triggerDownload(blob: Blob, filename: string) {
 
 export function downloadUserTemplateCsv() {
   const csv = [
-    USER_IMPORT_COLUMNS.join(","),
+    USER_IMPORT_HEADER_LABELS.join(","),
     USER_IMPORT_COLUMNS.map((c) => TEMPLATE_SAMPLE_ROW[c]).join(","),
   ].join("\n");
 
@@ -189,18 +198,18 @@ export function downloadUserTemplateCsv() {
 
 const INSTRUCTION_ROWS: Array<[string, string, string, string]> = [
   ["Kolom", "Wajib?", "Keterangan", "Contoh"],
-  ["name", "Wajib", "Nama lengkap pengguna", "Ahmad Rizki"],
-  ["phone", "Sangat disarankan", "Nomor WhatsApp, hanya angka. Isi minimal salah satu: phone atau email.", "6281234567890"],
-  ["email", "Sangat disarankan", "Alamat email, harus valid", "ahmad@contoh.com"],
-  ["timezone", "Opsional", "Kosongkan untuk memakai Asia/Jakarta", "Asia/Jakarta"],
-  ["jabatan", "Opsional", "Jabatan / posisi pegawai. Bisa juga terisi otomatis dari import data e-TPP.", "KEPALA SUB BAGIAN KEUANGAN"],
-  ["unit_kerja", "Opsional", "Unit kerja asal pegawai", "KECAMATAN PALMERAH KOTA ADM. JAKARTA BARAT"],
+  ["Nama", "Wajib", "Nama lengkap pengguna", "Ahmad Rizki"],
+  ["Jabatan", "Opsional", "Jabatan / posisi pegawai. Bisa juga terisi otomatis dari import data e-TPP.", "KEPALA SUB BAGIAN KEUANGAN"],
+  ["Unit Kerja", "Opsional", "Unit kerja asal pegawai", "KECAMATAN PALMERAH KOTA ADM. JAKARTA BARAT"],
+  ["Telepon", "Sangat disarankan", "Nomor WhatsApp, hanya angka. Isi minimal salah satu: Telepon atau Email.", "6281234567890"],
+  ["Email", "Sangat disarankan", "Alamat email, harus valid", "ahmad@contoh.com"],
+  ["Timezone", "Opsional", "Kosongkan untuk memakai Asia/Jakarta", "Asia/Jakarta"],
   ["", "", "", ""],
   ["PENTING", "", "", ""],
   [
     "Nomor telepon",
     "",
-    "Format kolom 'phone' sebagai TEKS sebelum mengisi (Home > Format > Cells > Text). Kalau dibiarkan sebagai angka, Excel menghapus nol di depan dan nomor panjang bisa jadi notasi ilmiah, sehingga data yang terimport jadi salah.",
+    "Format kolom 'Telepon' sebagai TEKS sebelum mengisi (Home > Format > Cells > Text). Kalau dibiarkan sebagai angka, Excel menghapus nol di depan dan nomor panjang bisa jadi notasi ilmiah, sehingga data yang terimport jadi salah.",
     "",
   ],
   [
@@ -235,11 +244,11 @@ const PHONE_PREFILL_ROWS = 200;
 export async function buildUserTemplateWorkbook() {
   const XLSX = await import("xlsx");
 
-  const headerRow = [...USER_IMPORT_COLUMNS];
+  const headerRow = [...USER_IMPORT_HEADER_LABELS];
   const sampleRow = USER_IMPORT_COLUMNS.map((c) => TEMPLATE_SAMPLE_ROW[c]);
 
   const sheet = XLSX.utils.aoa_to_sheet([headerRow, sampleRow]);
-  const phoneCol = USER_IMPORT_COLUMNS.indexOf("phone");
+  const phoneCol = USER_IMPORT_HEADER_LABELS.indexOf("Telepon");
 
   const setText = (row: number, value: string) => {
     const ref = XLSX.utils.encode_cell({ r: row, c: phoneCol });
