@@ -4,6 +4,52 @@ import { settings as settingsTable } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { renderWelcomeEmail, renderNotificationEmail } from "./email-templates";
 
+/**
+ * Token Bucket Rate Limiter for Resend API
+ * Shared across all sendViaResend calls in this process
+ */
+class TokenBucket {
+  private tokens: number;
+  private lastRefill: number;
+
+  constructor(
+    private readonly capacity: number,
+    private readonly refillRatePerMs: number
+  ) {
+    this.tokens = capacity;
+    this.lastRefill = Date.now();
+  }
+
+  async take(): Promise<void> {
+    while (true) {
+      this.refill();
+      if (this.tokens >= 1) {
+        this.tokens -= 1;
+        return;
+      }
+      // Wait for next token to become available
+      const waitMs = (1 - this.tokens) / this.refillRatePerMs;
+      await sleep(Math.ceil(waitMs));
+    }
+  }
+
+  private refill(): void {
+    const now = Date.now();
+    const elapsed = now - this.lastRefill;
+    this.tokens = Math.min(this.capacity, this.tokens + elapsed * this.refillRatePerMs);
+    this.lastRefill = now;
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Configure from env (defaults for Resend Free tier: 2 req/sec, burst 5)
+const RESEND_RPS = Number(process.env.RESEND_RATE_LIMIT_RPS) || 2;
+const RESEND_BURST = Number(process.env.RESEND_RATE_LIMIT_BURST) || 5;
+const resendLimiter = new TokenBucket(RESEND_BURST, RESEND_RPS / 1000);
+
 interface SendEmailParams {
   to: string | string[];
   subject: string;
@@ -178,30 +224,67 @@ async function sendViaResend(adminId: string, params: SendEmailParams): Promise<
     }));
   }
 
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(body),
-    });
-    const data = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
-    if (!res.ok) {
+  // Retry configuration
+  const MAX_RETRIES = 2;
+  let attempt = 0;
+
+  while (true) {
+    // Wait for rate limiter token before each attempt
+    await resendLimiter.take();
+
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
+
+      if (res.ok) {
+        return { id: data?.id || "", success: true };
+      }
+
+      // Handle rate limit (429) with Retry-After header
+      if (res.status === 429 && attempt < MAX_RETRIES) {
+        const retryAfterHeader = res.headers.get("Retry-After");
+        let delayMs = 5000; // default 5s
+        if (retryAfterHeader) {
+          const retryAfterSec = parseInt(retryAfterHeader, 10);
+          if (!isNaN(retryAfterSec)) {
+            delayMs = retryAfterSec * 1000;
+          }
+        }
+        // Exponential backoff: 5s, 10s, 20s... but cap at Retry-After if provided
+        const backoffMs = Math.min(delayMs, 5000 * Math.pow(2, attempt));
+        console.warn(`[Resend] Rate limited (429). Retrying in ${backoffMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+        await sleep(backoffMs);
+        attempt++;
+        continue;
+      }
+
       return {
         id: "",
         success: false,
         error: data?.message || `Resend error ${res.status}`,
       };
+    } catch (error) {
+      // Network error - retry with backoff
+      if (attempt < MAX_RETRIES) {
+        const backoffMs = 5000 * Math.pow(2, attempt);
+        console.warn(`[Resend] Network error: ${error instanceof Error ? error.message : "unknown"}. Retrying in ${backoffMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+        await sleep(backoffMs);
+        attempt++;
+        continue;
+      }
+      return {
+        id: "",
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to send via Resend",
+      };
     }
-    return { id: data?.id || "", success: true };
-  } catch (error) {
-    return {
-      id: "",
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to send via Resend",
-    };
   }
 }
 

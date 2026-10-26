@@ -3,6 +3,9 @@ import IORedis from "ioredis";
 
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
+// Email worker concurrency (configurable, default 5 for Resend Free tier)
+const EMAIL_WORKER_CONCURRENCY = Number(process.env.EMAIL_WORKER_CONCURRENCY) || 5;
+
 function createConnection() {
   return new IORedis(REDIS_URL, {
     maxRetriesPerRequest: null,
@@ -169,7 +172,7 @@ export function createWorker(
 ): Worker<NotificationJobData> {
   const worker = new Worker<NotificationJobData>(queueName, processor, {
     ...WORKER_OPTIONS,
-    concurrency: queueName === QUEUE_NAMES.email ? 20 : 10,
+    concurrency: queueName === QUEUE_NAMES.email ? EMAIL_WORKER_CONCURRENCY : 10,
   });
 
   worker.on("failed", (job, error) => {
