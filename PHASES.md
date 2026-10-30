@@ -2951,3 +2951,37 @@ Uji parser (fixture lokal `docs/Data Kinerja Saya _ e-TPP.html` + HTML sintetis)
 - Test otomatis memakai fake WA, database, dan Redis (tidak mengirim pesan atau menulis data produksi): guard untuk 100 log, reprocessing/concurrency, kegagalan simpan log setelah submit, crash/restart, retry aman, lease ownership/loss, reconnect awal, pacing/serialisasi 100 job dari beberapa provider, dan auto-pause.
 - Pengujian end-to-end dengan PostgreSQL/Redis serta kirim WA sungguhan belum dijalankan; perlu smoke test setelah deploy dengan persetujuan operator.
 
+---
+
+## Phase 66 - Resend: shared pacing, cooldown 429, dan retry idempotent
+
+### Completed
+- [x] Ganti token bucket lokal (burst 5) dengan admission atomik Redis bersama untuk web/worker/scheduler. Maksimal 1 request/detik tanpa burst; konfigurasi RPS lebih kecil tetap dihormati, nilai legacy >1 dibatasi menjadi 1.
+- [x] Pengiriman, retry, dan health check memakai limiter yang sama. Jika Redis gagal, tidak ada fallback yang menembak API tanpa pembatasan.
+- [x] HTTP 429 membuat cooldown bersama. `Retry-After` numerik maupun HTTP-date dihormati sebagai batas minimum; waiter yang sudah mengantre juga memeriksa ulang cooldown.
+- [x] Hapus loop retry HTTP internal. Worker menjadi satu pemilik retry: maksimal 3 kegagalan sementara/ambigu dengan exponential delay; rate-limit wait tidak menghabiskan budget ini, tetapi dibatasi 120 deferral agar tidak berulang selamanya.
+- [x] Bedakan rate limit, kuota harian, kuota bulanan, error sementara, dan error permanen. Kuota harian ditunda ke reset UTC berikutnya (07.00 WIB); kuota bulanan/permanen gagal dengan alasan jelas, bukan retry cepat tanpa akhir.
+- [x] Gunakan `Idempotency-Key` berdasarkan admin + ID log, serta bekukan payload final Resend di metadata log agar perubahan sender/template tidak mengubah request saat retry.
+- [x] Simpan intent sebelum submit, lewati log sukses, dan kenali email ID pada log legacy yang gagal menulis status akhir. Metadata digabung; status delivered/read tidak diturunkan.
+- [x] Retry hasil ambigu hanya dalam jendela aman 23 jam (retensi key Resend 24 jam). Intent baru boleh dibersihkan setelah request dipastikan belum dikirim/ditolak, dengan token CAS agar tidak menghapus intent proses lain atau hasil ambigu sebelumnya.
+- [x] Pengiriman bulk standalone Resend dibuat bertahap; SMTP mempertahankan jalur paralel sebelumnya. Helper standalone tidak mempunyai retry antrean otomatis.
+- [x] `.env.example` dan default Compose menggunakan RPS 1; `RESEND_RATE_LIMIT_BURST` tidak digunakan lagi. Tidak mengedit `.env` berisi secret.
+
+### Scope dan batasan
+- Template/isi e-TPP, jadwal, WhatsApp, data/status aktif user, serta konfigurasi SMTP tidak diubah. Tidak ada migration atau penghapusan data.
+- Batas ini mengoordinasikan proses aplikasi yang memakai Redis/key yang sama. Aplikasi eksternal dalam team Resend yang sama tetap dapat menyebabkan 429; cooldown dan retry menanganinya, bukan menjamin 429 mustahil.
+- Paket Free tetap tunduk pada kuota 100 email/hari dan 3.000/bulan. Pacing tidak menambah kuota. Pengiriman ambigu yang melewati jendela aman perlu dicek di dashboard sebelum membuat pengiriman baru.
+- `sent` berarti Resend menerima request dengan email ID, bukan bukti delivered atau masuk inbox. Webhook delivery/bounce belum termasuk fase ini.
+- Deploy ulang web/worker/scheduler agar semua proses memakai limiter baru; proses versi lama tidak berpartisipasi dalam limiter Redis.
+
+### Files
+- `lib/resend/{limiter,client,delivery,retry}.ts`, `lib/db/resend-delivery.ts`
+- `lib/email.ts`, `lib/queue.ts`, `workers/notification-worker.ts`
+- `.env.example`, `docker-compose.yml`, `scripts/resend-delivery.test.ts`
+
+### Verifikasi
+- `npx tsc --noEmit` sebelum dan sesudah perubahan; ESLint pada file yang berubah.
+- `bun test ./scripts/resend-delivery.test.ts ./scripts/wa-delivery.test.ts ./scripts/baileys-manager.test.ts`: 41 test simulasi (Resend + regresi Baileys).
+- Cakupan Resend: 100 admission dari beberapa proses dengan clock virtual, cooldown waiter, `Retry-After`, kuota harian/bulanan, bounded retry, timeout, key/payload stabil, gagal simpan setelah API sukses, restart/reprocessing, dan skip/repair log legacy yang sudah memiliki email ID.
+- Tidak ada pesan sungguhan atau penulisan data produksi. Redis/Lua dan PostgreSQL end-to-end belum diuji karena Docker daemon lokal tidak aktif; smoke test infrastruktur dan akun Resend perlu dilakukan setelah deploy.
+

@@ -64,8 +64,7 @@ services:
       DEFAULT_TIMEZONE: ${TZ:-Asia/Jakarta}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       RESEND_FROM: ${RESEND_FROM:-}
-      RESEND_RATE_LIMIT_RPS: ${RESEND_RATE_LIMIT_RPS:-2}
-      RESEND_RATE_LIMIT_BURST: ${RESEND_RATE_LIMIT_BURST:-5}
+      RESEND_RATE_LIMIT_RPS: ${RESEND_RATE_LIMIT_RPS:-1}
       EMAIL_WORKER_CONCURRENCY: ${EMAIL_WORKER_CONCURRENCY:-5}
       JWT_SECRET: ${JWT_SECRET:-notifin-docker-secret-change-me}
       BAILEYS_AUTH_DIR: /data/baileys-auth
@@ -92,8 +91,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-notifin-docker-secret-change-me}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       RESEND_FROM: ${RESEND_FROM:-}
-      RESEND_RATE_LIMIT_RPS: ${RESEND_RATE_LIMIT_RPS:-2}
-      RESEND_RATE_LIMIT_BURST: ${RESEND_RATE_LIMIT_BURST:-5}
+      RESEND_RATE_LIMIT_RPS: ${RESEND_RATE_LIMIT_RPS:-1}
       EMAIL_WORKER_CONCURRENCY: ${EMAIL_WORKER_CONCURRENCY:-5}
       BAILEYS_AUTH_DIR: /data/baileys-auth
       BAILEYS_MIN_DELAY_MS: ${BAILEYS_MIN_DELAY_MS:-8000}
@@ -119,8 +117,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-notifin-docker-secret-change-me}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       RESEND_FROM: ${RESEND_FROM:-}
-      RESEND_RATE_LIMIT_RPS: ${RESEND_RATE_LIMIT_RPS:-2}
-      RESEND_RATE_LIMIT_BURST: ${RESEND_RATE_LIMIT_BURST:-5}
+      RESEND_RATE_LIMIT_RPS: ${RESEND_RATE_LIMIT_RPS:-1}
     command: ["bun", "workers/scheduler-worker.ts"]
     restart: unless-stopped
 

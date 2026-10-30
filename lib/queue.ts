@@ -31,6 +31,7 @@ export type NotificationJobData = {
   recipientName?: string;
   /** Baileys session outage timer, independent of time spent queued. */
   waWaitingSince?: number;
+  resendRetry?: { failures?: number; deferrals?: number };
 };
 
 /**

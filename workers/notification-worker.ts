@@ -8,6 +8,9 @@ import { isAdminActive } from "../lib/admin-status";
 import { DelayedError, UnrecoverableError, type Job } from "bullmq";
 import { claimWaDelivery, recordWaDelivery } from "../lib/db/wa-delivery";
 import { deliverBaileysOnce, WaDeliveryError } from "../lib/wa/delivery";
+import { ResendDeliveryError } from "../lib/resend/client";
+import { resendRetryDecision } from "../lib/resend/retry";
+import { recordResendDelivery } from "../lib/db/resend-delivery";
 
 function escapeHtml(value: string): string {
   return value
@@ -159,7 +162,8 @@ async function processNotification(job: Job<NotificationJobData>, token?: string
       const handled = await processWhatsApp(data);
       if (handled) return;
     } else {
-      await processEmail(data);
+      const handled = await processEmail(data);
+      if (handled) return;
     }
 
     if (data.logId) {
@@ -175,6 +179,17 @@ async function processNotification(job: Job<NotificationJobData>, token?: string
     console.log(`Job ${job.id} completed successfully`);
   } catch (error) {
     console.error(`Job ${job.id} failed:`, error);
+
+    if (error instanceof ResendDeliveryError) {
+      const decision = resendRetryDecision(error.result, data.resendRetry || {});
+      if (decision.action === "delay") {
+        await job.updateData({ ...data, resendRetry: decision.state });
+        await job.moveToDelayed(decision.retryAt, token);
+        throw new DelayedError();
+      }
+      await recordResendDelivery(data.adminId, data.logId, "failed", error.message);
+      throw new UnrecoverableError(error.message);
+    }
 
     if (error instanceof WaDeliveryError) {
       if (error.kind === "disconnected") {
@@ -246,6 +261,7 @@ async function processWhatsApp(data: NotificationJobData) {
 }
 
 async function processEmail(data: NotificationJobData) {
+  if (!data.logId) throw new UnrecoverableError("Email notification requires a delivery log ID");
   if (!data.recipientEmail) {
     throw new Error("No email address for email notification");
   }
@@ -266,7 +282,13 @@ async function processEmail(data: NotificationJobData) {
     subject: data.subject || "Notification",
     html,
     text: data.content.text,
+    deliveryLogId: data.logId,
   });
+
+  if (result.provider === "resend") {
+    if (!result.success) throw new ResendDeliveryError({ ...result, provider: "resend" });
+    return true; // Resend persisted its result; do not overwrite merged metadata.
+  }
 
   if (!result.success) {
     throw new Error(result.error || "Failed to send email");
