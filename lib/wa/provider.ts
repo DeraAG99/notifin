@@ -6,6 +6,8 @@ export interface SendResult {
   success: boolean;
   messageId?: string;
   error?: string;
+  /** Baileys only: unknown outcomes must never be blindly retried. */
+  failureKind?: "temporary" | "disconnected" | "permanent" | "uncertain";
 }
 
 export interface WaProvider {

@@ -29,6 +29,8 @@ export type NotificationJobData = {
   recipientPhone?: string;
   recipientEmail?: string;
   recipientName?: string;
+  /** Baileys session outage timer, independent of time spent queued. */
+  waWaitingSince?: number;
 };
 
 /**
@@ -168,7 +170,7 @@ export async function addBatchJobs(
 
 export function createWorker(
   queueName: string,
-  processor: (job: Job<NotificationJobData>) => Promise<void>
+  processor: (job: Job<NotificationJobData>, token?: string) => Promise<void>
 ): Worker<NotificationJobData> {
   const worker = new Worker<NotificationJobData>(queueName, processor, {
     ...WORKER_OPTIONS,

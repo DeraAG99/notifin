@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { settings } from "@/lib/db/schema";
 import path from "path";
 import fs from "fs";
+import { SessionLease } from "./session-lease";
 
 const AUTH_DIR = process.env.BAILEYS_AUTH_DIR || path.join(process.cwd(), ".baileys-auth");
 
@@ -61,6 +62,12 @@ export class BaileysManager {
   private intentionalClose = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private latestQr: string | null = null;
+  private lease: SessionLease | null = null;
+  private reconnectAttempts = 0;
+  private needsReconnect = false;
+  private requiresPairing = false;
+  private failureCount = 0;
+  private pausedUntil = 0;
   private authDir: string;
   /**
    * Serialisation chain for this session. Instance-level, not static: there is
@@ -83,24 +90,48 @@ export class BaileysManager {
     return instance;
   }
 
-  static disconnectAll(): void {
+  static async disconnectAll(): Promise<void> {
     for (const instance of BaileysManager.instances.values()) {
-      instance.disconnect();
+      await instance.disconnect();
     }
   }
 
-  static disconnect(adminId: string): void {
+  static async disconnect(adminId: string): Promise<void> {
     const instance = BaileysManager.instances.get(adminId);
     if (instance) {
-      instance.disconnect();
-      BaileysManager.instances.delete(adminId);
+      await instance.disconnect();
+      // Keep the stopped manager so a provider cache refresh cannot silently
+      // reconnect a session that the operator deliberately disconnected.
       return;
     }
-    void resetBaileysState(adminId);
   }
 
   isConnected(): boolean {
     return this._connected && this.sock !== null;
+  }
+
+  private scheduleReconnect(): void {
+    if (this.intentionalClose || this.requiresPairing || this.reconnectTimer) return;
+    if (BaileysManager.instances.get(this.adminId) !== this) return;
+    // A close during initial QR/pairing used to consume its timer while
+    // connecting=true. The finally block schedules it once connect has settled.
+    if (this.connecting) { this.needsReconnect = true; return; }
+    const delay = Math.min(60_000, 2000 * 2 ** Math.min(this.reconnectAttempts++, 5));
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      void this.connect();
+    }, delay + Math.floor(Math.random() * 1000));
+  }
+
+  private async closeSocket(): Promise<void> {
+    const socket = this.sock;
+    this.sock = null;
+    this._connected = false;
+    if (socket) {
+      // Baileys v7 exposes end(), not close(). Never logout during a restart.
+      try { await socket.end(new Error("Session stopped")); }
+      catch { /* Socket may already be closed. */ }
+    }
   }
 
   private static lastSendTimes = new Map<string, number>();
@@ -113,17 +144,18 @@ export class BaileysManager {
     BaileysManager.lastSendTimes.set(adminId, at);
   }
 
-  async connect(): Promise<void> {
+  async connect(manual = false): Promise<void> {
     if (BaileysManager.instances.get(this.adminId) !== this) return;
+    if (!manual && (this.requiresPairing || this.intentionalClose)) return;
     if (this._connected || this.connecting) return;
     this.connecting = true;
     this.intentionalClose = false;
+    this.requiresPairing = false;
+    this.needsReconnect = false;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    writeDbSetting(this.adminId, "baileys_qr", "");
-    setBaileysError(this.adminId, null);
 
     const hasModule = await ensureBaileys();
     if (!hasModule) {
@@ -134,13 +166,43 @@ export class BaileysManager {
     }
 
     try {
-      const { makeWASocket, useMultiFileAuthState, DisconnectReason } = baileysModule;
+      if (!this.lease) {
+        const lease = new SessionLease(`notifin:baileys:session:${this.adminId}`, () => {
+          const closed = this.closeSocket();
+          void writeDbSetting(this.adminId, "baileys_connected", false);
+          void setBaileysError(this.adminId, "Kepemilikan session hilang; menunggu koneksi ulang");
+          if (this.lease === lease) this.lease = null;
+          void closed.finally(() => lease.release());
+          this.scheduleReconnect();
+        });
+        if (!(await lease.acquire())) {
+          console.warn(`[Baileys:${this.adminId}] Session owned elsewhere or Redis unavailable; waiting`);
+          this.needsReconnect = true;
+          return;
+        }
+        // A disconnect can arrive while Redis acquisition was pending.
+        if (this.intentionalClose || BaileysManager.instances.get(this.adminId) !== this) {
+          await lease.release();
+          return;
+        }
+        this.lease = lease;
+      }
+      await clearBaileysSessionFlags(this.adminId);
+      await setBaileysError(this.adminId, null);
+      const { makeWASocket, useMultiFileAuthState: initialiseAuthState, DisconnectReason } = baileysModule;
 
-      const { state, saveCreds } = await useMultiFileAuthState(this.authDir);
+      const { state, saveCreds } = await initialiseAuthState(this.authDir);
 
-      this.sock = makeWASocket({
+      if (this.intentionalClose) return;
+      if (!this.lease || !(await this.lease.assertOwned())) {
+        this.needsReconnect = true;
+        return;
+      }
+      await this.closeSocket();
+      const socket = makeWASocket({
         auth: state,
-        printQRInTerminal: true,
+        printQRInTerminal: false,
+        defaultQueryTimeoutMs: 30000,
         logger: {
           info: () => {},
           warn: () => {},
@@ -156,10 +218,12 @@ export class BaileysManager {
           }),
         },
       });
+      this.sock = socket;
 
-      this.sock.ev.on("creds.update", saveCreds);
+      socket.ev.on("creds.update", saveCreds);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      this.sock.ev.on("connection.update", async (update: any) => {
+      socket.ev.on("connection.update", async (update: any) => {
+        if (this.sock !== socket) return;
         const { connection, lastDisconnect, qr } = update;
         if (qr) {
           this.latestQr = qr;
@@ -191,35 +255,43 @@ export class BaileysManager {
               // ignore
             }
             await resetBaileysState(this.adminId);
-            if (isRegistered && !this.reconnectTimer) {
-              this.reconnectTimer = setTimeout(() => {
-                this.reconnectTimer = null;
-                this.connect();
-              }, 2000);
-            }
+            this.requiresPairing = true;
+            await setBaileysError(this.adminId, "Session logout; klik Hubungkan dan scan QR kembali");
+            await this.closeSocket();
+            const lease = this.lease;
+            this.lease = null;
+            await lease?.release();
+            return;
+          }
+
+          if ([DisconnectReason.connectionReplaced, DisconnectReason.badSession, DisconnectReason.forbidden].includes(statusCode)) {
+            this.requiresPairing = true;
+            await this.closeSocket();
+            await setBaileysError(this.adminId, `Session dihentikan (kode ${statusCode}); periksa WhatsApp lalu hubungkan ulang`);
+            const lease = this.lease;
+            this.lease = null;
+            await lease?.release();
             return;
           }
 
           writeDbSetting(this.adminId, "baileys_last_seen", new Date().toISOString());
           if (isRegistered) {
             console.log(`[Baileys:${this.adminId}] Connection closed, reconnecting...`);
-            if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-            this.reconnectTimer = setTimeout(() => {
-              this.reconnectTimer = null;
-              this.connect();
-            }, 5000);
+            this.scheduleReconnect();
           }
         } else if (connection === "open") {
           if (BaileysManager.instances.get(this.adminId) !== this) {
             console.log(`[Baileys:${this.adminId}] Orphan socket opened, closing`);
             try {
-              this.sock?.close();
+              await socket.end(new Error("Orphan socket"));
             } catch {
               // ignore
             }
             return;
           }
           this._connected = true;
+          this.reconnectAttempts = 0;
+          this.needsReconnect = false;
           this.latestQr = null;
           writeDbSetting(this.adminId, "baileys_connected", true);
           writeDbSetting(this.adminId, "baileys_last_seen", new Date().toISOString());
@@ -235,13 +307,18 @@ export class BaileysManager {
       });
 
       await new Promise<void>((resolve) => {
-        const timeout = setTimeout(() => resolve(), 30000);
-        this.sock.ev.on("connection.update", (update: { connection?: string }) => {
-          if (update.connection === "open") {
+        const onConnection = (update: { connection?: string }) => {
+          if (update.connection === "open" || update.connection === "close") {
             clearTimeout(timeout);
+            socket.ev.off("connection.update", onConnection);
             resolve();
           }
-        });
+        };
+        const timeout = setTimeout(() => {
+          socket.ev.off("connection.update", onConnection);
+          resolve();
+        }, 30000);
+        socket.ev.on("connection.update", onConnection);
       });
     } catch (err) {
       console.error(`[Baileys:${this.adminId}] Failed to connect:`, err);
@@ -250,8 +327,10 @@ export class BaileysManager {
         this.adminId,
         err instanceof Error ? err.message : "Gagal terhubung ke WhatsApp"
       );
+      this.needsReconnect = true;
     } finally {
       this.connecting = false;
+      if (this.needsReconnect) this.scheduleReconnect();
     }
   }
 
@@ -279,57 +358,97 @@ export class BaileysManager {
   }
 
   async sendText(phone: string, message: string): Promise<SendResult> {
-    if (!this.sock || !this._connected) {
-      return { success: false, error: "Baileys not connected" };
+    const unavailable = await this.checkSendReady();
+    if (unavailable) return unavailable;
+    const digits = phone.replace(/[^0-9]/g, "");
+    if (!/^[1-9]\d{9,14}$/.test(digits)) {
+      return { success: false, failureKind: "permanent", error: "Nomor WhatsApp harus memakai kode negara (10–15 digit)" };
     }
 
     try {
-      const jid = `${phone.replace(/[^0-9]/g, "")}@s.whatsapp.net`;
+      const jid = `${digits}@s.whatsapp.net`;
       const result = await this.sock.sendMessage(jid, { text: message });
+      if (!result?.key?.id) throw new Error("WhatsApp tidak mengembalikan message ID");
+      this.failureCount = 0;
       return { success: true, messageId: result?.key?.id };
     } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+      return this.uncertainSend(err);
     }
   }
 
   async sendMedia(phone: string, fileUrl: string, caption?: string): Promise<SendResult> {
-    if (!this.sock || !this._connected) {
-      return { success: false, error: "Baileys not connected" };
+    const unavailable = await this.checkSendReady();
+    if (unavailable) return unavailable;
+    const digits = phone.replace(/[^0-9]/g, "");
+    if (!/^[1-9]\d{9,14}$/.test(digits)) {
+      return { success: false, failureKind: "permanent", error: "Nomor WhatsApp harus memakai kode negara (10–15 digit)" };
     }
 
+    let buffer: ArrayBuffer;
     try {
-      const jid = `${phone.replace(/[^0-9]/g, "")}@s.whatsapp.net`;
-      const response = await fetch(fileUrl);
-      const buffer = await response.arrayBuffer();
+      const response = await fetch(fileUrl, { signal: AbortSignal.timeout(30000) });
+      if (!response.ok) return {
+        success: false, failureKind: response.status >= 500 || response.status === 429 ? "temporary" : "permanent",
+        error: `Media download failed: HTTP ${response.status}`,
+      };
+      buffer = await response.arrayBuffer();
+    } catch (err) {
+      return { success: false, failureKind: "temporary", error: err instanceof Error ? err.message : "Media download failed" };
+    }
+    const recheck = await this.checkSendReady();
+    if (recheck) return recheck;
+    try {
+      const jid = `${digits}@s.whatsapp.net`;
       const result = await this.sock.sendMessage(jid, {
         image: Buffer.from(buffer),
         caption: caption || "",
       });
+      if (!result?.key?.id) throw new Error("WhatsApp tidak mengembalikan message ID");
+      this.failureCount = 0;
       return { success: true, messageId: result?.key?.id };
     } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+      return this.uncertainSend(err);
     }
+  }
+
+  private async checkSendReady(): Promise<SendResult | null> {
+    if (Date.now() < this.pausedUntil) {
+      return { success: false, failureKind: "disconnected", error: "Pengiriman dijeda sementara setelah kegagalan beruntun" };
+    }
+    if (!this.sock || !this._connected || !this.lease || !(await this.lease.assertOwned())) {
+      return { success: false, failureKind: "disconnected", error: "Baileys belum terhubung atau session tidak dimiliki worker ini" };
+    }
+    return null;
+  }
+
+  private uncertainSend(err: unknown): SendResult {
+    if (++this.failureCount >= 3) {
+      this.pausedUntil = Date.now() + 60_000;
+      this.failureCount = 0;
+      void setBaileysError(this.adminId, "Pengiriman dijeda 60 detik setelah kegagalan beruntun");
+    }
+    return {
+      success: false, failureKind: "uncertain",
+      error: `Hasil kirim belum pasti: ${err instanceof Error ? err.message : "Unknown error"}. Periksa WhatsApp sebelum kirim ulang.`,
+    };
   }
 
   getQr(): string | null {
     return this.latestQr;
   }
 
-  disconnect(): void {
+  async disconnect(): Promise<void> {
     this.intentionalClose = true;
+    this.requiresPairing = true;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    if (this.sock) {
-      try {
-        this.sock.close();
-      } catch {
-        // socket may already be closed
-      }
-      this.sock = null;
-    }
+    await this.closeSocket();
+    const lease = this.lease;
+    this.lease = null;
+    await lease?.release();
     this._connected = false;
-    void resetBaileysState(this.adminId);
+    if (lease) await resetBaileysState(this.adminId);
   }
 }

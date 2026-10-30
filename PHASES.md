@@ -2916,3 +2916,38 @@ Uji parser (fixture lokal `docs/Data Kinerja Saya _ e-TPP.html` + HTML sintetis)
 - Urutan class diacak + spasi ganda → nama tetap bersih.
 - Parse berulang memberi hasil yang sama (tidak ada state regex yang bocor).
 
+---
+
+## Phase 65 - Keandalan pengiriman WhatsApp Baileys
+
+### Completed
+- [x] Guard atomik pada log WA: simpan intent sebelum submit, lewati log sukses, dan jangan otomatis mengulang hasil yang belum pasti. ID log baru tetap boleh dikirim ke penerima yang sama.
+- [x] Metadata log digabung (tidak menghapus metadata lama); tidak ada tabel/migration baru.
+- [x] Bedakan kegagalan sebelum submit, nomor tidak valid, session offline, dan hasil kirim ambigu. Retry BullMQ tetap terbatas dan exponential; hasil ambigu tidak di-retry otomatis.
+- [x] Session offline menunda job 30 detik tanpa menghabiskan attempts, maksimal 30 menit sejak pertama menunggu. Setelah itu log gagal dengan alasan jelas (job/log tetap ada).
+- [x] Lease Redis per admin, renewal dan pemeriksaan ownership sebelum submit. Fail-closed bila Redis/ownership bermasalah. Worker standby tidak menghapus status/QR milik owner.
+- [x] Reconnect bertahap termasuk close saat connect masih berjalan; logout/session invalid perlu tindakan Hubungkan ulang, bukan loop QR otomatis.
+- [x] Socket v7 dihentikan dengan `end()` dan lease dilepas sesudah socket ditutup saat shutdown.
+- [x] Tiga hasil kirim ambigu berturut-turut menjeda session selama 60 detik; pesan berikutnya ditunda, bukan dibuang.
+- [x] Jeda default 8–15 detik dan serialisasi per session tetap dipertahankan.
+
+### Scope dan batasan
+- Template/isi e-TPP, jadwal, email, dan data/status aktif pengguna **tidak diubah**. Tidak ada hapus/inactive otomatis, kuota bulanan, atau pembatasan satu pesan per bulan.
+- Guard berlaku untuk jalur worker Baileys berdasarkan ID log, bukan untuk menggabungkan dua permintaan kirim baru yang memang membuat log berbeda.
+- Tidak ada jaminan exactly-once antara WhatsApp dan PostgreSQL. Jika worker mati setelah intent disimpan (termasuk ketika menunggu giliran kirim), hasil ditandai belum pasti saat job diproses ulang; cek WhatsApp sebelum kirim ulang sebagai pengiriman baru.
+- Status `sent` berarti library menerima hasil submit dengan message ID, bukan bukti delivered/read. Tidak ada klaim anti-banned.
+- Deployment tetap disarankan memakai satu notification worker seperti compose saat ini. Lease melindungi ownership saat overlap/restart, bukan routing/sharding session atau kontrol connect/disconnect lintas banyak worker.
+
+### Files
+- `lib/db/wa-delivery.ts`, `lib/wa/delivery.ts`, `lib/wa/session-lease.ts`
+- `lib/wa/baileys-manager.ts`, `lib/wa/baileys-provider.ts`, `lib/wa/provider.ts`
+- `lib/queue.ts`, `workers/notification-worker.ts`
+- `scripts/wa-delivery.test.ts`, `scripts/baileys-manager.test.ts`
+
+### Verifikasi
+- Type-check sebelum perubahan: `npx tsc --noEmit`.
+- Type-check setelah perubahan dan ESLint pada seluruh file TypeScript yang berubah: lulus.
+- `bun test ./scripts/wa-delivery.test.ts ./scripts/baileys-manager.test.ts`: **21 pass, 0 fail**, termasuk refresh cache setelah disconnect manual yang tidak boleh membuka session otomatis.
+- Test otomatis memakai fake WA, database, dan Redis (tidak mengirim pesan atau menulis data produksi): guard untuk 100 log, reprocessing/concurrency, kegagalan simpan log setelah submit, crash/restart, retry aman, lease ownership/loss, reconnect awal, pacing/serialisasi 100 job dari beberapa provider, dan auto-pause.
+- Pengujian end-to-end dengan PostgreSQL/Redis serta kirim WA sungguhan belum dijalankan; perlu smoke test setelah deploy dengan persetujuan operator.
+

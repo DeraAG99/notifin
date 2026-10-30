@@ -101,7 +101,7 @@ export class BaileysProvider implements WaProvider {
         return manager.sendText(phone, message);
       });
     } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+      return { success: false, failureKind: "temporary", error: err instanceof Error ? err.message : "Unknown error" };
     }
   }
 
@@ -113,7 +113,7 @@ export class BaileysProvider implements WaProvider {
         return manager.sendMedia(phone, fileUrl, caption);
       });
     } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+      return { success: false, failureKind: "temporary", error: err instanceof Error ? err.message : "Unknown error" };
     }
   }
 

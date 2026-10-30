@@ -5,6 +5,9 @@ import { and, eq } from "drizzle-orm";
 import { getWaProvider } from "../lib/wa";
 import { sendEmail } from "../lib/email";
 import { isAdminActive } from "../lib/admin-status";
+import { DelayedError, UnrecoverableError, type Job } from "bullmq";
+import { claimWaDelivery, recordWaDelivery } from "../lib/db/wa-delivery";
+import { deliverBaileysOnce, WaDeliveryError } from "../lib/wa/delivery";
 
 function escapeHtml(value: string): string {
   return value
@@ -77,8 +80,8 @@ async function autoConnectBaileys() {
       const providerType = await getSetting(admin.id, "waProvider");
       if (providerType !== "baileys") continue;
 
-      // Worker restart = semua socket lama mati; bersihkan flag basi
-      await mod.clearBaileysSessionFlags(admin.id);
+      // The lease owner clears stale flags. A standby worker must not overwrite
+      // the healthy owner's status/QR when multiple workers start together.
 
       const expired =
         admin.expiresAt && new Date(admin.expiresAt).getTime() < Date.now();
@@ -107,7 +110,7 @@ async function handleBaileysJob(job: { id?: string | number; data: BaileysJobDat
     console.log(`[Worker] Baileys disconnect job received for admin ${adminId}`);
     try {
       const mod = await import("../lib/wa/baileys-manager");
-      mod.BaileysManager.disconnect(adminId);
+      await mod.BaileysManager.disconnect(adminId);
     } catch (err) {
       console.error(`[Worker] Baileys disconnect failed for admin ${adminId}:`, err instanceof Error ? err.message : "Unknown error");
     }
@@ -124,7 +127,7 @@ async function handleBaileysJob(job: { id?: string | number; data: BaileysJobDat
   try {
     const mod = await import("../lib/wa/baileys-manager");
     const manager = mod.BaileysManager.getInstance(adminId);
-    await manager.connect();
+    await manager.connect(true);
     console.log(`[Worker] Baileys connect completed for admin ${adminId}, connected:`, manager.isConnected());
   } catch (err) {
     console.error(`[Worker] Baileys connect failed for admin ${adminId}:`, err instanceof Error ? err.message : "Unknown error");
@@ -133,7 +136,7 @@ async function handleBaileysJob(job: { id?: string | number; data: BaileysJobDat
   }
 }
 
-async function processNotification(job: { id?: string | number; data: NotificationJobData }) {
+async function processNotification(job: Job<NotificationJobData>, token?: string) {
   const { data } = job;
   console.log(`Processing job ${job.id}: ${data.type} for user ${data.userId}`);
 
@@ -153,7 +156,8 @@ async function processNotification(job: { id?: string | number; data: Notificati
     }
 
     if (data.channel === "wa") {
-      await processWhatsApp(data);
+      const handled = await processWhatsApp(data);
+      if (handled) return;
     } else {
       await processEmail(data);
     }
@@ -171,6 +175,27 @@ async function processNotification(job: { id?: string | number; data: Notificati
     console.log(`Job ${job.id} completed successfully`);
   } catch (error) {
     console.error(`Job ${job.id} failed:`, error);
+
+    if (error instanceof WaDeliveryError) {
+      if (error.kind === "disconnected") {
+        const since = data.waWaitingSince || Date.now();
+        if (Date.now() - since < 30 * 60_000) {
+          await job.updateData({ ...data, waWaitingSince: since });
+          await job.moveToDelayed(Date.now() + 30_000, token);
+          throw new DelayedError();
+        }
+        await recordWaDelivery(data.adminId, data.logId, "failed", "WhatsApp belum terhubung setelah menunggu 30 menit");
+        throw new UnrecoverableError("WhatsApp session unavailable for 30 minutes");
+      }
+      if (error.kind === "permanent" || error.kind === "uncertain") {
+        throw new UnrecoverableError(error.message);
+      }
+      // Only a confirmed pre-submission failure may consume a normal retry.
+      if (job.attemptsMade + 1 >= (job.opts.attempts || 1)) {
+        await recordWaDelivery(data.adminId, data.logId, "failed", error.message);
+      }
+      throw error;
+    }
 
     if (data.logId) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -193,6 +218,14 @@ async function processWhatsApp(data: NotificationJobData) {
   }
 
   const provider = await getWaProvider(data.adminId);
+  if (provider.name === "baileys") {
+    if (!data.logId) throw new UnrecoverableError("Baileys requires a delivery log ID");
+    await deliverBaileysOnce({
+      claim: () => claimWaDelivery(data.adminId, data.logId),
+      record: (state, error, messageId) => recordWaDelivery(data.adminId, data.logId, state, error, messageId),
+    }, () => provider.sendText(data.recipientPhone!, data.content.text));
+    return true;
+  }
   const result = await provider.sendText(data.recipientPhone, data.content.text);
 
   if (!result.success) {
@@ -265,8 +298,8 @@ async function main() {
     }
   );
 
-  console.log(`WA worker concurrency: 2`);
-  console.log(`Email worker concurrency: 20`);
+  console.log(`WA worker concurrency: 10 (Baileys serialised per session)`);
+  console.log(`Email worker concurrency: ${Number(process.env.EMAIL_WORKER_CONCURRENCY) || 5}`);
   console.log("Baileys worker listening for connect jobs");
   console.log("Workers are running. Press Ctrl+C to stop.");
 
@@ -277,6 +310,8 @@ async function main() {
     await waWorker.close();
     await emailWorker.close();
     await baileysWorker.close();
+    const { BaileysManager } = await import("../lib/wa/baileys-manager");
+    await BaileysManager.disconnectAll();
     process.exit(0);
   };
 
