@@ -2985,3 +2985,33 @@ Uji parser (fixture lokal `docs/Data Kinerja Saya _ e-TPP.html` + HTML sintetis)
 - Cakupan Resend: 100 admission dari beberapa proses dengan clock virtual, cooldown waiter, `Retry-After`, kuota harian/bulanan, bounded retry, timeout, key/payload stabil, gagal simpan setelah API sukses, restart/reprocessing, dan skip/repair log legacy yang sudah memiliki email ID.
 - Tidak ada pesan sungguhan atau penulisan data produksi. Redis/Lua dan PostgreSQL end-to-end belum diuji karena Docker daemon lokal tidak aktif; smoke test infrastruktur dan akun Resend perlu dilakukan setelah deploy.
 
+---
+
+## Phase 67 - Log per tenant, perbaikan filter tanggal/status, dan export Excel
+
+### Completed
+- [x] Rapikan halaman Log dengan filter responsif, pencarian penerima (nama/telepon/email), waktu WIB, identitas penerima, detail pesan/error, loading, error, reset filter, dan pagination.
+- [x] Admin biasa tetap dibatasi ke log tenant sendiri pada tabel dan export, walaupun mengirim `adminId` tenant lain. Superadmin dapat melihat semua tenant atau memilih tenant tertentu; daftar tenant hanya tersedia bagi superadmin.
+- [x] Perbaiki ketidakcocokan input tanggal HTML (`YYYY-MM-DD`) dengan validasi API. Tanggal kalender ditafsirkan sebagai WIB, tanggal akhir menggunakan batas eksklusif awal hari berikutnya, dan rentang terbalik/tanggal tidak valid ditolak. Timestamp ISO dari klien lama tetap didukung.
+- [x] Filter status memakai enum dan label yang benar; pilihan Semua menghapus filter. Perubahan filter kembali ke halaman pertama, request lama dibatalkan, dan pencarian di-debounce agar respons lama tidak menimpa hasil baru.
+- [x] Pusatkan predicate tenant/channel/status/penerima/tanggal untuk tabel dan export di `lib/db/logs.ts`; query hanya melalui lapisan DB.
+- [x] Ganti CSV halaman aktif dengan `.xlsx` seluruh hasil sesuai filter. ExcelJS menyediakan header berwarna, zebra rows, wrap teks, lebar kolom, autofilter, frozen header, format tanggal WIB, dan sheet Ringkasan. Nomor telepon tetap teks; konten mirip formula tidak dieksekusi sebagai formula.
+- [x] Retry menampilkan hasil API yang sebenarnya, mencegah klik ganda, dan hanya tersedia untuk log bertemplate milik admin yang sedang login (sesuai scope endpoint kirim yang sudah ada).
+
+### Scope dan batasan
+- Tidak ada migration, penghapusan data, perubahan template, atau perubahan jalur pengiriman worker.
+- Export mengambil seluruh hasil filter di memori; untuk riwayat sangat besar, gunakan rentang tanggal yang lebih sempit. Batas baris Excel diperiksa. Teks yang melampaui batas Excel 32.767 karakter/sel dipotong dengan penanda dan catatan pada Ringkasan.
+- Bahasa UI Indonesia/Inggris tetap didukung; label laporan Excel berbahasa Indonesia.
+
+### Files
+- `app/(dashboard)/logs/page.tsx`, `app/api/logs/route.ts`, `app/api/logs/{export,tenants}/route.ts`
+- `lib/db/logs.ts`, `lib/log-filters.ts`, `lib/log-export.ts`, `lib/validations.ts`, `types/index.ts`
+- `lib/i18n/{en,id}.json`, `package.json`, `bun.lock`, `scripts/logs.test.ts`
+
+### Verifikasi
+- `npx tsc --noEmit` sebelum dan sesudah perubahan; ESLint pada seluruh file TypeScript yang berubah.
+- `bun run build`: lulus. Peringatan bawaan proyek: konvensi middleware deprecated, tracing Baileys/next.config, dan versi Redis lokal di bawah rekomendasi BullMQ.
+- `bun test ./scripts/logs.test.ts ./scripts/resend-delivery.test.ts ./scripts/wa-delivery.test.ts ./scripts/baileys-manager.test.ts`: **54 pass, 0 fail** (13 test khusus log/Excel).
+- Test log mencakup tanggal sama/batas hari WIB/leap day, input invalid, status, scope tenant, escaping pencarian, lebih dari satu halaman export, style workbook, XLSX round-trip, telepon berawalan nol, formula-like text, dan batas karakter Excel.
+- Tidak melakukan query DB atau pengiriman pesan dalam test log. Smoke test UI browser dan export dengan data PostgreSQL sungguhan belum dijalankan.
+

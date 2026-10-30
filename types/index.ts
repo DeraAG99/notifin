@@ -97,6 +97,15 @@ export interface NotificationLog {
   createdAt: Date | null;
 }
 
+export interface NotificationLogEntry extends NotificationLog {
+  adminId: string;
+  adminName: string | null;
+  recipientName: string | null;
+  recipientPhone: string | null;
+  recipientEmail: string | null;
+  templateName: string | null;
+}
+
 export interface Setting {
   key: string;
   value: string | number | boolean | null;

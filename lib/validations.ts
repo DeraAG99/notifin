@@ -158,14 +158,26 @@ export const templateDraftPreviewSchema = z.object({
   userId: z.string().uuid("User tidak valid").optional(),
 });
 
+const logDateSchema = z.union([z.string().date(), z.string().datetime({ offset: true })]);
+
 export const logFilterSchema = z.object({
   channel: channelSchema.optional(),
   status: statusSchema.optional(),
+  adminId: z.string().uuid().optional(),
+  search: z.string().trim().max(200).optional(),
   userId: z.string().uuid().optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
+  startDate: logDateSchema.optional(),
+  endDate: logDateSchema.optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
+}).refine((filters) => {
+  if (!filters.startDate || !filters.endDate) return true;
+  const start = new Date(filters.startDate.length === 10 ? `${filters.startDate}T00:00:00+07:00` : filters.startDate);
+  const end = new Date(filters.endDate.length === 10 ? `${filters.endDate}T23:59:59.999+07:00` : filters.endDate);
+  return start <= end;
+}, {
+  message: "Tanggal akhir tidak boleh sebelum tanggal awal",
+  path: ["endDate"],
 });
 
 export const fonnteWebhookSchema = z.object({
